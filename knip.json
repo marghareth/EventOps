@@ -1,4 +1,5 @@
 {
+  "entry": ["vitest.server-only-stub.ts"],
   "ignore": ["src/generated/**"],
   "ignoreDependencies": [
     "@prisma/client",

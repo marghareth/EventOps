@@ -1,0 +1,18 @@
+# .github/ISSUE_TEMPLATE/feature_request.yml
+name: Feature request
+description: Suggest an idea. Scope is frozen, so accepted ideas go to ROADMAP.md first.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What event-coordination problem does this solve, and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed idea
+    validations:
+      required: true
