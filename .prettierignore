@@ -1,0 +1,8 @@
+# .prettierignore
+.next
+node_modules
+src/generated
+package-lock.json
+coverage
+playwright-report
+test-results

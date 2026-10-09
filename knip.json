@@ -1,0 +1,12 @@
+{
+  "ignore": ["src/generated/**"],
+  "ignoreDependencies": [
+    "@prisma/client",
+    "@prisma/adapter-pg",
+    "pg",
+    "@supabase/ssr",
+    "@supabase/supabase-js",
+    "@testing-library/dom",
+    "tailwindcss"
+  ]
+}
