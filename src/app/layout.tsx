@@ -1,10 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
-import { Inter, Manrope } from "next/font/google";
+import { inter, manrope } from "./fonts";
 import "./globals.css";
-
-const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", display: "swap" });
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: "EventOps",
