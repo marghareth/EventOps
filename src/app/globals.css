@@ -80,8 +80,11 @@
     letter-spacing: -0.02em;
     line-height: var(--leading-tight);
   }
+  /* The transparent outline is invisible normally, but forced-colors mode (Windows High Contrast)
+     drops box-shadow and paints outlines in a system color, so focus stays visible there. */
   :focus-visible {
-    outline: none;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
     box-shadow: var(--ring);
   }
 }
