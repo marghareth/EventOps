@@ -1,9 +1,8 @@
 {
-  "entry": ["vitest.server-only-stub.ts"],
+  "entry": ["vitest.server-only-stub.ts", "src/**/*.db.test.ts"],
   "ignore": ["src/generated/**"],
   "ignoreDependencies": [
     "@prisma/client",
-    "@prisma/adapter-pg",
     "pg",
     "@supabase/ssr",
     "@supabase/supabase-js",

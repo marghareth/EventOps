@@ -32,23 +32,24 @@ Never commit `.env.local` or any real secret.
 
 ## Scripts
 
-| Script                | What it does                                 |
-| --------------------- | -------------------------------------------- |
-| `npm run dev`         | Start the dev server                         |
-| `npm run build`       | Production build                             |
-| `npm run lint`        | ESLint, including the module boundary rules  |
-| `npm run typecheck`   | TypeScript, no emit                          |
-| `npm run knip`        | Find unused files, exports and dependencies  |
-| `npm test`            | Unit and component tests (Vitest)            |
-| `npm run test:e2e`    | End-to-end tests (Playwright)                |
-| `npm run check`       | lint, typecheck, knip and test together      |
-| `npm run format`      | Format with Prettier                         |
-| `npm run db:generate` | Generate the Prisma client                   |
-| `npm run db:validate` | Validate `prisma/schema.prisma`              |
-| `npm run db:format`   | Format `prisma/schema.prisma`                |
-| `npm run db:migrate`  | Create and apply a migration in development  |
-| `npm run db:deploy`   | Apply pending migrations (CI and production) |
-| `npm run db:status`   | Show which migrations are applied            |
+| Script                | What it does                                           |
+| --------------------- | ------------------------------------------------------ |
+| `npm run dev`         | Start the dev server                                   |
+| `npm run build`       | Production build                                       |
+| `npm run lint`        | ESLint, including the module boundary rules            |
+| `npm run typecheck`   | TypeScript, no emit                                    |
+| `npm run knip`        | Find unused files, exports and dependencies            |
+| `npm test`            | Unit and component tests (Vitest)                      |
+| `npm run test:db`     | Database integration tests (needs `TEST_DATABASE_URL`) |
+| `npm run test:e2e`    | End-to-end tests (Playwright)                          |
+| `npm run check`       | lint, typecheck, knip and test together                |
+| `npm run format`      | Format with Prettier                                   |
+| `npm run db:generate` | Generate the Prisma client                             |
+| `npm run db:validate` | Validate `prisma/schema.prisma`                        |
+| `npm run db:format`   | Format `prisma/schema.prisma`                          |
+| `npm run db:migrate`  | Create and apply a migration in development            |
+| `npm run db:deploy`   | Apply pending migrations (CI and production)           |
+| `npm run db:status`   | Show which migrations are applied                      |
 
 ## Code structure
 
@@ -73,6 +74,22 @@ Authorization always runs on the server. Hiding a button is not authorization.
 Add or update tests for every behaviour you change. Cover the happy path, validation failures,
 authorization failures (including another event's IDs) and edge cases. Never delete or weaken a
 test to make the suite pass. If a check cannot run, say so in your pull request.
+
+### Database tests
+
+Files named `*.db.test.ts` run against a real PostgreSQL database with `npm run test:db`, never with
+`npm test`. Use a separate, empty database whose name contains `test`; the suite refuses to run
+otherwise. Never point it at the Supabase project the app uses.
+
+```bash
+createdb eventops_test   # or create an empty database any other way
+export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/eventops_test
+DIRECT_URL=$TEST_DATABASE_URL npm run db:deploy   # apply every migration to the test database
+npm run test:db
+```
+
+`TEST_DATABASE_URL` can also live in `.env.local`. CI runs the same steps against a fresh
+PostgreSQL 17 on every push and pull request.
 
 ## Branches and commits
 

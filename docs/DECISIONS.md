@@ -21,6 +21,10 @@ Status values:
 | D-005 | Event reference numbers come from a per-year counter | Proposed | 2026-10-09 |
 | D-006 | Upper-case documentation file names                  | Approved | 2026-10-09 |
 | D-007 | Exact dependency versions in package.json            | Proposed | 2026-10-09 |
+| D-008 | B0-08 initial schema covers users and events only    | Approved | 2026-10-09 |
+| D-009 | The Supabase user mirror is `User` (table `users`)   | Approved | 2026-10-09 |
+| D-010 | CHECK constraints on events                          | Approved | 2026-10-09 |
+| D-011 | An event's creator cannot be deleted                 | Approved | 2026-10-09 |
 
 ---
 
@@ -85,9 +89,13 @@ example, a task in event B assigned to a member of event A).
 - Deleting a whole event still cascades. `NO ACTION` is checked at the end of the statement, so the
   cascade removes parents and children together.
 
-**Evidence.** The init migration was applied to PostgreSQL 16 and tested. Every cross-event insert
-was rejected, a linked supplier or role could not be deleted directly, unlink-then-delete worked,
-and deleting an event left no rows behind.
+**Schema state.** Since D-008, the only event-owned table is `event_members`, which already has
+`@@unique([eventId, id])`. The links listed above are added by the batch tasks that create those
+tables, and each of those tasks follows this decision.
+
+**Evidence.** An earlier full-schema draft migration (since replaced, see D-008) was applied to
+PostgreSQL 16 and tested. Every cross-event insert was rejected, a linked supplier or role could not
+be deleted directly, unlink-then-delete worked, and deleting an event left no rows behind.
 
 **Consequences.** Delete use cases for suppliers, members and volunteer roles must unlink first.
 Who may delete each of these is set by the permission matrix, which is not yet documented.
@@ -118,6 +126,9 @@ independently editable derived totals.
   totals are copied onto the line, in the same transaction. Its `SupplierPayment` rows are deleted
   with it (cascade).
 
+**Schema state.** Since D-008, the supplier and budget tables are not in the schema yet. The
+supplier and budget tasks create them following this decision.
+
 **Not decided yet.** The exact rule that maps a paid amount to a status (for example unpaid,
 deposit paid, partially paid, paid) is a financial rule. It must be defined in the approved budget
 domain contract before it is implemented (PROJECT_RULES section 6.1).
@@ -145,6 +156,8 @@ long guest personal data is kept.
 - After deletion, there is no record in EventOps that the event existed.
 - The delete action must use the destructive confirmation dialog and state that it cannot be undone.
 - Who may delete an event is set by the permission matrix, which is not yet documented.
+- Since D-008, only `event_members` hangs off `events` (cascade). The audit table and the others
+  are added by later tasks, each with an `ON DELETE CASCADE` foreign key to `events`.
 
 ---
 
@@ -165,6 +178,8 @@ long guest personal data is kept.
 - `Event.reference` stays unique as a final safety net.
 
 **Evidence.** 40 concurrent sessions against PostgreSQL 16 received 40 distinct numbers, 1 to 40.
+The B0-08 database tests (`npm run test:db`) repeat this with 25 concurrent requests through the
+Prisma client.
 
 **Consequences.** Because the counter row stays locked until commit, a rolled-back event creation
 releases its number, so there are no gaps. Event creation is serialised per year, which is fine at
@@ -193,6 +208,65 @@ in `package-lock.json`. Upgrades and new packages need approval (PROJECT_RULES s
 
 ---
 
+## D-008 B0-08 initial schema covers users and events only
+
+**Status:** Approved by the technical lead on 2026-10-09.
+
+**Context.** The review fixes produced a draft schema and migration with all 20 tables. Task B0-08
+(Database Foundation) scopes the initial database to User, Event and EventMember, and
+PROJECT_RULES section 6 says every schema change must be justified by the task.
+
+**Decision.**
+
+- The schema and the initial migration contain only `users`, `events`, `event_members` and
+  `event_reference_counters` (needed for event references, D-005).
+- The draft migration `20261009141000_init` is replaced by `20261009143000_init`. This assumes the
+  draft was never applied to a shared or production database.
+- `Event.nextAttendeeNumber`, `Event.nextSupplierNumber`, the event assumptions and every other
+  table are added by the batch tasks that need them, following D-002 to D-005. The full draft stays
+  in Git history as a reference.
+
+---
+
+## D-009 The Supabase user mirror is `User` (table `users`)
+
+**Status:** Approved by the technical lead on 2026-10-09.
+
+**Decision.** The model that mirrors a Supabase Auth user is `User`, stored in `public.users`
+(previously drafted as `Profile` / `profiles`). Its `id` equals the `auth.users` id. There is no
+foreign key to the `auth` schema, because Prisma does not manage it; the sign-in task creates the
+row on first sign-in.
+
+---
+
+## D-010 CHECK constraints on events
+
+**Status:** Approved by the technical lead on 2026-10-09.
+
+**Decision.** The database rejects:
+
+| Constraint                         | Rule                                                    |
+| ---------------------------------- | ------------------------------------------------------- |
+| `events_name_not_blank`            | The name must contain at least one non-space character. |
+| `events_capacity_positive`         | Capacity is either not set or greater than 0.           |
+| `events_expected_attendees_nonneg` | Expected attendees cannot be negative.                  |
+| `events_ends_not_before_start`     | The end time is either not set or not before the start. |
+
+The application still validates the same rules with Zod, to show friendly form errors.
+
+---
+
+## D-011 An event's creator cannot be deleted
+
+**Status:** Approved by the technical lead on 2026-10-09.
+
+**Decision.** `events.createdById` is a foreign key to `users.id` with `ON DELETE RESTRICT`. A user
+who created events cannot be deleted until those events are deleted or, if a later task allows it,
+reassigned. Deleting a user removes their memberships (cascade). User deletion is not a Tier 1
+feature.
+
+---
+
 ## Open items needing a decision
 
 These were found during review. Each one is a conflict between sources or a product question, so
@@ -201,15 +275,17 @@ PROJECT_RULES says to stop and ask rather than choose.
 1. **QR check-in.** The repository has `checkin/qr.ts` and a check-in page (both empty). PROJECT_RULES
    section 2.2 says the Tier 1 additions do not authorise QR check-in.
 2. **Transport and volunteer impacts.** The repository has `transport-capacity` and
-   `volunteer-coverage` impact rules (empty), and the schema has `vehicleCapacity` and
-   `attendeesPerVolunteer` assumptions. PROJECT_RULES section 10 says not to build these before
+   `volunteer-coverage` impact rules (empty), and the earlier draft schema had `vehicleCapacity`
+   and `attendeesPerVolunteer` assumptions. PROJECT_RULES section 10 says not to build these before
    approval. The brand book's 180 → 220 example includes them.
-3. **Tier 2 scaffolding before Tier 1 acceptance.** Volunteers, timeline and event-day pages and
-   tables already exist (empty pages; real tables in the schema).
-4. **Plus-ones in the live attendance count.** `Attendee.checkedInAt` is a single timestamp, so how
-   plus-ones count is not defined. PROJECT_RULES section 6.2 requires this before implementation.
+3. **Tier 2 scaffolding before Tier 1 acceptance.** Empty volunteers, timeline and event-day pages
+   and modules already exist in the repository.
+4. **Plus-ones in the live attendance count.** The earlier draft modelled check-in as a single
+   `Attendee.checkedInAt` timestamp, so how plus-ones count is not defined. PROJECT_RULES section 6.2 requires this before implementation.
 5. **Commit type for security work.** PROJECT_RULES section 17 suggests `security(B4-19): ...`, but
    `commitlint.config.mjs` follows the hackathon convention and rejects the `security` type.
 6. **Payment status rule.** See D-003, "Not decided yet".
-7. **Permission matrix.** Owner, Coordinator and Viewer permissions are not documented. D-002 and
-   D-004 depend on it.
+7. **Permission matrix.** Owner, Coordinator and Viewer permissions are not documented. D-002,
+   D-004 and D-011 depend on it.
+8. **Last owner.** Nothing stops an event from losing its last Owner membership (for example when
+   that user is deleted). Whether this must be blocked, and where, is a permission-matrix question.
