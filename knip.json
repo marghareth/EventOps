@@ -1,12 +1,5 @@
 {
   "entry": ["vitest.server-only-stub.ts", "src/**/*.db.test.ts"],
   "ignore": ["src/generated/**"],
-  "ignoreDependencies": [
-    "@prisma/client",
-    "pg",
-    "@supabase/ssr",
-    "@supabase/supabase-js",
-    "@testing-library/dom",
-    "tailwindcss"
-  ]
+  "ignoreDependencies": ["@prisma/client", "pg", "@testing-library/dom", "tailwindcss"]
 }

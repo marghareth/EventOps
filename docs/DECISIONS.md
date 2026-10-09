@@ -12,19 +12,25 @@ Status values:
   The code may already follow it; if it is rejected, the code changes.
 - **Superseded**: replaced by a later entry.
 
-| ID    | Title                                                | Status   | Date       |
-| ----- | ---------------------------------------------------- | -------- | ---------- |
-| D-001 | Module layout and import boundaries                  | Proposed | 2026-10-09 |
-| D-002 | Cross-event integrity with composite foreign keys    | Proposed | 2026-10-09 |
-| D-003 | Supplier records are the source of truth for money   | Approved | 2026-10-09 |
-| D-004 | Deleting an event purges its audit log               | Approved | 2026-10-09 |
-| D-005 | Event reference numbers come from a per-year counter | Proposed | 2026-10-09 |
-| D-006 | Upper-case documentation file names                  | Approved | 2026-10-09 |
-| D-007 | Exact dependency versions in package.json            | Proposed | 2026-10-09 |
-| D-008 | B0-08 initial schema covers users and events only    | Approved | 2026-10-09 |
-| D-009 | The Supabase user mirror is `User` (table `users`)   | Approved | 2026-10-09 |
-| D-010 | CHECK constraints on events                          | Approved | 2026-10-09 |
-| D-011 | An event's creator cannot be deleted                 | Approved | 2026-10-09 |
+| ID    | Title                                                 | Status   | Date       |
+| ----- | ----------------------------------------------------- | -------- | ---------- |
+| D-001 | Module layout and import boundaries                   | Proposed | 2026-10-09 |
+| D-002 | Cross-event integrity with composite foreign keys     | Proposed | 2026-10-09 |
+| D-003 | Supplier records are the source of truth for money    | Approved | 2026-10-09 |
+| D-004 | Deleting an event purges its audit log                | Approved | 2026-10-09 |
+| D-005 | Event reference numbers come from a per-year counter  | Proposed | 2026-10-09 |
+| D-006 | Upper-case documentation file names                   | Approved | 2026-10-09 |
+| D-007 | Exact dependency versions in package.json             | Proposed | 2026-10-09 |
+| D-008 | B0-08 initial schema covers users and events only     | Approved | 2026-10-09 |
+| D-009 | The Supabase user mirror is `User` (table `users`)    | Approved | 2026-10-09 |
+| D-010 | CHECK constraints on events                           | Approved | 2026-10-09 |
+| D-011 | An event's creator cannot be deleted                  | Approved | 2026-10-09 |
+| D-012 | B0-09 includes minimal sign-in and sign-up pages      | Approved | 2026-10-09 |
+| D-013 | Server checks verify the user with getUser()          | Approved | 2026-10-09 |
+| D-014 | Email confirmation is required                        | Approved | 2026-10-09 |
+| D-015 | Passwords have at least 8 characters                  | Approved | 2026-10-09 |
+| D-016 | The users row is created at sign-in, not by a trigger | Proposed | 2026-10-09 |
+| D-017 | Public routes, landing page and sign-out scope        | Proposed | 2026-10-09 |
 
 ---
 
@@ -264,6 +270,84 @@ The application still validates the same rules with Zod, to show friendly form e
 who created events cannot be deleted until those events are deleted or, if a later task allows it,
 reassigned. Deleting a user removes their memberships (cascade). User deletion is not a Tier 1
 feature.
+
+---
+
+## D-012 B0-09 includes minimal sign-in and sign-up pages
+
+**Status:** Approved by the technical lead on 2026-10-09.
+
+**Decision.** B0-09 ships plain, working `/login` and `/sign-up` pages and a sign-out button, built
+from the existing design-system components, so the auth flow can be used and tested. The Tier 1
+"Supabase Auth: sign up, log in, log out" task polishes the user-facing experience.
+
+---
+
+## D-013 Server checks verify the user with getUser()
+
+**Status:** Approved by the technical lead on 2026-10-09.
+
+**Decision.**
+
+- `requireUser()` and `getCurrentUser()` call Supabase `auth.getUser()`, which asks Supabase Auth on
+  every call. A signed-out, banned or deleted user is rejected immediately, at the cost of one
+  network round trip per protected request.
+- The proxy only refreshes the session and redirects, so it uses `auth.getClaims()`, which verifies
+  the token signature locally when the project uses asymmetric signing keys. The proxy is never the
+  security check.
+- If Supabase cannot be reached, the server check throws instead of treating the user as signed out.
+
+---
+
+## D-014 Email confirmation is required
+
+**Status:** Approved by the technical lead on 2026-10-09.
+
+**Decision.** New accounts must confirm their email before signing in (Supabase setting "Confirm
+email" on). The code also works with it off. Supabase's built-in email sender is rate-limited, so
+custom SMTP is needed before the demo. See docs/SECURITY.md, "Required Supabase dashboard settings".
+
+---
+
+## D-015 Passwords have at least 8 characters
+
+**Status:** Approved by the technical lead on 2026-10-09.
+
+**Decision.** New passwords need 8 to 72 characters (72 is Supabase's maximum). The sign-up form
+checks it with Zod, and the Supabase project must have the same minimum. Sign-in accepts any
+non-empty password, so the rule applies only when a password is created.
+
+---
+
+## D-016 The users row is created at sign-in, not by a trigger
+
+**Status:** Proposed.
+
+**Context.** `public.users` mirrors Supabase Auth users (D-009). Supabase usually suggests a database
+trigger on `auth.users`, but the local and CI test databases have no `auth` schema, so a trigger in
+the Prisma migrations would fail there.
+
+**Decision.** The app upserts the `users` row after every successful sign-in and email confirmation
+(`syncUserRecord`). The first sign-in creates it with the sign-up name; later sign-ins update the
+email and keep the stored name. If the row cannot be saved, the sign-in is undone and the user sees
+an error.
+
+**Consequences.** A user who exists in Supabase but has never signed in through the app has no
+`users` row. A new Supabase account that reuses the email of a deleted one is rejected until the old
+`users` row is removed (unique email).
+
+---
+
+## D-017 Public routes, landing page and sign-out scope
+
+**Status:** Proposed.
+
+**Decision.**
+
+- Public without signing in: `/`, `/login`, `/sign-up` and `/auth/*`. Everything else requires a
+  session. API routes answer 401 themselves; the proxy does not redirect them.
+- After signing in, the user goes to the `next` path if it is safe, otherwise `/events`.
+- Sign-out ends only the current browser's session (`scope: "local"`); other devices stay signed in.
 
 ---
 

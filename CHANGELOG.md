@@ -9,6 +9,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B0-09 Authentication Foundation.**
+  - Supabase Auth with cookie sessions (`@supabase/ssr`): server client, session refresh in
+    `src/proxy.ts`, and a redirect to `/login?next=...` for signed-out visitors of protected pages.
+  - Server-side checks `requireUser()` and `getCurrentUser()` in `src/lib/auth.ts`, verified with
+    Supabase `getUser()` on every call (D-013). Every page under `src/app/(app)/` is protected by
+    its layout.
+  - Sign-up, sign-in and sign-out server actions with Zod validation, 8-character passwords
+    (D-015), required email confirmation (D-014) and the `/auth/confirm` route.
+  - The `users` row is created or updated at sign-in and confirmation (D-016).
+  - Safe error messages with no account enumeration, and an open-redirect guard for `?next=`.
+  - Minimal `/login` and `/sign-up` pages and a sign-out button (D-012).
+  - Tests: 107 unit and component tests, 4 database tests and 6 browser (Playwright) tests.
+  - `docs/SECURITY.md`: authentication design, required Supabase settings and a manual check.
 - **B0-08 Database Foundation.**
   - Prisma schema for `User`, `Event`, `EventMember` and `EventReferenceCounter` (D-008, D-009).
   - Initial migration `prisma/migrations/20261009143000_init`: tables, enums, unique keys, indexes,
