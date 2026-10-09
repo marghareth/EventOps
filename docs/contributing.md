@@ -30,6 +30,14 @@ npm run dev                 # http://localhost:3000
 
 Never commit `.env.local` or any real secret.
 
+Sign-up and sign-in need the Supabase dashboard settings listed in
+[docs/SECURITY.md](docs/SECURITY.md#required-supabase-dashboard-settings) (email confirmation,
+password length, redirect URLs, email template). Add `http://localhost:3000/**` to the project's
+redirect URLs for local development.
+
+Every new page, server action and route handler must check the signed-in user on the server. See
+"Rules for every new page, action and route" in [docs/SECURITY.md](docs/SECURITY.md).
+
 ## Scripts
 
 | Script                | What it does                                           |
