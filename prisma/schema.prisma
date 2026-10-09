@@ -1,25 +1,23 @@
 // prisma/schema.prisma
 //
-// EventOps data model. Rules from AGENTS.md that shape this file:
+// EventOps data model, B0-08 Database Foundation: users, events and event members.
+// Other tables (attendees, suppliers, budget, tasks, ...) are added by their own batch tasks,
+// following docs/DECISIONS.md (D-002, D-003) and docs/DATA_MODEL.md.
+//
+// Ground rules:
 // - Money is Decimal (PHP), never Float.
-// - Every event-owned table carries eventId and an index on it; every query filters by eventId.
-// - Users live in Supabase Auth (auth.users). userId columns hold that uuid and have no
-//   Prisma relation, because Prisma does not manage the auth schema.
-// - Status transitions (event, RSVP, quote, import) are enforced in the domain layer, not here.
-//   The enums only list the allowed values.
-// - Cross-event integrity: every link between two event-owned rows is a composite foreign key on
-//   (eventId, id), so the database rejects a row that points into another event. Each parent
-//   carries @@unique([eventId, id]) for this. See docs/DECISIONS.md, D-002.
-// - Optional links use onDelete: NoAction (checked at the end of the statement), because Prisma
-//   cannot SetNull only part of a composite key. The delete use case unlinks children in the same
-//   transaction. Deleting the whole event still cascades. See docs/DECISIONS.md, D-002.
-// - Money paid to and committed with suppliers lives on supplier records only. Supplier payment
-//   status is computed, not stored. See docs/DECISIONS.md, D-003.
-// - CHECK constraints Prisma cannot express are added by hand in the migration SQL and listed
-//   next to the model they guard.
-// - JSON columns are validated with Zod on every read and write.
-// - Business defaults (cost per head, accessible-seat ratio, vehicle capacity) are NOT set here.
-//   They belong to the Assumptions value object, so there is a single source of truth.
+// - Every event-owned table carries eventId and an index that starts with it; every query
+//   filters by eventId.
+// - Links between two event-owned rows are composite foreign keys on (eventId, id), so the
+//   database rejects links across events (D-002). Event-owned parents carry
+//   @@unique([eventId, id]) for this.
+// - Users live in Supabase Auth (auth.users). User mirrors that row by id, created on first
+//   sign-in. There is no foreign key to the auth schema, because Prisma does not manage it.
+// - Status transitions are enforced in the domain layer. Enums only list the allowed values.
+// - CHECK constraints Prisma cannot express are written by hand in the migration SQL and listed
+//   above the model they guard. Prisma does not diff CHECK constraints, so later migrations keep
+//   them.
+// - Business defaults belong to domain value objects, not column defaults.
 // - Event health is computed on demand and is not stored.
 
 generator client {
@@ -27,7 +25,7 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
-// Prisma 7: the connection URL lives in prisma.config.ts, not in this file.
+// Prisma 7: the connection URL lives in prisma.config.ts (CLI) and src/lib/db.ts (runtime).
 datasource db {
   provider = "postgresql"
 }
@@ -52,144 +50,33 @@ enum EventStatus {
   @@map("event_status")
 }
 
-enum RsvpStatus {
-  INVITED
-  CONFIRMED
-  DECLINED
-  MAYBE
+// ───────────────────────────── Users ─────────────────────────────
 
-  @@map("rsvp_status")
-}
-
-enum RequirementType {
-  MOBILITY_ASSISTANCE
-  ACCESSIBLE_SEATING
-  ACCESSIBLE_ENTRANCE
-  ACCESSIBLE_RESTROOM
-  SIGN_LANGUAGE
-  CAPTIONING
-  DIETARY
-  OTHER
-
-  @@map("requirement_type")
-}
-
-enum SupplierCategory {
-  VENUE
-  CATERING
-  TRANSPORT
-  PHOTO_VIDEO
-  DECOR_FLORALS
-  ENTERTAINMENT
-  ATTIRE_BEAUTY
-  PRINTING
-  OTHER
-
-  @@map("supplier_category")
-}
-
-enum QuoteStatus {
-  REQUESTED
-  RECEIVED
-  ACCEPTED
-  REJECTED
-
-  @@map("quote_status")
-}
-
-enum BudgetCategory {
-  VENUE
-  CATERING
-  TRANSPORT
-  PHOTO_VIDEO
-  DECOR_FLORALS
-  ENTERTAINMENT
-  ATTIRE_BEAUTY
-  PRINTING
-  OTHER
-
-  @@map("budget_category")
-}
-
-enum TaskPriority {
-  LOW
-  MEDIUM
-  HIGH
-
-  @@map("task_priority")
-}
-
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  DONE
-
-  @@map("task_status")
-}
-
-// The operational areas an impact or a task can point to.
-enum EventArea {
-  ATTENDEES
-  SEATING
-  ACCESSIBILITY
-  BUDGET
-  CATERING
-  SUPPLIERS
-  TRANSPORT
-  VOLUNTEERS
-  TASKS
-  TIMELINE
-
-  @@map("event_area")
-}
-
-enum Severity {
-  CRITICAL
-  NEEDS_ATTENTION
-  INFO
-  PASSED
-
-  @@map("severity")
-}
-
-enum ImportStatus {
-  UPLOADED
-  EXTRACTING
-  READY_FOR_REVIEW
-  CONFIRMED
-  DISCARDED
-  FAILED
-
-  @@map("import_status")
-}
-
-// Where an extraction came from. The UI labels these "model" and "smart import".
-// The heuristic extractor is never called AI.
-enum ExtractionSource {
-  MODEL
-  SMART_IMPORT
-
-  @@map("extraction_source")
-}
-
-// ─────────────────── Events, members, assumptions ───────────────────
-
-// Mirror of the Supabase Auth user, created on first sign-in. Used only to show names.
-model Profile {
+// Mirror of the Supabase Auth user (same id), created on first sign-in. Used to show names and
+// to link members and event creators. See docs/DECISIONS.md, D-009.
+model User {
   id          String   @id @db.Uuid
   displayName String
   email       String   @unique
   createdAt   DateTime @default(now())
 
-  members EventMember[]
+  memberships   EventMember[]
+  createdEvents Event[]
 
-  @@map("profiles")
+  @@map("users")
 }
 
+// ───────────────────────────── Events ─────────────────────────────
+
+// CHECK constraints (migration SQL, D-010):
+// - events_name_not_blank:            name has at least one non-space character.
+// - events_capacity_positive:         capacity is NULL or greater than 0.
+// - events_expected_attendees_nonneg: expectedAttendees is 0 or more.
+// - events_ends_not_before_start:     endsAt is NULL or not earlier than startsAt.
 model Event {
   id                String      @id @default(uuid()) @db.Uuid
   // Human-readable ID, for example EVT-2026-0001. Issued from EventReferenceCounter inside the
-  // creating transaction. The unique index is the last line of defence against a duplicate.
+  // creating transaction (D-005). The unique index is the last line of defence against a duplicate.
   reference         String      @unique
   name              String
   description       String?
@@ -198,33 +85,16 @@ model Event {
   endsAt            DateTime?
   // Venue capacity. Compared with expectedAttendees by the seating rule.
   capacity          Int?
-  // Planning number. Not the count of Attendee records. Changing it produces estimates.
+  // Planning number. Not the count of attendee records. Changing it produces estimates.
   expectedAttendees Int         @default(0)
   status            EventStatus @default(DRAFT)
+  // Restrict: a user who created events cannot be deleted while those events exist (D-011).
   createdById       String      @db.Uuid
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
-  // Atomic counters for readable IDs (ATT-0184, SUP-0012). Incremented inside the creating transaction.
-  nextAttendeeNumber Int @default(1)
-  nextSupplierNumber Int @default(1)
-
-  assumptions               EventAssumptions?
-  members                   EventMember[]
-  attendees                 Attendee[]
-  accessibilityRequirements AccessibilityRequirement[]
-  accessibilityResources    AccessibilityResource[]
-  suppliers                 Supplier[]
-  supplierPayments          SupplierPayment[]
-  budgetAllocations         BudgetAllocation[]
-  budgetItems               BudgetItem[]
-  tasks                     Task[]
-  volunteerRoles            VolunteerRole[]
-  volunteers                Volunteer[]
-  timelineItems             TimelineItem[]
-  impactEvents              ImpactEvent[]
-  importSessions            ImportSession[]
-  auditLogs                 AuditLog[]
+  createdBy User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  members   EventMember[]
 
   @@index([createdById])
   @@index([status, startsAt])
@@ -243,25 +113,6 @@ model EventReferenceCounter {
   @@map("event_reference_counters")
 }
 
-// Editable planning assumptions. Their values are copied onto each ImpactItem when it is created.
-// No column defaults on purpose: the defaults live in the Assumptions value object.
-model EventAssumptions {
-  eventId               String   @id @db.Uuid
-  // PHP per head, used by the catering cost rule.
-  costPerHead           Decimal  @db.Decimal(12, 2)
-  // Share of expected attendees who need accessible seating, from 0 to 1.
-  accessibleSeatRatio   Decimal  @db.Decimal(5, 4)
-  // Seats per vehicle, used by the transport rule.
-  vehicleCapacity       Int
-  // Attendees per volunteer, used by the volunteer coverage rule.
-  attendeesPerVolunteer Int
-  updatedAt             DateTime @updatedAt
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@map("event_assumptions")
-}
-
 model EventMember {
   id        String     @id @default(uuid()) @db.Uuid
   eventId   String     @db.Uuid
@@ -269,368 +120,13 @@ model EventMember {
   role      MemberRole
   createdAt DateTime   @default(now())
 
-  event         Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  profile       Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignedTasks Task[]
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // One membership per user per event.
   @@unique([eventId, userId])
-  // Target of composite foreign keys (cross-event integrity).
+  // Target of composite foreign keys from event-owned tables (D-002), for example task assignees.
   @@unique([eventId, id])
   @@index([userId])
   @@map("event_members")
-}
-
-// ─────────────────────── Attendees and accessibility ───────────────────────
-
-model Attendee {
-  id           String     @id @default(uuid()) @db.Uuid
-  eventId      String     @db.Uuid
-  // Per-event sequence behind the readable ID, for example ATT-0184.
-  number       Int
-  name         String
-  email        String?
-  phone        String?
-  rsvpStatus   RsvpStatus @default(INVITED)
-  category     String?
-  plusOnes     Int        @default(0)
-  dietaryNeeds String?
-  notes        String?
-  // Set by check-in on the day of the event.
-  checkedInAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  event        Event                      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  requirements AccessibilityRequirement[]
-
-  @@unique([eventId, number])
-  // Target of composite foreign keys (cross-event integrity).
-  @@unique([eventId, id])
-  @@index([eventId, rsvpStatus])
-  @@index([eventId, name])
-  @@map("attendees")
-}
-
-// A need that belongs to one attendee or one volunteer (exactly one of the two).
-// Enforced by CHECK constraint "accessibility_requirements_one_owner" in the migration SQL
-// (Prisma cannot express it). The use case still validates it to return a friendly error.
-model AccessibilityRequirement {
-  id          String          @id @default(uuid()) @db.Uuid
-  eventId     String          @db.Uuid
-  attendeeId  String?         @db.Uuid
-  volunteerId String?         @db.Uuid
-  type        RequirementType
-  notes       String?
-  createdAt   DateTime        @default(now())
-
-  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  attendee  Attendee?  @relation(fields: [eventId, attendeeId], references: [eventId, id], onDelete: Cascade)
-  volunteer Volunteer? @relation(fields: [eventId, volunteerId], references: [eventId, id], onDelete: Cascade)
-
-  @@index([eventId, type])
-  @@index([eventId, attendeeId])
-  @@index([eventId, volunteerId])
-  @@map("accessibility_requirements")
-}
-
-// What the event has available, one row per type.
-// Example: ACCESSIBLE_SEATING available = 6. "Configured" means available > 0.
-model AccessibilityResource {
-  id        String          @id @default(uuid()) @db.Uuid
-  eventId   String          @db.Uuid
-  type      RequirementType
-  available Int             @default(0)
-  notes     String?
-  updatedAt DateTime        @updatedAt
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@unique([eventId, type])
-  @@map("accessibility_resources")
-}
-
-// ───────────────────────── Suppliers and budget ─────────────────────────
-
-model Supplier {
-  id            String           @id @default(uuid()) @db.Uuid
-  eventId       String           @db.Uuid
-  // Per-event sequence behind the readable ID, for example SUP-0012.
-  number        Int
-  name          String
-  category      SupplierCategory
-  contactName   String?
-  email         String?
-  phone         String?
-  // Committed amount = quoteAmount while quoteStatus is ACCEPTED, otherwise zero (D-003).
-  quoteAmount   Decimal?         @db.Decimal(12, 2)
-  quoteStatus   QuoteStatus      @default(REQUESTED)
-  depositAmount Decimal?         @db.Decimal(12, 2)
-  // No stored payment status. Paid amount = sum of SupplierPayment rows; the status shown in the
-  // UI is computed from that sum by the budget domain (D-003).
-  dueDate       DateTime?
-  // Null until the supplier confirms. Read by the supplier confirmations health check.
-  confirmedAt   DateTime?
-  notes         String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-
-  event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  payments   SupplierPayment[]
-  // At most one budget line per supplier, so its money is counted once (D-003).
-  budgetItem BudgetItem?
-  tasks      Task[]
-
-  @@unique([eventId, number])
-  // Target of composite foreign keys (cross-event integrity).
-  @@unique([eventId, id])
-  @@index([eventId, category])
-  @@index([eventId, quoteStatus])
-  @@map("suppliers")
-}
-
-// The only record of money paid to a supplier (D-003).
-model SupplierPayment {
-  id         String   @id @default(uuid()) @db.Uuid
-  eventId    String   @db.Uuid
-  supplierId String   @db.Uuid
-  amount     Decimal  @db.Decimal(12, 2)
-  paidAt     DateTime
-  note       String?
-  createdAt  DateTime @default(now())
-
-  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  supplier Supplier @relation(fields: [eventId, supplierId], references: [eventId, id], onDelete: Cascade)
-
-  @@index([eventId, supplierId])
-  @@map("supplier_payments")
-}
-
-// Planned amount per category.
-model BudgetAllocation {
-  id        String         @id @default(uuid()) @db.Uuid
-  eventId   String         @db.Uuid
-  category  BudgetCategory
-  allocated Decimal        @db.Decimal(12, 2)
-  updatedAt DateTime       @updatedAt
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@unique([eventId, category])
-  @@map("budget_allocations")
-}
-
-// A budget line. Remaining budget and over-budget status are computed by computeBudgetSummary.
-// Money source (D-003):
-// - Linked to a supplier: committed and paid come from that supplier, and committedAmount and
-//   paidAmount here must be NULL.
-// - Not linked: committedAmount and paidAmount are this line's own amounts and must be set.
-// Enforced by CHECK constraint "budget_items_amount_source" in the migration SQL.
-// When a supplier is deleted, the use case first unlinks its budget line and copies the supplier's
-// committed and paid totals onto it, in the same transaction, so the CHECK still holds.
-model BudgetItem {
-  id              String         @id @default(uuid()) @db.Uuid
-  eventId         String         @db.Uuid
-  supplierId      String?        @db.Uuid
-  category        BudgetCategory
-  description     String
-  estimatedAmount Decimal        @db.Decimal(12, 2)
-  committedAmount Decimal?       @db.Decimal(12, 2)
-  paidAmount      Decimal?       @db.Decimal(12, 2)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-
-  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  supplier Supplier? @relation(fields: [eventId, supplierId], references: [eventId, id], onDelete: NoAction)
-
-  // One budget line per supplier. NULL supplierId rows do not conflict.
-  @@unique([eventId, supplierId])
-  @@index([eventId, category])
-  @@map("budget_items")
-}
-
-// ───────────────────────────── Tasks ─────────────────────────────
-
-model Task {
-  id                String       @id @default(uuid()) @db.Uuid
-  eventId           String       @db.Uuid
-  title             String
-  description       String?
-  assigneeMemberId  String?      @db.Uuid
-  dueDate           DateTime?
-  priority          TaskPriority @default(MEDIUM)
-  status            TaskStatus   @default(TODO)
-  // A task relates to a supplier, an area, both, or neither.
-  relatedSupplierId String?      @db.Uuid
-  relatedArea       EventArea?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-
-  event           Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  // NoAction: removing a member or deleting a supplier first clears these links in the same
-  // transaction (D-002).
-  assignee        EventMember? @relation(fields: [eventId, assigneeMemberId], references: [eventId, id], onDelete: NoAction)
-  relatedSupplier Supplier?    @relation(fields: [eventId, relatedSupplierId], references: [eventId, id], onDelete: NoAction)
-
-  @@index([eventId, status, dueDate])
-  @@index([eventId, relatedArea])
-  @@index([eventId, assigneeMemberId])
-  @@index([eventId, relatedSupplierId])
-  @@map("tasks")
-}
-
-// ─────────────── Volunteers and timeline (Tier 2) ───────────────
-
-model VolunteerRole {
-  id            String @id @default(uuid()) @db.Uuid
-  eventId       String @db.Uuid
-  name          String
-  // People needed in this role. Coverage reads as assigned / required, for example Usher 2/3.
-  requiredCount Int
-
-  event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  volunteers Volunteer[]
-
-  @@unique([eventId, name])
-  // Target of composite foreign keys (cross-event integrity).
-  @@unique([eventId, id])
-  @@map("volunteer_roles")
-}
-
-model Volunteer {
-  id          String    @id @default(uuid()) @db.Uuid
-  eventId     String    @db.Uuid
-  roleId      String?   @db.Uuid
-  name        String
-  email       String?
-  phone       String?
-  shiftStart  DateTime?
-  shiftEnd    DateTime?
-  checkedInAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  event        Event                      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  // NoAction: deleting a role first clears roleId on its volunteers in the same transaction (D-002).
-  role         VolunteerRole?             @relation(fields: [eventId, roleId], references: [eventId, id], onDelete: NoAction)
-  requirements AccessibilityRequirement[]
-
-  // Target of composite foreign keys (cross-event integrity).
-  @@unique([eventId, id])
-  @@index([eventId, roleId])
-  @@map("volunteers")
-}
-
-// One row of the run-of-show.
-model TimelineItem {
-  id          String    @id @default(uuid()) @db.Uuid
-  eventId     String    @db.Uuid
-  title       String
-  description String?
-  startsAt    DateTime
-  endsAt      DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([eventId, startsAt])
-  @@map("timeline_items")
-}
-
-// ───────────────────────────── Impact ─────────────────────────────
-
-// One applied change and what it triggered. Preview runs are not stored.
-model ImpactEvent {
-  id          String   @id @default(uuid()) @db.Uuid
-  eventId     String   @db.Uuid
-  changedById String   @db.Uuid
-  // Validated by Zod on read and write (a discriminated union of change kinds).
-  changeType  String
-  before      Json
-  after       Json
-  createdAt   DateTime @default(now())
-
-  event Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  items ImpactItem[]
-
-  // Target of composite foreign keys (cross-event integrity).
-  @@unique([eventId, id])
-  @@index([eventId, createdAt])
-  @@map("impact_events")
-}
-
-model ImpactItem {
-  id              String    @id @default(uuid()) @db.Uuid
-  impactEventId   String    @db.Uuid
-  eventId         String    @db.Uuid
-  // Id of the rule that produced it, from impact/domain/registry.ts.
-  ruleId          String
-  area            EventArea
-  severity        Severity
-  message         String
-  reason          String
-  // True when the item comes from the planning number rather than from records.
-  isEstimate      Boolean
-  // Snapshot of the assumptions used, copied from EventAssumptions. Validated by Zod.
-  assumptionsUsed Json
-  linkedRoute     String
-  createdAt       DateTime  @default(now())
-
-  // Composite key: an item always belongs to the same event as its ImpactEvent.
-  impactEvent ImpactEvent @relation(fields: [eventId, impactEventId], references: [eventId, id], onDelete: Cascade)
-
-  @@index([eventId, impactEventId])
-  @@index([eventId, severity])
-  @@map("impact_items")
-}
-
-// ───────────────────────────── Import ─────────────────────────────
-
-model ImportSession {
-  id               String            @id @default(uuid()) @db.Uuid
-  eventId          String            @db.Uuid
-  createdById      String            @db.Uuid
-  status           ImportStatus      @default(UPLOADED)
-  // Original name is for display only. The stored object uses storagePath, a generated name.
-  originalFileName String
-  mimeType         String
-  sizeBytes        Int
-  storagePath      String            @unique
-  extractionSource ExtractionSource?
-  // Extracted data and validation findings. Untrusted until Zod and business validation pass.
-  extracted        Json?
-  validationReport Json?
-  errorMessage     String?
-  createdAt        DateTime          @default(now())
-  confirmedAt      DateTime?
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([eventId, status])
-  @@map("import_sessions")
-}
-
-// ───────────────────────────── Audit ─────────────────────────────
-
-// Append-only while the event exists. Written by writeAudit in the same transaction as the change.
-// Never updated. Do not store guest names, phones or emails in before/after beyond what the change
-// needs.
-// Deleting the event deliberately purges its audit log with all other event data (cascade). This
-// is an approved decision, not an oversight. See docs/DECISIONS.md, D-004.
-model AuditLog {
-  id         String   @id @default(uuid()) @db.Uuid
-  eventId    String   @db.Uuid
-  actorId    String   @db.Uuid
-  action     String
-  entityType String
-  entityId   String
-  before     Json?
-  after      Json?
-  createdAt  DateTime @default(now())
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([eventId, createdAt])
-  @@index([eventId, entityType, entityId])
-  @@map("audit_logs")
 }
