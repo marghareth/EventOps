@@ -2,6 +2,9 @@
 // Settings page (B1-05): checks access itself; the edit form for Owners and Coordinators only.
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { EventDetails } from "@/modules/events/public";
+
+type MemberRole = EventDetails["role"];
 
 const requireEventAccess = vi.fn();
 
@@ -39,7 +42,7 @@ const event = {
   updatedAt: new Date("2026-10-11T01:02:03.456Z"),
 };
 
-async function renderAs(role: string) {
+async function renderAs(role: MemberRole) {
   requireEventAccess.mockResolvedValue({
     user: {},
     access: { kind: "ok", event: { ...event, role } },
@@ -54,7 +57,7 @@ beforeEach(() => {
 describe("Settings page", () => {
   it.each(["OWNER", "COORDINATOR"])(
     "gives %s the edit form with the saved values",
-    async (role) => {
+    async (role: MemberRole) => {
       await renderAs(role);
       expect(requireEventAccess).toHaveBeenCalledWith(ID);
       expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeInTheDocument();
@@ -68,7 +71,7 @@ describe("Settings page", () => {
     ["OWNER", true],
     ["COORDINATOR", false],
     ["VIEWER", false],
-  ])("shows %s the Delete event section: %s", async (role, shown) => {
+  ])("shows %s the Delete event section: %s", async (role: MemberRole, shown: boolean) => {
     await renderAs(role);
     const section = screen.queryByRole("region", { name: "Delete event" });
     if (shown) expect(section).toBeInTheDocument();
@@ -79,7 +82,7 @@ describe("Settings page", () => {
     ["OWNER", "Your role: Owner. Full event management"],
     ["COORDINATOR", "Your role: Coordinator. Day-to-day operations"],
     ["VIEWER", "Your role: Viewer. Read-only access"],
-  ])("tells a %s what their role allows", async (role, text) => {
+  ])("tells a %s what their role allows", async (role: MemberRole, text: string) => {
     await renderAs(role);
     expect(screen.getByText(/^Your role:/).closest("p")).toHaveTextContent(text);
   });
@@ -90,12 +93,6 @@ describe("Settings page", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.getByText(/Owners and Coordinators can edit them/)).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Event details" })).toHaveTextContent("Cebu");
-  });
-
-  it("explains demo mode without a database", async () => {
-    requireEventAccess.mockResolvedValue({ user: {}, access: { kind: "no-database" } });
-    render(await SettingsPage({ params: Promise.resolve({ eventId: ID }) }));
-    expect(screen.getByText("No database connected")).toBeInTheDocument();
   });
 
   it("has an error state that never shows the error text", () => {

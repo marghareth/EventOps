@@ -28,22 +28,19 @@ beforeEach(() => {
 
 describe("My events page", () => {
   it("requires sign-in and lists the user's events", async () => {
-    getMyEvents.mockResolvedValue({
-      status: "ok",
-      events: [
-        {
-          id: "e1",
-          reference: "EVT-2099-0001",
-          name: "Santos wedding",
-          venue: null,
-          startsAt: new Date("2099-12-12T08:00:00Z"),
-          endsAt: null,
-          status: "DRAFT",
-          expectedAttendees: 0,
-          role: "OWNER",
-        },
-      ],
-    });
+    getMyEvents.mockResolvedValue([
+      {
+        id: "e1",
+        reference: "EVT-2099-0001",
+        name: "Santos wedding",
+        venue: null,
+        startsAt: new Date("2099-12-12T08:00:00Z"),
+        endsAt: null,
+        status: "DRAFT",
+        expectedAttendees: 0,
+        role: "OWNER",
+      },
+    ]);
     render(await EventsPage({ searchParams: Promise.resolve({}) }));
     expect(requireUser).toHaveBeenCalledWith("/events");
     expect(getMyEvents).toHaveBeenCalledWith("user-1");
@@ -55,7 +52,7 @@ describe("My events page", () => {
   });
 
   it("shows an empty state that leads to Create Event", async () => {
-    getMyEvents.mockResolvedValue({ status: "ok", events: [] });
+    getMyEvents.mockResolvedValue([]);
     render(await EventsPage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByRole("heading", { name: "No events yet" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Create an event" })).toHaveAttribute(
@@ -63,24 +60,18 @@ describe("My events page", () => {
       "/events/new",
     );
   });
-
-  it("explains demo mode without a database", async () => {
-    getMyEvents.mockResolvedValue({ status: "no-database" });
-    render(await EventsPage({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByText("No database connected")).toBeInTheDocument();
-  });
 });
 
 describe("My events after deleting an event (B1-06)", () => {
   it("confirms the deletion when the reference is well formed", async () => {
-    getMyEvents.mockResolvedValue({ status: "ok", events: [] });
+    getMyEvents.mockResolvedValue([]);
     render(await EventsPage({ searchParams: Promise.resolve({ deleted: "EVT-2026-0001" }) }));
     expect(screen.getByText("Event deleted")).toBeInTheDocument();
     expect(screen.getByText("EVT-2026-0001")).toBeInTheDocument();
   });
 
   it("ignores a forged reference", async () => {
-    getMyEvents.mockResolvedValue({ status: "ok", events: [] });
+    getMyEvents.mockResolvedValue([]);
     render(await EventsPage({ searchParams: Promise.resolve({ deleted: "<b>gone</b>" }) }));
     expect(screen.queryByText("Event deleted")).not.toBeInTheDocument();
   });

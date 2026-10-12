@@ -29,7 +29,9 @@ type Props = {
 
 export default async function EventOverviewPage({ params, searchParams }: Props) {
   const { eventId } = await params;
-  const { access } = await requireEventAccess(eventId);
+  const {
+    access: { event },
+  } = await requireEventAccess(eventId);
   const { created } = await searchParams;
   const reference = Array.isArray(created) ? created[0] : created;
 
@@ -42,13 +44,13 @@ export default async function EventOverviewPage({ params, searchParams }: Props)
       {isEventReference(reference) ? <EventCreatedNotice reference={reference} /> : null}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-h2 font-extrabold">Overview</h1>
-        {access.kind === "ok" && can(access.event.role, "event.edit") ? (
+        {can(event.role, "event.edit") ? (
           <Button asChild variant="secondary">
-            <Link href={`/events/${access.event.id}/settings`}>Edit event</Link>
+            <Link href={`/events/${event.id}/settings`}>Edit event</Link>
           </Button>
         ) : null}
       </div>
-      {access.kind === "ok" ? <EventDetailsCard event={access.event} /> : null}
+      <EventDetailsCard event={event} />
       <SectionTiles sections={sections} />
     </div>
   );

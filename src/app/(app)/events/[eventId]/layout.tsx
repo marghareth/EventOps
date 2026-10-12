@@ -6,7 +6,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ConfirmEvent } from "@/components/layout/EventContext";
-import { Banner } from "@/components/shared/Banner";
 import { EventHeader, requireEventAccess } from "@/modules/events/public";
 import { eventNameForTitle } from "./event-title";
 
@@ -32,27 +31,14 @@ export default async function EventLayout({
   params: Params;
 }) {
   const { eventId } = await params;
-  const { access } = await requireEventAccess(eventId);
+  const {
+    access: { event },
+  } = await requireEventAccess(eventId);
 
   return (
     <>
-      {access.kind === "ok" ? (
-        <>
-          <ConfirmEvent
-            event={{
-              id: access.event.id,
-              name: access.event.name,
-              reference: access.event.reference,
-            }}
-          />
-          <EventHeader event={access.event} />
-        </>
-      ) : (
-        <Banner severity="info" title="No database connected" className="mb-6">
-          Demo sign-in is showing the workspace layout without event data. Set DATABASE_URL in
-          .env.local to open real events.
-        </Banner>
-      )}
+      <ConfirmEvent event={{ id: event.id, name: event.name, reference: event.reference }} />
+      <EventHeader event={event} />
       {children}
     </>
   );

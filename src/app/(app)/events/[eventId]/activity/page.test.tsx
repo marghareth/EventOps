@@ -83,13 +83,6 @@ describe("Activity page", () => {
     expect(screen.getByRole("heading", { name: "No activity yet" })).toBeInTheDocument();
   });
 
-  it("explains demo mode without a database", async () => {
-    requireEventAccess.mockResolvedValue({ user: {}, access: { kind: "no-database" } });
-    await renderPage();
-    expect(screen.getByText("No database connected")).toBeInTheDocument();
-    expect(getEventActivity).not.toHaveBeenCalled();
-  });
-
   it("has an error state that never shows the error text", () => {
     render(<ActivityError error={new Error("relation audit_logs")} reset={vi.fn()} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load activity");

@@ -65,13 +65,6 @@ describe("events/[eventId] layout", () => {
       EventLayout({ children: "section content", params: Promise.resolve({ eventId: ID }) }),
     ).rejects.toMatchObject({ notFound: true });
   });
-
-  it("explains demo mode without a database and still shows the section", async () => {
-    requireEventAccess.mockResolvedValue({ user: {}, access: { kind: "no-database" } });
-    await renderLayout();
-    expect(screen.getByText("No database connected")).toBeInTheDocument();
-    expect(screen.getByText("section content")).toBeInTheDocument();
-  });
 });
 
 describe("event context and tab title (B1-13)", () => {
@@ -91,19 +84,6 @@ describe("event context and tab title (B1-13)", () => {
       </EventContextProvider>,
     );
     expect(await screen.findByText("confirmed: Santos wedding EVT-2026-0001")).toBeInTheDocument();
-  });
-
-  it("confirms nothing in demo mode without a database", async () => {
-    requireEventAccess.mockResolvedValue({ user: {}, access: { kind: "no-database" } });
-    render(
-      <EventContextProvider>
-        {await EventLayout({
-          children: <ShowConfirmed />,
-          params: Promise.resolve({ eventId: ID }),
-        })}
-      </EventContextProvider>,
-    );
-    expect(screen.getByText("confirmed: none")).toBeInTheDocument();
   });
 
   const metadata = () => generateMetadata({ params: Promise.resolve({ eventId: ID }) });
@@ -146,7 +126,7 @@ describe("event context and tab title (B1-13)", () => {
       },
     ],
     ["sign-in unavailable", () => getCurrentUser.mockRejectedValue(new Error("down"))],
-  ])("adds nothing to the title when %s", async (_label, arrange) => {
+  ])("adds nothing to the title when %s", async (_label: string, arrange: () => void) => {
     arrange();
     expect(await metadata()).toEqual({});
   });
