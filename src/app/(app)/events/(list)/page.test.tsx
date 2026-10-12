@@ -39,7 +39,7 @@ describe("My events page", () => {
         },
       ],
     });
-    render(await EventsPage());
+    render(await EventsPage({ searchParams: Promise.resolve({}) }));
     expect(requireUser).toHaveBeenCalledWith("/events");
     expect(getMyEvents).toHaveBeenCalledWith("user-1");
     expect(screen.getByRole("heading", { level: 1, name: "My events" })).toBeInTheDocument();
@@ -51,7 +51,7 @@ describe("My events page", () => {
 
   it("shows an empty state that leads to Create Event", async () => {
     getMyEvents.mockResolvedValue({ status: "ok", events: [] });
-    render(await EventsPage());
+    render(await EventsPage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByRole("heading", { name: "No events yet" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Create an event" })).toHaveAttribute(
       "href",
@@ -61,8 +61,23 @@ describe("My events page", () => {
 
   it("explains demo mode without a database", async () => {
     getMyEvents.mockResolvedValue({ status: "no-database" });
-    render(await EventsPage());
+    render(await EventsPage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByText("No database connected")).toBeInTheDocument();
+  });
+});
+
+describe("My events after deleting an event (B1-06)", () => {
+  it("confirms the deletion when the reference is well formed", async () => {
+    getMyEvents.mockResolvedValue({ status: "ok", events: [] });
+    render(await EventsPage({ searchParams: Promise.resolve({ deleted: "EVT-2026-0001" }) }));
+    expect(screen.getByText("Event deleted")).toBeInTheDocument();
+    expect(screen.getByText("EVT-2026-0001")).toBeInTheDocument();
+  });
+
+  it("ignores a forged reference", async () => {
+    getMyEvents.mockResolvedValue({ status: "ok", events: [] });
+    render(await EventsPage({ searchParams: Promise.resolve({ deleted: "<b>gone</b>" }) }));
+    expect(screen.queryByText("Event deleted")).not.toBeInTheDocument();
   });
 });
 

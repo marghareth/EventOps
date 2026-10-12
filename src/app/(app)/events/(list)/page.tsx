@@ -7,16 +7,30 @@ import { Banner } from "@/components/shared/Banner";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
-import { EventList, getMyEvents, groupEvents } from "@/modules/events/public";
+import {
+  EventDeletedNotice,
+  EventList,
+  getMyEvents,
+  groupEvents,
+  isEventReference,
+} from "@/modules/events/public";
 
 export const metadata: Metadata = { title: "My events" };
 
-export default async function EventsPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function EventsPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser("/events");
   const result = await getMyEvents(user.id);
+  // B1-06: after deleting an event. Displayed only if well formed; never trusted for anything else.
+  const { deleted } = await searchParams;
+  const deletedReference = Array.isArray(deleted) ? deleted[0] : deleted;
 
   return (
     <div className="flex flex-col gap-6">
+      {isEventReference(deletedReference) ? (
+        <EventDeletedNotice reference={deletedReference} />
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-h2 font-extrabold">My events</h1>
         <Button asChild>

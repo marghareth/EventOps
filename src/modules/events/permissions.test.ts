@@ -14,3 +14,11 @@ it.each([
 it("lists the roles for a permission", () => {
   expect(rolesAllowed("event.edit")).toEqual(["OWNER", "COORDINATOR"]);
 });
+
+it.each([
+  ["OWNER", true],
+  ["COORDINATOR", false],
+  ["VIEWER", false],
+] as const)("event.delete: %s -> %s", (role, allowed) => {
+  expect(can(role, "event.delete")).toBe(allowed);
+});

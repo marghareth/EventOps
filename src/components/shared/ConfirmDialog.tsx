@@ -16,6 +16,10 @@ type ConfirmDialogProps = {
   destructive?: boolean;
   /** True while the action runs. Locks both buttons and Escape so it cannot run twice. */
   pending?: boolean;
+  /** Keeps the confirm button disabled, for example until a typed confirmation matches. */
+  confirmDisabled?: boolean;
+  /** Extra content below the description, for example a confirmation field or an error. */
+  children?: ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -37,8 +41,10 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   destructive = false,
   pending = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
+  children,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -86,6 +92,7 @@ export function ConfirmDialog({
         <div id={descriptionId} className="mt-2 text-ink-2">
           {description}
         </div>
+        {children ? <div className="mt-4">{children}</div> : null}
       </div>
       <div className="flex flex-wrap justify-end gap-3 px-7 pb-7">
         <Button ref={cancelRef} variant="outline" onClick={onCancel} disabled={pending}>
@@ -95,7 +102,7 @@ export function ConfirmDialog({
           ref={confirmRef}
           variant={destructive ? "destructive" : "default"}
           onClick={onConfirm}
-          disabled={pending}
+          disabled={pending || confirmDisabled}
         >
           {pending ? "Working…" : confirmLabel}
         </Button>

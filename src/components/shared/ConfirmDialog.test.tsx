@@ -81,4 +81,24 @@ describe("ConfirmDialog", () => {
     setup({ cancelLabel: "Keep event" });
     expect(screen.getByRole("button", { name: "Keep event" })).toBeInTheDocument();
   });
+
+  it("keeps the confirm button disabled while confirmDisabled is set, and shows extra content", () => {
+    render(
+      <ConfirmDialog
+        open
+        title="Delete this event?"
+        description="You can't undo this."
+        confirmLabel="Delete event"
+        destructive
+        confirmDisabled
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      >
+        <p>Type the event number to confirm.</p>
+      </ConfirmDialog>,
+    );
+    expect(screen.getByRole("button", { name: "Delete event" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(screen.getByText("Type the event number to confirm.")).toBeInTheDocument();
+  });
 });

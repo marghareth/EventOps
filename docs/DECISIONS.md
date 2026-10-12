@@ -43,6 +43,7 @@ Status values:
 | D-027 | Event workspace access: members only, others see 404     | Approved | 2026-10-11 |
 | D-031 | Permission matrix, first row: editing an event           | Approved | 2026-10-11 |
 | D-032 | Editing an event: fields, stale saves, audit later       | Approved | 2026-10-11 |
+| D-033 | Deleting an event: Owner only, typed confirmation        | Approved | 2026-10-11 |
 
 ---
 
@@ -173,9 +174,11 @@ long guest personal data is kept.
 
 - After deletion, there is no record in EventOps that the event existed.
 - The delete action must use the destructive confirmation dialog and state that it cannot be undone.
-- Who may delete an event is set by the permission matrix, which is not yet documented.
+- Who may delete an event is set by the permission matrix: Owners only (D-033).
 - Since D-008, only `event_members` hangs off `events` (cascade). The audit table and the others
   are added by later tasks, each with an `ON DELETE CASCADE` foreign key to `events`.
+- **Implemented in B1-06 and reconfirmed by the technical lead on 2026-10-11** (cascade, not
+  archiving). A database test fails if any foreign key to `events` is not `ON DELETE CASCADE`.
 
 ---
 
@@ -610,6 +613,30 @@ action checks the role itself every time, and the edit's database update checks 
 
 ---
 
+## D-033 Deleting an event: Owner only, typed confirmation
+
+**Status:** Approved by the technical lead on 2026-10-11 (B1-06 plan).
+
+**Decision.**
+
+- Permission matrix row (D-031): `event.delete` is Owner only. Coordinators can edit but not
+  delete; Viewers can do neither. Any Owner may delete, if an event has several.
+- Deletion is permanent and removes everything that belongs to the event (D-004, reconfirmed). No
+  archive or restore.
+- The "Delete event" section sits at the bottom of the event's Settings page and is shown only to
+  Owners. Its destructive dialog names the event and says it can't be undone; Delete stays disabled
+  until the event number (for example `EVT-2026-0001`) is typed. Cancel deletes nothing.
+- The server action checks membership, the role and the typed number itself. The database delete
+  repeats the membership and role check in the same statement, so a role change in between deletes
+  nothing.
+- On success the user lands on My events with an "Event deleted" notice. The deleted event's pages
+  and API answer 404 like any unknown event (D-027).
+- Errors: refused or already deleted gives "This event isn't available"; a database failure says
+  nothing was removed. Both keep the dialog open.
+- No audit entry: the event's audit log is deleted with it (D-004), and no audit log exists yet.
+
+---
+
 ## Open items needing a decision
 
 These were found during review. Each one is a conflict between sources or a product question, so
@@ -628,8 +655,8 @@ PROJECT_RULES says to stop and ask rather than choose.
 5. **Commit type for security work.** PROJECT_RULES section 17 suggests `security(B4-19): ...`, but
    `commitlint.config.mjs` follows the hackathon convention and rejects the `security` type.
 6. **Payment status rule.** See D-003, "Not decided yet".
-7. **Permission matrix.** Started in D-031 with editing an event only. Every other permission
-   (deleting events, members, suppliers, budget, tasks) is still undocumented. D-002, D-004 and
+7. **Permission matrix.** Started in D-031 with editing an event; D-033 adds deleting it. Every
+   other permission (members, suppliers, budget, tasks) is still undocumented. D-002, D-004 and
    D-011 depend on it.
 8. ~~**Last owner.**~~ Resolved at the data level by D-022: the database blocks removing, demoting or
    deleting an event's last `OWNER`.

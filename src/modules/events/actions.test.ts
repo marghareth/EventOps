@@ -4,8 +4,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CREATE_EVENT_MESSAGES,
+  DELETE_EVENT_MESSAGES,
   EDIT_EVENT_MESSAGES,
   initialCreateEventState,
+  initialDeleteEventState,
   initialEditEventState,
 } from "./form-state";
 
@@ -14,6 +16,7 @@ const ensureDemoUserRecord = vi.fn();
 const createEvent = vi.fn();
 const getEventAccess = vi.fn();
 const updateEvent = vi.fn();
+const deleteEvent = vi.fn();
 const revalidatePath = vi.fn();
 let demo = false;
 
@@ -28,6 +31,7 @@ vi.mock("@/lib/demo-auth", () => ({
 }));
 vi.mock("./create-event", () => ({ createEvent: (...args: unknown[]) => createEvent(...args) }));
 vi.mock("./access", () => ({ getEventAccess: (...args: unknown[]) => getEventAccess(...args) }));
+vi.mock("./delete-event", () => ({ deleteEvent: (...args: unknown[]) => deleteEvent(...args) }));
 vi.mock("./update-event", () => ({ updateEvent: (...args: unknown[]) => updateEvent(...args) }));
 vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => revalidatePath(...args),
@@ -38,7 +42,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-const { createEventAction, updateEventAction } = await import("./actions");
+const { createEventAction, deleteEventAction, updateEventAction } = await import("./actions");
 
 const valid = {
   name: "Santos wedding",
@@ -308,5 +312,96 @@ describe("updateEventAction (B1-05)", () => {
   it("explains demo mode without a database", async () => {
     getEventAccess.mockResolvedValue({ kind: "no-database" });
     expect((await edit({})).state).toMatchObject({ message: EDIT_EVENT_MESSAGES.noDatabase });
+  });
+});
+
+describe("deleteEventAction (B1-06)", () => {
+  const EVENT = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
+  const REFERENCE = "EVT-2026-0001";
+
+  function member(role: "OWNER" | "COORDINATOR" | "VIEWER") {
+    getEventAccess.mockResolvedValue({
+      kind: "ok",
+      event: { id: EVENT, reference: REFERENCE, name: "Santos wedding", role },
+    });
+  }
+  async function remove(confirmation: string | null = REFERENCE) {
+    const data = new FormData();
+    if (confirmation !== null) data.set("confirmation", confirmation);
+    try {
+      return { state: await deleteEventAction(EVENT, initialDeleteEventState, data) };
+    } catch (error) {
+      const url = (error as { url?: string }).url;
+      if (url) return { redirect: url };
+      throw error;
+    }
+  }
+
+  beforeEach(() => {
+    member("OWNER");
+    deleteEvent.mockResolvedValue({ ok: true });
+  });
+
+  it("lets the Owner delete after typing the event number, then opens My events", async () => {
+    expect(await remove()).toEqual({ redirect: `/events?deleted=${REFERENCE}` });
+    expect(deleteEvent).toHaveBeenCalledWith("db", { eventId: EVENT, userId: "user-1" });
+    expect(revalidatePath).toHaveBeenCalledWith("/events");
+  });
+
+  it("accepts the number with surrounding spaces", async () => {
+    expect(await remove(`  ${REFERENCE} `)).toEqual({ redirect: `/events?deleted=${REFERENCE}` });
+  });
+
+  it.each([["COORDINATOR"], ["VIEWER"]] as const)(
+    "refuses a %s and deletes nothing",
+    async (role) => {
+      member(role);
+      expect((await remove()).state).toEqual({
+        status: "error",
+        message: DELETE_EVENT_MESSAGES.forbidden,
+      });
+      expect(deleteEvent).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses a non-member exactly like a missing event", async () => {
+    getEventAccess.mockResolvedValue({ kind: "not-found" });
+    expect((await remove()).state).toMatchObject({ message: DELETE_EVENT_MESSAGES.notFound });
+    expect(deleteEvent).not.toHaveBeenCalled();
+  });
+
+  it.each([["EVT-2026-0002"], ["evt-2026-0001"], [""], [null]])(
+    "refuses a wrong confirmation (%j) and deletes nothing",
+    async (typed) => {
+      expect((await remove(typed)).state).toMatchObject({
+        message: DELETE_EVENT_MESSAGES.confirmation,
+      });
+      expect(deleteEvent).not.toHaveBeenCalled();
+    },
+  );
+
+  it("sends signed-out users to sign in", async () => {
+    requireUser.mockImplementation(() => {
+      throw Object.assign(new Error("NEXT_REDIRECT"), { url: "/login" });
+    });
+    expect(await remove()).toEqual({ redirect: "/login" });
+    expect(deleteEvent).not.toHaveBeenCalled();
+  });
+
+  it("reports an event that was already deleted or lost permission meanwhile", async () => {
+    deleteEvent.mockResolvedValue({ ok: false });
+    expect((await remove()).state).toMatchObject({ message: DELETE_EVENT_MESSAGES.notFound });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("shows a safe message when the database fails", async () => {
+    deleteEvent.mockRejectedValue(new Error('update or delete on table "events" violates'));
+    const { state } = await remove();
+    expect(state).toEqual({ status: "error", message: DELETE_EVENT_MESSAGES.failed });
+  });
+
+  it("explains demo mode without a database", async () => {
+    getEventAccess.mockResolvedValue({ kind: "no-database" });
+    expect((await remove()).state).toMatchObject({ message: DELETE_EVENT_MESSAGES.noDatabase });
   });
 });

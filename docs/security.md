@@ -122,7 +122,7 @@ deletion.
   - Do not add a `loading.tsx` above `events/[eventId]`: it makes refused events answer 200.
   - Tests: `access.test.ts`, `queries.db.test.ts`, `src/app/api/events/[eventId]/route.test.ts`.
 - **Role permissions (D-031).** After the membership check, a write checks the member's role with
-  `can(role, permission)` from `src/modules/events/permissions.ts`. So far only `event.edit`
-  exists (Owner and Coordinator). Hiding a control is not the check: the server action checks
-  again, and the edit's database update filters by the allowed roles too. Other permissions wait
-  for the rest of the matrix (open item 7). Tests: `actions.test.ts`, `update-event.db.test.ts`.
+  `can(role, permission)` from `src/modules/events/permissions.ts`. So far `event.edit`
+  (Owner and Coordinator) and `event.delete` (Owner only, D-033) exist. Hiding a control is not the check: the server action checks
+  again, and the edit's update and the delete filter by the allowed roles in the database too. Other permissions wait
+  for the rest of the matrix (open item 7). Tests: `actions.test.ts`, `update-event.db.test.ts`, `delete-event.db.test.ts`.
