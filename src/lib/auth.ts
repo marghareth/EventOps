@@ -12,6 +12,7 @@ import type { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { displayNameFor, loginUrlFor } from "./auth-rules";
 import { getDb } from "./db";
+import { DEMO_USER, isDemoAuthEnabled } from "./demo-auth";
 import { createSupabaseServerClient } from "./supabase/server";
 import { upsertUserRecord } from "./user-record";
 
@@ -36,6 +37,9 @@ function toAuthUser(user: User): AuthUser {
  * are rejected immediately (D-013). Throws AuthUnavailableError if Supabase cannot be reached.
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
+  // Dev-only demo sign-in (D-024). Off unless DEV_DEMO_AUTH=true under `next dev`.
+  if (isDemoAuthEnabled()) return { id: DEMO_USER.id, email: DEMO_USER.email };
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
 
@@ -65,6 +69,10 @@ export async function requireUser(nextPath?: string): Promise<AuthUser> {
 export async function getUserProfile(
   user: AuthUser,
 ): Promise<{ displayName: string; email: string }> {
+  // Demo mode needs no database: the demo user has no users row.
+  if (isDemoAuthEnabled() && user.id === DEMO_USER.id) {
+    return { displayName: DEMO_USER.displayName, email: DEMO_USER.email };
+  }
   const row = await getDb().user.findUnique({
     where: { id: user.id },
     select: { displayName: true },

@@ -24,6 +24,7 @@ _Last updated: 2026-10-09._
 | ----------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------- |
 | **B0-09 Authentication Foundation**: Supabase Auth, sessions, protected routes, server-side checks, minimal pages                         | B0    | In review: unit, component, database and browser tests pass; real sign-in needs the manual check in docs/SECURITY.md |
 | **B0-10 Application Shell**: root and authenticated layouts, sidebar, header, user menu, responsive navigation, event context placeholder | B0    | In review: 209 unit and component tests pass (48 more); checked in a browser at phone and desktop widths             |
+| **B1-01 Event Data Model**: event model, constraints, timestamps, indexes, ownership through membership                                   | B1    | In review: 42 database tests pass on a clean local PostgreSQL 16; migration not yet applied to Supabase              |
 | Supabase Auth: sign up, log in, log out (user-facing, Tier 1)                                                                             |       | In progress: working foundation from B0-09; polish pending                                                           |
 | Event workspace: create, edit, delete                                                                                                     |       | Not started                                                                                                          |
 | Event members with Owner, Coordinator, Viewer, enforced server-side                                                                       |       | Not started                                                                                                          |
@@ -70,15 +71,15 @@ _Last updated: 2026-10-09._
 
 ### Engineering
 
-| Item                                                                                                    | Batch | Status                                                                                  |
-| ------------------------------------------------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------- |
-| Unit tests: impact engine, accessibility, budget, authorization, import validation                      |       | Not started                                                                             |
-| GitHub Actions CI: lint → typecheck → knip → test → build                                               |       | In progress: build now passes (D-019); test and knip still fail on empty scaffold files |
-| ESLint, Prettier, commitlint, Prisma migrations                                                         |       | In progress: tooling configured; import-boundary rules verified                         |
-| Shared UI states: loading, empty, error, success, not found, no access                                  |       | Done: built and tested (51 tests)                                                       |
-| Deployed on Vercel with seeded demo data                                                                |       | Not started                                                                             |
-| Documentation set (README, docs/, CONTRIBUTING, SECURITY, CHANGELOG, ROADMAP, LICENSE, CODE_OF_CONDUCT) |       | In progress                                                                             |
-| Mobile-responsive layouts                                                                               |       | Not started                                                                             |
+| Item                                                                                                    | Batch | Status                                                                                                           |
+| ------------------------------------------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| Unit tests: impact engine, accessibility, budget, authorization, import validation                      |       | Not started                                                                                                      |
+| GitHub Actions CI: lint → typecheck → knip → test → build                                               |       | In progress: build passes, including without Supabase settings; test and knip still fail on empty scaffold files |
+| ESLint, Prettier, commitlint, Prisma migrations                                                         |       | In progress: tooling configured; import-boundary rules verified                                                  |
+| Shared UI states: loading, empty, error, success, not found, no access                                  |       | Done: built and tested (51 tests)                                                                                |
+| Deployed on Vercel with seeded demo data                                                                |       | Not started                                                                                                      |
+| Documentation set (README, docs/, CONTRIBUTING, SECURITY, CHANGELOG, ROADMAP, LICENSE, CODE_OF_CONDUCT) |       | In progress                                                                                                      |
+| Mobile-responsive layouts                                                                               |       | Not started                                                                                                      |
 
 ## Tier 2: only after Tier 1 is accepted and advancement is authorized
 

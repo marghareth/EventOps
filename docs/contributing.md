@@ -30,6 +30,22 @@ npm run dev                 # http://localhost:3000
 
 Never commit `.env.local` or any real secret.
 
+### View the app without Supabase (dev only)
+
+To look at the signed-in pages before a Supabase project is connected, put this in `.env.local` and
+run `npm run dev`:
+
+```bash
+DEV_DEMO_AUTH=true
+```
+
+You are signed in as a demo user, and a "Demo sign-in is on" banner shows on every page. Open any
+page directly, for example `http://localhost:3000/events` or
+`http://localhost:3000/events/00000000-0000-4000-8000-0000000000e1/attendees`. The sign-in and
+sign-up pages still work: any valid email and password continue. It needs no Supabase or database
+settings for the pages that exist today, but pages that read event data will need a database.
+`npm run build` refuses to run while the flag is set; remove it when you are done. See D-024.
+
 Sign-up and sign-in need the Supabase dashboard settings listed in
 [docs/SECURITY.md](docs/SECURITY.md#required-supabase-dashboard-settings) (email confirmation,
 password length, redirect URLs, email template). Add `http://localhost:3000/**` to the project's

@@ -187,3 +187,66 @@ describe("signOutAction", () => {
     expect(result.redirect).toBe("/login");
   });
 });
+
+describe("dev-only demo sign-in (D-024)", () => {
+  function demoOn() {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("DEV_DEMO_AUTH", "true");
+  }
+
+  it("signs in any valid email and password as the demo user, without Supabase", async () => {
+    demoOn();
+    try {
+      const result = await run(
+        signInAction(
+          initialAuthFormState,
+          form({ email: "anyone@example.com", password: "x", next: "/events/7" }),
+        ),
+      );
+      expect(result.redirect).toBe("/events/7");
+      expect(auth.signInWithPassword).not.toHaveBeenCalled();
+      expect(syncUserRecord).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("still validates the form first", async () => {
+    demoOn();
+    try {
+      const result = await run(
+        signInAction(initialAuthFormState, form({ email: "", password: "" })),
+      );
+      expect(result.state).toMatchObject({ status: "error" });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("sign-up creates nothing and continues as the demo user", async () => {
+    demoOn();
+    try {
+      const result = await run(
+        signUpAction(
+          initialAuthFormState,
+          form({ displayName: "Mika", email: "mika@example.com", password: "12345678" }),
+        ),
+      );
+      expect(result.redirect).toBe("/events");
+      expect(auth.signUp).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("sign-out goes to the public home page without calling Supabase", async () => {
+    demoOn();
+    try {
+      const result = await run(signOutAction());
+      expect(result.redirect).toBe("/");
+      expect(auth.signOut).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});

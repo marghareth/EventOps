@@ -88,6 +88,19 @@ auth code. Record the date and result in the pull request.
 9. Open an old or edited confirmation link. You land on `/login` with "That link is invalid or has
    expired."
 
+### Dev-only demo sign-in (D-024)
+
+`DEV_DEMO_AUTH=true` lets `npm run dev` show signed-in pages without a Supabase project, as a fixed
+demo user. It is an authentication bypass, so it is fenced in three ways:
+
+1. It works only when `NODE_ENV` is `development`, which only `next dev` sets. `next start`,
+   Vercel and the test runner ignore the flag.
+2. `next build` fails if the flag is set (`next.config.ts`), so it cannot be deployed by mistake.
+3. A "Demo sign-in is on" banner shows on every page while it is active.
+
+Never set `DEV_DEMO_AUTH` in Vercel or any shared environment. Tests in `src/lib/demo-auth.test.ts`
+cover every flag and environment combination and the build guard.
+
 ### Not built yet
 
 Password reset, changing email or password, social sign-in, multi-factor authentication, account

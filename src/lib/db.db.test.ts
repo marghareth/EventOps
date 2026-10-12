@@ -51,26 +51,35 @@ async function makeUser(overrides: Partial<{ email: string; displayName: string 
 
 type EventInput = {
   name?: string;
+  venue?: string | null;
+  description?: string | null;
   capacity?: number | null;
   expectedAttendees?: number;
   startsAt?: Date;
   endsAt?: Date | null;
   reference?: string;
+  /** Who gets the OWNER membership (D-022). Defaults to the creator; null creates none. */
+  ownerId?: string | null;
 };
 
+/** Creates an event and, in the same statement, its OWNER membership (D-022). */
 async function makeEvent(createdById: string, input: EventInput = {}) {
   const id = randomUUID();
   createdEventIds.push(id);
+  const ownerId = input.ownerId === undefined ? createdById : input.ownerId;
   return db.event.create({
     data: {
       id,
       reference: input.reference ?? `EVT-TEST-${id}`,
       name: input.name ?? "Santos wedding",
+      venue: input.venue,
+      description: input.description,
       startsAt: input.startsAt ?? new Date("2026-12-12T08:00:00Z"),
       endsAt: input.endsAt,
       capacity: input.capacity,
       expectedAttendees: input.expectedAttendees,
       createdById,
+      members: ownerId ? { create: { userId: ownerId, role: "OWNER" } } : undefined,
     },
   });
 }
@@ -112,7 +121,7 @@ describe("migrations", () => {
     expect(applied).toEqual(onDisk);
   });
 
-  it("creates exactly the B0-08 tables", async () => {
+  it("creates exactly the B0-08 tables (B1-01 adds none)", async () => {
     const rows = await db.$queryRaw<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name <> '_prisma_migrations'
@@ -130,7 +139,6 @@ describe("Prisma client round trip", () => {
   it("creates a user, an event and a membership, and reads them back with relations", async () => {
     const owner = await makeUser({ displayName: "Mika" });
     const event = await makeEvent(owner.id, { capacity: 200, expectedAttendees: 180 });
-    await db.eventMember.create({ data: { eventId: event.id, userId: owner.id, role: "OWNER" } });
 
     const loaded = await db.event.findUniqueOrThrow({
       where: { id: event.id },
@@ -170,7 +178,6 @@ describe("unique constraints", () => {
   it("rejects a second membership for the same user and event", async () => {
     const owner = await makeUser();
     const event = await makeEvent(owner.id);
-    await db.eventMember.create({ data: { eventId: event.id, userId: owner.id, role: "OWNER" } });
     await expectRejected(
       db.eventMember.create({ data: { eventId: event.id, userId: owner.id, role: "VIEWER" } }),
       { code: "P2002" },
@@ -179,9 +186,9 @@ describe("unique constraints", () => {
 
   it("allows the same user in two different events", async () => {
     const user = await makeUser();
-    const first = await makeEvent(user.id);
-    const second = await makeEvent(user.id);
-    await db.eventMember.create({ data: { eventId: first.id, userId: user.id, role: "OWNER" } });
+    const other = await makeUser();
+    await makeEvent(user.id);
+    const second = await makeEvent(other.id);
     await db.eventMember.create({ data: { eventId: second.id, userId: user.id, role: "VIEWER" } });
     expect(await db.eventMember.count({ where: { userId: user.id } })).toBe(2);
   });
@@ -254,11 +261,8 @@ describe("foreign keys and deletion", () => {
     const owner = await makeUser();
     const coordinator = await makeUser();
     const event = await makeEvent(owner.id);
-    await db.eventMember.createMany({
-      data: [
-        { eventId: event.id, userId: owner.id, role: "OWNER" },
-        { eventId: event.id, userId: coordinator.id, role: "COORDINATOR" },
-      ],
+    await db.eventMember.create({
+      data: { eventId: event.id, userId: coordinator.id, role: "COORDINATOR" },
     });
 
     await db.event.delete({ where: { id: event.id } });
@@ -277,6 +281,172 @@ describe("foreign keys and deletion", () => {
 
     expect(await db.eventMember.count({ where: { userId: viewer.id } })).toBe(0);
     expect(await db.event.count({ where: { id: event.id } })).toBe(1);
+  });
+});
+
+describe("event ownership (B1-01, D-022)", () => {
+  const OWNER_RULE = "events_must_have_owner";
+
+  it("gives a new event its creator as OWNER", async () => {
+    const owner = await makeUser();
+    const event = await makeEvent(owner.id);
+    await expect(
+      db.eventMember.findMany({
+        where: { eventId: event.id },
+        select: { userId: true, role: true },
+      }),
+    ).resolves.toEqual([{ userId: owner.id, role: "OWNER" }]);
+  });
+
+  it("rejects an event created without any OWNER membership", async () => {
+    const owner = await makeUser();
+    await expectRejected(makeEvent(owner.id, { ownerId: null }), { constraint: OWNER_RULE });
+  });
+
+  it("rejects an event whose only member is a VIEWER", async () => {
+    const owner = await makeUser();
+    const id = randomUUID();
+    createdEventIds.push(id);
+    await expectRejected(
+      db.event.create({
+        data: {
+          id,
+          reference: `EVT-TEST-${id}`,
+          name: "Viewer only",
+          startsAt: new Date("2026-12-12T08:00:00Z"),
+          createdById: owner.id,
+          members: { create: { userId: owner.id, role: "VIEWER" } },
+        },
+      }),
+      { constraint: OWNER_RULE },
+    );
+    expect(await db.event.count({ where: { id } })).toBe(0);
+  });
+
+  it("accepts the event and its OWNER as two steps in one transaction (checked at commit)", async () => {
+    const owner = await makeUser();
+    const id = randomUUID();
+    createdEventIds.push(id);
+    await db.$transaction(async (tx) => {
+      await tx.event.create({
+        data: {
+          id,
+          reference: `EVT-TEST-${id}`,
+          name: "Two steps",
+          startsAt: new Date("2026-12-12T08:00:00Z"),
+          createdById: owner.id,
+        },
+      });
+      await tx.eventMember.create({ data: { eventId: id, userId: owner.id, role: "OWNER" } });
+    });
+    expect(await db.event.count({ where: { id } })).toBe(1);
+  });
+
+  it("rejects removing the last OWNER membership, and keeps it", async () => {
+    const owner = await makeUser();
+    const event = await makeEvent(owner.id);
+    await expectRejected(
+      db.eventMember.deleteMany({ where: { eventId: event.id, userId: owner.id } }),
+      { constraint: OWNER_RULE },
+    );
+    expect(await db.eventMember.count({ where: { eventId: event.id, role: "OWNER" } })).toBe(1);
+  });
+
+  it("rejects demoting the last OWNER", async () => {
+    const owner = await makeUser();
+    const event = await makeEvent(owner.id);
+    await expectRejected(
+      db.eventMember.updateMany({
+        where: { eventId: event.id, userId: owner.id },
+        data: { role: "COORDINATOR" },
+      }),
+      { constraint: OWNER_RULE },
+    );
+  });
+
+  it("rejects moving the last OWNER membership to another event", async () => {
+    const owner = await makeUser();
+    const first = await makeEvent(owner.id);
+    const otherOwner = await makeUser();
+    const second = await makeEvent(otherOwner.id);
+    await expectRejected(
+      db.eventMember.updateMany({
+        where: { eventId: first.id, userId: owner.id },
+        data: { eventId: second.id },
+      }),
+      { constraint: OWNER_RULE },
+    );
+  });
+
+  it("allows removing an OWNER while another OWNER remains", async () => {
+    const owner = await makeUser();
+    const coOwner = await makeUser();
+    const event = await makeEvent(owner.id);
+    await db.eventMember.create({ data: { eventId: event.id, userId: coOwner.id, role: "OWNER" } });
+    await db.eventMember.deleteMany({ where: { eventId: event.id, userId: owner.id } });
+    await expect(
+      db.eventMember.findMany({ where: { eventId: event.id }, select: { userId: true } }),
+    ).resolves.toEqual([{ userId: coOwner.id }]);
+  });
+
+  it("blocks deleting a user who is an event's last OWNER (resolves open item 8)", async () => {
+    const creator = await makeUser();
+    const soleOwner = await makeUser();
+    const event = await makeEvent(creator.id, { ownerId: soleOwner.id });
+    await expectRejected(db.user.delete({ where: { id: soleOwner.id } }), {
+      constraint: OWNER_RULE,
+    });
+    expect(await db.user.count({ where: { id: soleOwner.id } })).toBe(1);
+    expect(await db.eventMember.count({ where: { eventId: event.id, role: "OWNER" } })).toBe(1);
+  });
+
+  it("still deletes a whole event together with its memberships", async () => {
+    const owner = await makeUser();
+    const event = await makeEvent(owner.id);
+    await db.event.delete({ where: { id: event.id } });
+    expect(await db.eventMember.count({ where: { eventId: event.id } })).toBe(0);
+  });
+});
+
+describe("event text limits (B1-01, D-023)", () => {
+  it.each([
+    ["name", 120],
+    ["venue", 200],
+    ["description", 5000],
+  ] as const)("accepts a %s of exactly %i characters and rejects one more", async (field, max) => {
+    const owner = await makeUser();
+    const ok = await makeEvent(owner.id, { [field]: "a".repeat(max) });
+    expect(ok[field]).toHaveLength(max);
+    await expectRejected(makeEvent(owner.id, { [field]: "a".repeat(max + 1) }), { code: "P2000" });
+  });
+
+  it("counts characters, not bytes", async () => {
+    const owner = await makeUser();
+    const name = "ñ".repeat(120);
+    const event = await makeEvent(owner.id, { name });
+    expect(event.name).toBe(name);
+  });
+});
+
+describe("event timestamps (B1-01)", () => {
+  it("sets createdAt and updatedAt on create", async () => {
+    const owner = await makeUser();
+    const before = Date.now();
+    const event = await makeEvent(owner.id);
+    expect(event.createdAt.getTime()).toBeGreaterThanOrEqual(before - 1000);
+    expect(event.updatedAt.getTime()).toBeGreaterThanOrEqual(event.createdAt.getTime() - 5);
+  });
+
+  it("moves updatedAt forward on edit and leaves createdAt alone", async () => {
+    const owner = await makeUser();
+    const event = await makeEvent(owner.id);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const edited = await db.event.update({
+      where: { id: event.id },
+      data: { name: "Santos-Reyes wedding" },
+    });
+    expect(edited.updatedAt.getTime()).toBeGreaterThan(event.updatedAt.getTime());
+    expect(edited.createdAt.getTime()).toBe(event.createdAt.getTime());
   });
 });
 
