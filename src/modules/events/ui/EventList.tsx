@@ -2,30 +2,15 @@
 // "My events" cards (B1-03). Each card is one link to the event's workspace; the link covers the
 // whole card. Status and role are written as text, never shown by color alone.
 import Link from "next/link";
-import { StateIcon, type StateIconName } from "@/components/shared/StateIcon";
-import { cn } from "@/lib/utils";
 import {
-  EVENT_STATUS_LABEL,
-  MEMBER_ROLE_LABEL,
   formatEventWhen,
   formatExpectedAttendees,
   type EventGroups,
   type EventListItem,
 } from "../list";
-
-const STATUS_STYLE: Record<EventListItem["status"], { icon: StateIconName; className: string }> = {
-  DRAFT: { icon: "info", className: "border-line bg-mist text-ink" },
-  PLANNING: { icon: "info", className: "border-info-line bg-info-tint text-info" },
-  LIVE: { icon: "success", className: "border-success-line bg-success-tint text-success" },
-  COMPLETED: { icon: "success", className: "border-line bg-mist text-ink-2" },
-  CANCELLED: { icon: "error", className: "border-critical-line bg-critical-tint text-critical" },
-};
-
-const badge =
-  "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-[13px] font-medium";
+import { EventStatusBadge, RoleBadge } from "./EventBadges";
 
 function EventCard({ event }: { event: EventListItem }) {
-  const status = STATUS_STYLE[event.status];
   return (
     <article className="relative flex h-full flex-col gap-3 rounded-xl bg-white p-5 shadow-xs transition-shadow hover:shadow-md">
       <h3 className="text-h4 leading-snug font-bold break-words">
@@ -59,15 +44,14 @@ function EventCard({ event }: { event: EventListItem }) {
       <dl className="mt-auto flex flex-wrap gap-2 pt-1">
         <div>
           <dt className="sr-only">Status</dt>
-          <dd className={cn(badge, status.className)}>
-            <StateIcon name={status.icon} className="size-3.5" />
-            {EVENT_STATUS_LABEL[event.status]}
+          <dd>
+            <EventStatusBadge status={event.status} />
           </dd>
         </div>
         <div>
           <dt className="sr-only">Your role</dt>
-          <dd className={cn(badge, "border-info-line bg-blue-tint text-blue-dark")}>
-            {MEMBER_ROLE_LABEL[event.role]}
+          <dd>
+            <RoleBadge role={event.role} />
           </dd>
         </div>
       </dl>

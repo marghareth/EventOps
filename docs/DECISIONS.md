@@ -40,6 +40,7 @@ Status values:
 | D-024 | Dev-only demo sign-in                                    | Approved | 2026-10-11 |
 | D-025 | Creating an event: who, time zone, and what is required  | Approved | 2026-10-11 |
 | D-026 | The event list: membership only, grouped, plus an API    | Approved | 2026-10-11 |
+| D-027 | Event workspace access: members only, others see 404     | Approved | 2026-10-11 |
 
 ---
 
@@ -374,6 +375,9 @@ before the membership and role check exists would break PROJECT_RULES section 7.
 is input hygiene, **not** an access check. The event-workspace task replaces the placeholder with
 the event name and the membership check.
 
+**Done in B1-04 (D-027).** The workspace header now shows the event's identity after the access
+check, and the top bar shows only "Switch event", never the raw ID.
+
 ---
 
 ## D-019 Placeholder pages and API routes until each feature task
@@ -523,6 +527,41 @@ no-store`.
 **Evidence.** Database tests: another user's events are never listed, a removed member stops
 seeing the event, two members of one event each see their own role. A browser run with another
 user's private event in the database: it appears in neither the page nor the API response.
+
+---
+
+## D-027 Event workspace access: members only, others see 404
+
+**Status:** Approved by the technical lead on 2026-10-11 (B1-04 plan).
+
+**Decision.**
+
+- `requireEventAccess(eventId)` in `src/modules/events/access.ts` is the access check for
+  everything under an event. It takes the user from the session and loads the event in one query
+  filtered by that user's membership. It is cached per request, so the layout, the page and later
+  modules share the query.
+- Every page, server action and route handler under an event calls it itself. A check in the
+  layout alone does not protect a page, because Next.js renders layouts and pages in parallel.
+- An event the user is not a member of is treated exactly like an unknown event or a malformed ID:
+  the not-found page (HTTP 404) and, in the API, the same `404 {"error":"Event not found."}`. Nobody
+  can tell whether an event ID exists. No separate "no access" page.
+- Membership only. Role permissions wait for the permission matrix (open item 7); the check
+  returns the member's role for that.
+- The workspace header (event number, name, date and time, venue, status, your role) shows above
+  every section. The overview shows the event's details and tiles for the Tier 1 sections, each
+  marked "Not set up yet". No module data.
+- `GET /api/events/<id>` returns the same fields as the overview plus the role, with
+  `Cache-Control: private, no-store`.
+- The My events page's loading and error files live in the `(list)` route group, so their
+  loading boundary does not wrap event pages. Otherwise Next.js starts streaming before the access
+  check and a refused event is sent with HTTP 200 instead of 404.
+- Demo sign-in without a database shows a "No database connected" notice in the workspace and
+  still renders the placeholder sections.
+
+**Evidence.** Database tests: a non-member and an unknown ID both get nothing, each member gets
+their own role, a removed member loses access. A browser run: another user's event and its
+sections, an unknown ID and a malformed ID all return HTTP 404 with no event data in the page; the
+API answers identically for all three.
 
 ---
 

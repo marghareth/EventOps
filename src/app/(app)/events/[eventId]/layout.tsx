@@ -1,12 +1,10 @@
 // src/app/(app)/events/[eventId]/layout.tsx
-// Event context placeholder (B0-10, D-018). Rejects malformed event IDs and renders the section.
-// It deliberately loads no event data: the membership and role check (PROJECT_RULES section 7)
-// and the event name arrive with the event-workspace task, which replaces this placeholder.
-import { notFound } from "next/navigation";
+// Event workspace (B1-04, D-027). Loads the event on the server for members only; unknown events,
+// other users' events and malformed IDs all show the not-found page. Each page below must still
+// call requireEventAccess itself before reading event data (see modules/events/access.ts).
 import type { ReactNode } from "react";
-import { z } from "zod";
-
-const eventIdSchema = z.uuid();
+import { Banner } from "@/components/shared/Banner";
+import { EventHeader, requireEventAccess } from "@/modules/events/public";
 
 export default async function EventLayout({
   children,
@@ -16,6 +14,19 @@ export default async function EventLayout({
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  if (!eventIdSchema.safeParse(eventId).success) notFound();
-  return <>{children}</>;
+  const { access } = await requireEventAccess(eventId);
+
+  return (
+    <>
+      {access.kind === "ok" ? (
+        <EventHeader event={access.event} />
+      ) : (
+        <Banner severity="info" title="No database connected" className="mb-6">
+          Demo sign-in is showing the workspace layout without event data. Set DATABASE_URL in
+          .env.local to open real events.
+        </Banner>
+      )}
+      {children}
+    </>
+  );
 }

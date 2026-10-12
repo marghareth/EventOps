@@ -185,10 +185,10 @@ describe("EventSwitcher", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows the event ID from the URL and a way back to the event list", () => {
+  it("offers a way back to the event list, and never shows the raw event ID", () => {
     pathname = `/events/${ID}/attendees`;
     render(<EventSwitcher />);
-    expect(screen.getByText(ID)).toBeInTheDocument();
+    expect(screen.queryByText(ID)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Switch event" })).toHaveAttribute("href", "/events");
   });
 });

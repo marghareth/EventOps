@@ -112,6 +112,14 @@ deletion.
   only query that lists events. It filters by the session user's membership and returns an
   allow-list of fields. `GET /api/events` and the My events page both use it. Tests:
   `queries.db.test.ts` (real database) and `src/app/api/events/route.test.ts`.
-- **Not built yet:** membership and role checks for a single event. The event workspace pages
-  under `/events/<id>` are placeholders that read only the ID from the URL (D-018) and load no
-  event data. The task that first loads an event's data must add the check.
+- **Single event (B1-04, D-027).** Everything under `/events/<id>` and `/api/events/<id>` goes
+  through `requireEventAccess` or `getEventAccess` in `src/modules/events/access.ts`. Rules:
+  - Every page, server action and route handler under an event calls it itself, before reading
+    any event data. The layout's check does not protect pages (Next.js renders them in parallel).
+  - Never look up event data by ID alone. Use the event the check returns, or filter by both
+    `eventId` and the session user's membership.
+  - Non-members get the same 404 as unknown events.
+  - Do not add a `loading.tsx` above `events/[eventId]`: it makes refused events answer 200.
+  - Tests: `access.test.ts`, `queries.db.test.ts`, `src/app/api/events/[eventId]/route.test.ts`.
+- **Not built yet:** role permissions (Owner, Coordinator, Viewer). They wait for the permission
+  matrix (DECISIONS.md open item 7).
