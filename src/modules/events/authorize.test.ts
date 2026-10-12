@@ -3,6 +3,8 @@
 // The authorization helpers (B1-09, D-036) with sign-in and the membership lookup mocked. The same
 // rules run end to end against a real database in authorization.db.test.ts.
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { MemberRole } from "@/generated/prisma/client";
+import type { Permission } from "./permissions";
 
 class AuthUnavailableError extends Error {}
 const requireUser = vi.fn();
@@ -55,14 +57,14 @@ describe("authorizeEvent (server actions)", () => {
     ["VIEWER", "event.delete"],
     ["COORDINATOR", "event.delete"],
     ["COORDINATOR", "members.manage"],
-  ] as const)("refuses a %s for %s", async (role, permission) => {
+  ] as const)("refuses a %s for %s", async (role: MemberRole, permission: Permission) => {
     getEventAccess.mockResolvedValue(member(role));
     expect(await authorizeEvent(ID, permission)).toEqual({ ok: false, reason: "forbidden" });
   });
 
-  it.each([["not-found"], ["no-database"]] as const)("passes on %s", async (kind) => {
-    getEventAccess.mockResolvedValue({ kind });
-    expect(await authorizeEvent(ID, "event.view")).toEqual({ ok: false, reason: kind });
+  it("passes on not-found", async () => {
+    getEventAccess.mockResolvedValue({ kind: "not-found" });
+    expect(await authorizeEvent(ID, "event.view")).toEqual({ ok: false, reason: "not-found" });
   });
 });
 
@@ -103,9 +105,7 @@ describe("authorizeEventRequest (API route handlers)", () => {
     expect(await status("event.delete")).toBe(200);
   });
 
-  it("answers 503 when sign-in or the demo database is unavailable", async () => {
-    getEventAccess.mockResolvedValue({ kind: "no-database" });
-    expect(await status()).toBe(503);
+  it("answers 503 when sign-in is unavailable", async () => {
     getCurrentUser.mockRejectedValue(new AuthUnavailableError());
     expect(await status()).toBe(503);
   });

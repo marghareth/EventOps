@@ -15,9 +15,6 @@ export const DEMO_USER = {
   displayName: "Demo Coordinator",
 } as const;
 
-/** A valid event ID for trying the event pages in demo mode. No such event exists. */
-export const DEMO_EVENT_ID = "00000000-0000-4000-8000-0000000000e1";
-
 type Env = Record<string, string | undefined>;
 
 export function isDemoAuthEnabled(env: Env = process.env): boolean {
@@ -25,10 +22,11 @@ export function isDemoAuthEnabled(env: Env = process.env): boolean {
 }
 
 /**
- * Demo sign-in with no DATABASE_URL: pages and actions that need data explain how to connect a
- * database instead of failing (B1-02, B1-03).
+ * Demo sign-in with no DATABASE_URL: event data comes from the in-memory sample store
+ * (src/modules/events/sample-data.ts, D-041) instead of PostgreSQL. Setting DATABASE_URL switches
+ * it off, so the same demo user then works against a real database.
  */
-export function isDemoWithoutDatabase(env: Env = process.env): boolean {
+export function isSampleDataMode(env: Env = process.env): boolean {
   return isDemoAuthEnabled(env) && !env.DATABASE_URL;
 }
 

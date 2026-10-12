@@ -37,8 +37,6 @@ export const CREATE_EVENT_FIELDS: readonly CreateEventField[] = [
 /** Form-level messages. Never include internal error details. */
 export const CREATE_EVENT_MESSAGES = {
   saveFailed: "We couldn't save the event. Try again in a moment.",
-  noDatabase:
-    "Demo sign-in has no database to save to. Set DATABASE_URL in .env.local to create events.",
 } as const;
 
 /** Edit Event (B1-05): like Create Event, plus a success state shown after saving. */
@@ -59,8 +57,6 @@ export const EDIT_EVENT_MESSAGES = {
   forbidden: "Your role can view this event but not edit it. Ask an Owner or Coordinator.",
   notFound: "This event isn't available. Go back to your events and open it again.",
   saveFailed: "We couldn't save your changes. Try again in a moment.",
-  noDatabase:
-    "Demo sign-in has no database to save to. Set DATABASE_URL in .env.local to edit events.",
 } as const;
 
 /** Delete Event (B1-06). Success redirects, so only errors come back. */
@@ -73,5 +69,4 @@ export const DELETE_EVENT_MESSAGES = {
   forbidden: "Only the event's Owner can delete it.",
   notFound: "This event isn't available. It may already have been deleted.",
   failed: "We couldn't delete the event. Nothing was removed. Try again in a moment.",
-  noDatabase: "Demo sign-in has no database. Set DATABASE_URL in .env.local to delete events.",
 } as const;

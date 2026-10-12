@@ -88,19 +88,30 @@ describe("(app) layout", () => {
     expect(screen.queryByText("Demo sign-in is on")).not.toBeInTheDocument();
   });
 
-  it("in demo mode shows the demo user and a warning banner, with no Supabase or database", async () => {
+  it("in demo mode without a database, says the events are sample data (D-041)", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("DEV_DEMO_AUTH", "true");
+    vi.stubEnv("DATABASE_URL", "");
+    try {
+      render(await AppLayout({ children: <p>page</p> }));
+      expect(screen.getByText("Demo sign-in and sample data are on")).toBeInTheDocument();
+      expect(screen.getByText(/reset when the dev server restarts/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Account: Demo Coordinator" })).toBeInTheDocument();
+      expect(getUser).not.toHaveBeenCalled();
+      expect(findUnique).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("in demo mode with a database, shows the plain demo banner", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("DEV_DEMO_AUTH", "true");
+    vi.stubEnv("DATABASE_URL", "postgresql://localhost/eventops");
     try {
       render(await AppLayout({ children: <p>page</p> }));
       expect(screen.getByText("Demo sign-in is on")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Account: Demo Coordinator" })).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "Open a sample event" })).toHaveAttribute(
-        "href",
-        "/events/00000000-0000-4000-8000-0000000000e1/attendees",
-      );
-      expect(getUser).not.toHaveBeenCalled();
-      expect(findUnique).not.toHaveBeenCalled();
+      expect(screen.queryByText(/sample data/)).not.toBeInTheDocument();
     } finally {
       vi.unstubAllEnvs();
     }

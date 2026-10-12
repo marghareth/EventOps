@@ -9,16 +9,15 @@ import { cache } from "react";
 import { z } from "zod";
 import { requireUser, type AuthUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { isDemoWithoutDatabase } from "@/lib/demo-auth";
+import { isSampleDataMode } from "@/lib/demo-auth";
 import type { EventDetails } from "./list";
 import { getEventForMember } from "./queries";
+import { sampleGetEventForMember } from "./sample-data";
 
 export type EventAccess =
   | { kind: "ok"; event: EventDetails }
   /** Unknown event, another user's event, or a malformed ID. Always shown as "not found". */
-  | { kind: "not-found" }
-  /** Demo sign-in with no database (D-024): there is no event data to load. */
-  | { kind: "no-database" };
+  | { kind: "not-found" };
 
 const eventIdSchema = z.uuid();
 
@@ -29,8 +28,10 @@ const eventIdSchema = z.uuid();
 export const getEventAccess = cache(
   async (userId: string, eventId: string): Promise<EventAccess> => {
     if (!eventIdSchema.safeParse(eventId).success) return { kind: "not-found" };
-    if (isDemoWithoutDatabase()) return { kind: "no-database" };
-    const event = await getEventForMember(getDb(), eventId, userId);
+    // Dev-only sample data (D-041): the same membership rule, against the in-memory store.
+    const event = isSampleDataMode()
+      ? sampleGetEventForMember(eventId, userId)
+      : await getEventForMember(getDb(), eventId, userId);
     return event ? { kind: "ok", event } : { kind: "not-found" };
   },
 );

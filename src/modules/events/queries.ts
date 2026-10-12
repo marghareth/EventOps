@@ -5,8 +5,9 @@
 import "server-only";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { getDb } from "@/lib/db";
-import { isDemoWithoutDatabase } from "@/lib/demo-auth";
+import { isSampleDataMode } from "@/lib/demo-auth";
 import type { EventDetails, EventListItem } from "./list";
+import { sampleListEvents } from "./sample-data";
 
 const LIST_FIELDS = {
   id: true,
@@ -56,13 +57,9 @@ export async function getEventForMember(
   return { ...event, role: members[0].role };
 }
 
-export type MyEventsResult =
-  | { status: "ok"; events: EventListItem[] }
-  /** Demo sign-in with no database (D-024): there is nothing to read. */
-  | { status: "no-database" };
-
 /** "My events" for the page and GET /api/events. Database errors are thrown to the caller. */
-export async function getMyEvents(userId: string): Promise<MyEventsResult> {
-  if (isDemoWithoutDatabase()) return { status: "no-database" };
-  return { status: "ok", events: await listEventsForUser(getDb(), userId) };
+export async function getMyEvents(userId: string): Promise<EventListItem[]> {
+  // Dev-only sample data (D-041): the same "members only" rule, against the in-memory store.
+  if (isSampleDataMode()) return sampleListEvents(userId);
+  return listEventsForUser(getDb(), userId);
 }

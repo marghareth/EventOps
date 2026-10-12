@@ -10,6 +10,7 @@ import {
   initialDeleteEventState,
   initialEditEventState,
 } from "./form-state";
+import type { MemberRole } from "@/generated/prisma/client";
 
 const requireUser = vi.fn();
 const ensureDemoUserRecord = vi.fn();
@@ -18,6 +19,9 @@ const getEventAccess = vi.fn();
 const updateEvent = vi.fn();
 const deleteEvent = vi.fn();
 const revalidatePath = vi.fn();
+const sampleCreateEvent = vi.fn();
+const sampleUpdateEvent = vi.fn();
+const sampleDeleteEvent = vi.fn();
 let demo = false;
 
 vi.mock("server-only", () => ({}));
@@ -27,7 +31,12 @@ vi.mock("@/lib/auth", () => ({
 }));
 vi.mock("@/lib/db", () => ({ getDb: () => "db" }));
 vi.mock("@/lib/demo-auth", () => ({
-  isDemoWithoutDatabase: () => demo && !process.env.DATABASE_URL,
+  isSampleDataMode: () => demo && !process.env.DATABASE_URL,
+}));
+vi.mock("./sample-data", () => ({
+  sampleCreateEvent: (...args: unknown[]) => sampleCreateEvent(...args),
+  sampleUpdateEvent: (...args: unknown[]) => sampleUpdateEvent(...args),
+  sampleDeleteEvent: (...args: unknown[]) => sampleDeleteEvent(...args),
 }));
 vi.mock("./create-event", () => ({ createEvent: (...args: unknown[]) => createEvent(...args) }));
 vi.mock("./access", () => ({ getEventAccess: (...args: unknown[]) => getEventAccess(...args) }));
@@ -138,12 +147,26 @@ describe("createEventAction", () => {
     expect(JSON.stringify(state)).not.toContain("relation");
   });
 
-  it("in demo mode without a database, explains how to connect one", async () => {
+  it("with sample data (D-041), creates the event in the sample store, not the database", async () => {
     demo = true;
     vi.stubEnv("DATABASE_URL", "");
-    const { state } = await run(valid);
-    expect(state).toMatchObject({ status: "error", message: CREATE_EVENT_MESSAGES.noDatabase });
+    sampleCreateEvent.mockReturnValue({ id: "sample-1", reference: "EVT-2026-0007" });
+    expect(await run(valid)).toEqual({ redirect: "/events/sample-1?created=EVT-2026-0007" });
+    expect(sampleCreateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ creatorId: "user-1", event: expect.objectContaining({}) }),
+    );
     expect(createEvent).not.toHaveBeenCalled();
+    expect(ensureDemoUserRecord).not.toHaveBeenCalled();
+  });
+
+  it("with sample data, still validates first and keeps a safe message on failure", async () => {
+    demo = true;
+    vi.stubEnv("DATABASE_URL", "");
+    sampleCreateEvent.mockImplementation(() => {
+      throw new Error("Invalid audit details");
+    });
+    const { state } = await run(valid);
+    expect(state).toMatchObject({ status: "error", message: CREATE_EVENT_MESSAGES.saveFailed });
   });
 
   it("in demo mode with a database, creates the demo user's row first", async () => {
@@ -309,9 +332,25 @@ describe("updateEventAction (B1-05)", () => {
     expect(JSON.stringify(state)).not.toContain("constraint");
   });
 
-  it("explains demo mode without a database", async () => {
-    getEventAccess.mockResolvedValue({ kind: "no-database" });
-    expect((await edit({})).state).toMatchObject({ message: EDIT_EVENT_MESSAGES.noDatabase });
+  it("with sample data (D-041), saves to the sample store after the same checks", async () => {
+    demo = true;
+    vi.stubEnv("DATABASE_URL", "");
+    sampleUpdateEvent.mockReturnValue({ ok: true });
+    const { state } = await edit({ venue: "Manila" });
+    expect(state).toEqual({ status: "success", message: EDIT_EVENT_MESSAGES.saved });
+    expect(sampleUpdateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: EVENT, editorId: "user-1", version: new Date(VERSION) }),
+    );
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("with sample data, a Viewer is still refused before anything is saved", async () => {
+    demo = true;
+    vi.stubEnv("DATABASE_URL", "");
+    member("VIEWER");
+    const { state } = await edit({ venue: "Manila" });
+    expect(state).toMatchObject({ message: EDIT_EVENT_MESSAGES.forbidden });
+    expect(sampleUpdateEvent).not.toHaveBeenCalled();
   });
 });
 
@@ -354,7 +393,7 @@ describe("deleteEventAction (B1-06)", () => {
 
   it.each([["COORDINATOR"], ["VIEWER"]] as const)(
     "refuses a %s and deletes nothing",
-    async (role) => {
+    async (role: MemberRole) => {
       member(role);
       expect((await remove()).state).toEqual({
         status: "error",
@@ -372,7 +411,7 @@ describe("deleteEventAction (B1-06)", () => {
 
   it.each([["EVT-2026-0002"], ["evt-2026-0001"], [""], [null]])(
     "refuses a wrong confirmation (%j) and deletes nothing",
-    async (typed) => {
+    async (typed: string | null) => {
       expect((await remove(typed)).state).toMatchObject({
         message: DELETE_EVENT_MESSAGES.confirmation,
       });
@@ -400,9 +439,21 @@ describe("deleteEventAction (B1-06)", () => {
     expect(state).toEqual({ status: "error", message: DELETE_EVENT_MESSAGES.failed });
   });
 
-  it("explains demo mode without a database", async () => {
-    getEventAccess.mockResolvedValue({ kind: "no-database" });
-    expect((await remove()).state).toMatchObject({ message: DELETE_EVENT_MESSAGES.noDatabase });
+  it("with sample data (D-041), deletes from the sample store after the same checks", async () => {
+    demo = true;
+    vi.stubEnv("DATABASE_URL", "");
+    sampleDeleteEvent.mockReturnValue({ ok: true });
+    expect(await remove()).toEqual({ redirect: `/events?deleted=${REFERENCE}` });
+    expect(sampleDeleteEvent).toHaveBeenCalledWith({ eventId: EVENT, userId: "user-1" });
+    expect(deleteEvent).not.toHaveBeenCalled();
+  });
+
+  it("with sample data, a Coordinator still can't delete", async () => {
+    demo = true;
+    vi.stubEnv("DATABASE_URL", "");
+    member("COORDINATOR");
+    expect((await remove()).state).toMatchObject({ message: DELETE_EVENT_MESSAGES.forbidden });
+    expect(sampleDeleteEvent).not.toHaveBeenCalled();
   });
 });
 
@@ -446,19 +497,22 @@ describe("role boundaries for every built protected operation (D-035)", () => {
     ["event.delete", "OWNER", true],
     ["event.delete", "COORDINATOR", false],
     ["event.delete", "VIEWER", false],
-  ] as const)("%s as %s: allowed %s", async (operation, role, allowed) => {
-    getEventAccess.mockResolvedValue({ kind: "ok", event: { ...event, role } });
-    updateEvent.mockResolvedValue({ ok: true });
-    deleteEvent.mockResolvedValue({ ok: true });
+  ] as const)(
+    "%s as %s: allowed %s",
+    async (operation: keyof typeof operations, role: MemberRole, allowed: boolean) => {
+      getEventAccess.mockResolvedValue({ kind: "ok", event: { ...event, role } });
+      updateEvent.mockResolvedValue({ ok: true });
+      deleteEvent.mockResolvedValue({ ok: true });
 
-    const state = await operations[operation]();
-    const write = operation === "event.edit" ? updateEvent : deleteEvent;
-    if (allowed) {
-      expect(write).toHaveBeenCalledOnce();
-      expect(state.status).not.toBe("error");
-    } else {
-      expect(write).not.toHaveBeenCalled();
-      expect(state.status).toBe("error");
-    }
-  });
+      const state = await operations[operation]();
+      const write = operation === "event.edit" ? updateEvent : deleteEvent;
+      if (allowed) {
+        expect(write).toHaveBeenCalledOnce();
+        expect(state.status).not.toBe("error");
+      } else {
+        expect(write).not.toHaveBeenCalled();
+        expect(state.status).toBe("error");
+      }
+    },
+  );
 });

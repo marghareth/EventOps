@@ -4,8 +4,10 @@
 // without the check.
 import "server-only";
 import { getDb } from "@/lib/db";
+import { isSampleDataMode } from "@/lib/demo-auth";
 import { listAuditEntries, type AuditEntryView } from "@/modules/events/audit/public";
 import { authorizeEvent, type EventAuthorization } from "./authorize";
+import { sampleListAuditEntries } from "./sample-data";
 
 export type EventActivity =
   | { ok: true; entries: AuditEntryView[] }
@@ -18,5 +20,8 @@ export async function getEventActivity(eventId: string): Promise<EventActivity> 
     `/events/${encodeURIComponent(eventId)}/activity`,
   );
   if (!auth.ok) return { ok: false, reason: auth.reason };
-  return { ok: true, entries: await listAuditEntries(getDb(), auth.event.id) };
+  const entries = isSampleDataMode()
+    ? sampleListAuditEntries(auth.event.id)
+    : await listAuditEntries(getDb(), auth.event.id);
+  return { ok: true, entries };
 }
