@@ -2,11 +2,19 @@
 // @vitest-environment node
 // createEventAction with auth, the database and Next.js navigation mocked (B1-02).
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CREATE_EVENT_MESSAGES, initialCreateEventState } from "./form-state";
+import {
+  CREATE_EVENT_MESSAGES,
+  EDIT_EVENT_MESSAGES,
+  initialCreateEventState,
+  initialEditEventState,
+} from "./form-state";
 
 const requireUser = vi.fn();
 const ensureDemoUserRecord = vi.fn();
 const createEvent = vi.fn();
+const getEventAccess = vi.fn();
+const updateEvent = vi.fn();
+const revalidatePath = vi.fn();
 let demo = false;
 
 vi.mock("server-only", () => ({}));
@@ -19,13 +27,18 @@ vi.mock("@/lib/demo-auth", () => ({
   isDemoWithoutDatabase: () => demo && !process.env.DATABASE_URL,
 }));
 vi.mock("./create-event", () => ({ createEvent: (...args: unknown[]) => createEvent(...args) }));
+vi.mock("./access", () => ({ getEventAccess: (...args: unknown[]) => getEventAccess(...args) }));
+vi.mock("./update-event", () => ({ updateEvent: (...args: unknown[]) => updateEvent(...args) }));
+vi.mock("next/cache", () => ({
+  revalidatePath: (...args: unknown[]) => revalidatePath(...args),
+}));
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
     throw Object.assign(new Error("NEXT_REDIRECT"), { url });
   },
 }));
 
-const { createEventAction } = await import("./actions");
+const { createEventAction, updateEventAction } = await import("./actions");
 
 const valid = {
   name: "Santos wedding",
@@ -134,5 +147,166 @@ describe("createEventAction", () => {
     vi.stubEnv("DATABASE_URL", "postgresql://localhost/eventops");
     expect(await run(valid)).toEqual({ redirect: "/events/event-1?created=EVT-2026-0001" });
     expect(ensureDemoUserRecord).toHaveBeenCalledOnce();
+  });
+});
+
+describe("updateEventAction (B1-05)", () => {
+  const EVENT = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
+  const VERSION = "2026-10-11T01:02:03.456Z";
+  const stored = {
+    id: EVENT,
+    reference: "EVT-2026-0001",
+    name: "Santos wedding",
+    venue: "Cebu",
+    description: null,
+    startsAt: new Date("2026-12-12T08:00:00Z"),
+    endsAt: new Date("2026-12-12T14:00:00Z"),
+    status: "PLANNING",
+    capacity: 200,
+    expectedAttendees: 180,
+    updatedAt: new Date(VERSION),
+  };
+
+  function member(role: "OWNER" | "COORDINATOR" | "VIEWER") {
+    getEventAccess.mockResolvedValue({ kind: "ok", event: { ...stored, role } });
+  }
+  async function edit(fields: Record<string, string>) {
+    const data = form({ ...valid, version: VERSION, ...fields });
+    try {
+      return { state: await updateEventAction(EVENT, initialEditEventState, data) };
+    } catch (error) {
+      const url = (error as { url?: string }).url;
+      if (url) return { redirect: url };
+      throw error;
+    }
+  }
+
+  beforeEach(() => {
+    member("COORDINATOR");
+    updateEvent.mockResolvedValue({ ok: true });
+  });
+
+  it("lets a Coordinator save new details, then refreshes the workspace", async () => {
+    const { state } = await edit({ name: "Santos–Lim wedding", expectedAttendees: "220" });
+    expect(state).toEqual({ status: "success", message: EDIT_EVENT_MESSAGES.saved });
+    expect(getEventAccess).toHaveBeenCalledWith("user-1", EVENT);
+    expect(updateEvent).toHaveBeenCalledWith("db", {
+      eventId: EVENT,
+      editorId: "user-1",
+      version: new Date(VERSION),
+      details: {
+        name: "Santos–Lim wedding",
+        venue: "Cebu",
+        description: null,
+        startsAt: new Date("2026-12-12T08:00:00Z"),
+        endsAt: new Date("2026-12-12T14:00:00Z"),
+        capacity: 200,
+        expectedAttendees: 220,
+      },
+    });
+    expect(revalidatePath).toHaveBeenCalledWith(`/events/${EVENT}`, "layout");
+  });
+
+  it("lets an Owner save too", async () => {
+    member("OWNER");
+    expect((await edit({ venue: "Manila" })).state?.status).toBe("success");
+  });
+
+  it("refuses a Viewer and changes nothing", async () => {
+    member("VIEWER");
+    expect((await edit({ venue: "Manila" })).state).toMatchObject({
+      status: "error",
+      message: EDIT_EVENT_MESSAGES.forbidden,
+    });
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("refuses a non-member exactly like a missing event", async () => {
+    getEventAccess.mockResolvedValue({ kind: "not-found" });
+    expect((await edit({ venue: "Manila" })).state).toMatchObject({
+      message: EDIT_EVENT_MESSAGES.notFound,
+    });
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("sends signed-out users to sign in", async () => {
+    requireUser.mockImplementation(() => {
+      throw Object.assign(new Error("NEXT_REDIRECT"), { url: "/login" });
+    });
+    expect(await edit({})).toEqual({ redirect: "/login" });
+    expect(requireUser).toHaveBeenCalledWith(`/events/${EVENT}/settings`);
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid changes, keeps the input, and saves nothing", async () => {
+    const { state } = await edit({ name: "", capacity: "0" });
+    expect(state).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        name: "Enter the event name.",
+        capacity: "Enter a whole number of 1 or more, up to 1,000,000.",
+      },
+      values: { name: "", capacity: "0" },
+    });
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects an end time before the start time", async () => {
+    const { state } = await edit({ startTime: "23:00", endTime: "22:00" });
+    expect(state).toMatchObject({
+      fieldErrors: { endTime: "End time can't be before the start time." },
+    });
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("ignores fields the form does not have, such as status or reference", async () => {
+    await edit({ venue: "Manila", status: "CANCELLED", reference: "EVT-1999-0001" });
+    const { details } = updateEvent.mock.calls[0][1];
+    expect(Object.keys(details).sort()).toEqual([
+      "capacity",
+      "description",
+      "endsAt",
+      "expectedAttendees",
+      "name",
+      "startsAt",
+      "venue",
+    ]);
+  });
+
+  it("refuses a stale save and keeps the input", async () => {
+    updateEvent.mockResolvedValue({ ok: false, reason: "stale" });
+    expect((await edit({ venue: "Manila" })).state).toMatchObject({
+      status: "error",
+      message: EDIT_EVENT_MESSAGES.stale,
+      values: { venue: "Manila" },
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("treats a missing or malformed version as stale", async () => {
+    expect((await edit({ venue: "Manila", version: "yesterday" })).state).toMatchObject({
+      message: EDIT_EVENT_MESSAGES.stale,
+    });
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not write when nothing changed", async () => {
+    expect((await edit({})).state).toEqual({
+      status: "success",
+      message: EDIT_EVENT_MESSAGES.unchanged,
+    });
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("shows a safe message when saving fails", async () => {
+    updateEvent.mockRejectedValue(new Error('new row violates check constraint "events_x"'));
+    const { state } = await edit({ venue: "Manila" });
+    expect(state).toMatchObject({ status: "error", message: EDIT_EVENT_MESSAGES.saveFailed });
+    expect(JSON.stringify(state)).not.toContain("constraint");
+  });
+
+  it("explains demo mode without a database", async () => {
+    getEventAccess.mockResolvedValue({ kind: "no-database" });
+    expect((await edit({})).state).toMatchObject({ message: EDIT_EVENT_MESSAGES.noDatabase });
   });
 });

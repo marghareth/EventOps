@@ -6,6 +6,8 @@ import {
   createEventFormSchema,
   isCalendarDate,
   manilaDateTime,
+  sameEventDetails,
+  toEventFormValues,
   toNewEvent,
   type CreateEventForm,
 } from "./schema";
@@ -157,5 +159,49 @@ describe("event references (D-005)", () => {
     [undefined, false],
   ])("recognises %j as a reference: %s", (value, expected) => {
     expect(isEventReference(value)).toBe(expected);
+  });
+});
+
+describe("toEventFormValues (B1-05)", () => {
+  it("turns a stored event back into Philippine-time form values", () => {
+    expect(
+      toEventFormValues({
+        name: "Santos wedding",
+        venue: null,
+        description: "Garden ceremony",
+        startsAt: new Date("2026-12-31T23:00:00Z"),
+        endsAt: new Date("2027-01-01T04:30:00Z"),
+        capacity: null,
+        expectedAttendees: 0,
+      }),
+    ).toEqual({
+      name: "Santos wedding",
+      date: "2027-01-01",
+      startTime: "07:00",
+      endTime: "12:30",
+      venue: "",
+      description: "Garden ceremony",
+      capacity: "",
+      expectedAttendees: "0",
+    });
+  });
+
+  it("round-trips through the form schema unchanged", () => {
+    const original = toNewEvent(
+      createEventFormSchema.parse({ ...valid, endTime: "22:00", venue: "Cebu", capacity: "200" }),
+    );
+    const again = toNewEvent(createEventFormSchema.parse(toEventFormValues(original)));
+    expect(again).toEqual(original);
+    expect(sameEventDetails(original, again)).toBe(true);
+  });
+
+  it.each([
+    ["name", { name: "Reyes debut" }],
+    ["venue", { venue: "Manila" }],
+    ["end time", { endsAt: new Date("2026-12-12T15:00:00Z") }],
+    ["capacity", { capacity: 150 }],
+  ])("notices a changed %s", (_label, change) => {
+    const base = toNewEvent(createEventFormSchema.parse({ ...valid, endTime: "22:00" }));
+    expect(sameEventDetails(base, { ...base, ...change })).toBe(false);
   });
 });

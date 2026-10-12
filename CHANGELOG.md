@@ -9,6 +9,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-05 Edit Event.**
+  - Settings page (`/events/<id>/settings`): Owners and Coordinators edit the event's name, date,
+    times, venue, description, capacity and expected attendees, with the current values filled
+    in and the same validation as Create Event. Viewers see the details read-only (D-031, D-032).
+  - Saves are refused if someone else saved since the form was opened, so nothing is silently
+    overwritten. A save that changes nothing writes nothing.
+  - The header, overview and form show the new values as soon as the save succeeds.
+  - Loading and error screens for the Settings page; "Edit event" link on the overview.
+  - The permission matrix starts with `event.edit` (D-031).
+  - Create Event and Edit Event share one set of form fields (`EventFormFields`).
+  - Tests: 36 unit, component and page tests and 6 database tests.
 - **B1-04 Event Workspace.**
   - `/events/<id>` loads the event on the server for members only. Other users' events, unknown
     events and malformed IDs all show the not-found page with HTTP 404 (D-027).

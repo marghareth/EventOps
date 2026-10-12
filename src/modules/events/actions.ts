@@ -3,19 +3,26 @@
 // itself and validates every input on the server (PROJECT_RULES sections 7 and 8).
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { ensureDemoUserRecord, requireUser } from "@/lib/auth";
 import { fieldErrorsFrom } from "@/lib/auth-rules";
 import { getDb } from "@/lib/db";
 import { isDemoWithoutDatabase } from "@/lib/demo-auth";
+import { getEventAccess } from "./access";
 import { createEvent, type CreatedEvent } from "./create-event";
 import {
   CREATE_EVENT_FIELDS,
   CREATE_EVENT_MESSAGES,
+  EDIT_EVENT_MESSAGES,
   type CreateEventField,
   type CreateEventFormState,
+  type EditEventFormState,
 } from "./form-state";
-import { createEventFormSchema, toNewEvent } from "./schema";
+import { can } from "./permissions";
+import { createEventFormSchema, sameEventDetails, toNewEvent } from "./schema";
+import { updateEvent } from "./update-event";
 
 function formValues(formData: FormData): Record<CreateEventField, string> {
   const values = {} as Record<CreateEventField, string>;
@@ -63,4 +70,63 @@ export async function createEventAction(
 
   // redirect() works by throwing, so it stays outside the try block.
   redirect(`/events/${created.id}?created=${encodeURIComponent(created.reference)}`);
+}
+
+const versionSchema = z.iso.datetime();
+
+/**
+ * B1-05: saves the event's details. Members whose role may edit (D-031) only, and only if nobody
+ * else saved since the form was opened (D-032). The event ID is bound by the page and verified here.
+ */
+export async function updateEventAction(
+  eventId: string,
+  _previous: EditEventFormState,
+  formData: FormData,
+): Promise<EditEventFormState> {
+  const user = await requireUser(`/events/${encodeURIComponent(eventId)}/settings`);
+  const values = formValues(formData);
+
+  const access = await getEventAccess(user.id, eventId);
+  if (access.kind === "no-database") {
+    return { status: "error", message: EDIT_EVENT_MESSAGES.noDatabase, values };
+  }
+  // Same answer for another user's event as for a missing one (D-027).
+  if (access.kind === "not-found") {
+    return { status: "error", message: EDIT_EVENT_MESSAGES.notFound, values };
+  }
+  if (!can(access.event.role, "event.edit")) {
+    return { status: "error", message: EDIT_EVENT_MESSAGES.forbidden, values };
+  }
+
+  const parsed = createEventFormSchema.safeParse(values);
+  if (!parsed.success) {
+    return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error), values };
+  }
+  const version = versionSchema.safeParse(formData.get("version"));
+  if (!version.success) return { status: "error", message: EDIT_EVENT_MESSAGES.stale, values };
+
+  const details = toNewEvent(parsed.data);
+  if (sameEventDetails(access.event, details)) {
+    return { status: "success", message: EDIT_EVENT_MESSAGES.unchanged };
+  }
+
+  try {
+    const result = await updateEvent(getDb(), {
+      eventId: access.event.id,
+      editorId: user.id,
+      version: new Date(version.data),
+      details,
+    });
+    if (!result.ok) {
+      const message =
+        result.reason === "stale" ? EDIT_EVENT_MESSAGES.stale : EDIT_EVENT_MESSAGES.notFound;
+      return { status: "error", message, values };
+    }
+  } catch {
+    return { status: "error", message: EDIT_EVENT_MESSAGES.saveFailed, values };
+  }
+
+  // Refresh the whole workspace (header, overview, this form) with the saved values.
+  revalidatePath(`/events/${access.event.id}`, "layout");
+  return { status: "success", message: EDIT_EVENT_MESSAGES.saved };
 }

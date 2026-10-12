@@ -47,6 +47,7 @@ export async function getEventForMember(
       ...LIST_FIELDS,
       description: true,
       capacity: true,
+      updatedAt: true,
       members: { where: { userId }, select: { role: true } },
     },
   });

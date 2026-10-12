@@ -122,3 +122,40 @@ export function toNewEvent(form: z.output<typeof createEventFormSchema>): NewEve
     expectedAttendees: form.expectedAttendees ?? 0,
   };
 }
+
+/** The UTC instant as Philippine date "YYYY-MM-DD" and time "HH:MM". */
+function manilaParts(instant: Date): { date: string; time: string } {
+  const iso = new Date(instant.getTime() + 8 * 60 * 60 * 1000).toISOString();
+  return { date: iso.slice(0, 10), time: iso.slice(11, 16) };
+}
+
+/**
+ * A stored event as Edit Event form values (B1-05): the reverse of toNewEvent. Times come back in
+ * Philippine time; empty optional values become "".
+ */
+export function toEventFormValues(event: NewEvent): Required<CreateEventForm> {
+  const start = manilaParts(event.startsAt);
+  return {
+    name: event.name,
+    date: start.date,
+    startTime: start.time,
+    endTime: event.endsAt ? manilaParts(event.endsAt).time : "",
+    venue: event.venue ?? "",
+    description: event.description ?? "",
+    capacity: event.capacity === null ? "" : String(event.capacity),
+    expectedAttendees: String(event.expectedAttendees),
+  };
+}
+
+/** True when saving `next` would change nothing about `current`. */
+export function sameEventDetails(current: NewEvent, next: NewEvent): boolean {
+  return (
+    current.name === next.name &&
+    current.venue === next.venue &&
+    current.description === next.description &&
+    current.startsAt.getTime() === next.startsAt.getTime() &&
+    (current.endsAt?.getTime() ?? null) === (next.endsAt?.getTime() ?? null) &&
+    current.capacity === next.capacity &&
+    current.expectedAttendees === next.expectedAttendees
+  );
+}
