@@ -106,6 +106,19 @@ cover every flag and environment combination and the build guard.
 Password reset, changing email or password, social sign-in, multi-factor authentication and account
 deletion.
 
+## Event membership (B1-07, D-034)
+
+Where each membership criterion is enforced and tested:
+
+| Criterion                               | Enforced by                                                                 | Tested in                                                     |
+| --------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Membership model exists                 | `EventMember` in `prisma/schema.prisma`                                     | `src/lib/db.db.test.ts`                                       |
+| A user can belong to one or many events | One row per user per event                                                  | `members/membership.db.test.ts`                               |
+| Scoped to a specific event              | Unique `(eventId, userId)`; queries filter by both                          | `members/membership.db.test.ts`, `queries.db.test.ts`         |
+| Exactly one supported role              | `member_role` enum, NOT NULL, one row per user per event; one Owner minimum | `members/membership.db.test.ts`, `src/lib/db.db.test.ts`      |
+| Checked server-side                     | `requireEventAccess` / `getEventAccess` on every event page, action, route  | `access.test.ts`, `events/[eventId]/access-coverage.test.tsx` |
+| Knowing an event ID is not enough       | Non-members get the same 404 as unknown IDs (D-027)                         | `members/membership.db.test.ts`, API and page tests           |
+
 ## Event isolation
 
 - **Event list (B1-03, D-026).** `listEventsForUser` in `src/modules/events/queries.ts` is the

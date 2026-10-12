@@ -12,38 +12,39 @@ Status values:
   The code may already follow it; if it is rejected, the code changes.
 - **Superseded**: replaced by a later entry.
 
-| ID    | Title                                                    | Status   | Date       |
-| ----- | -------------------------------------------------------- | -------- | ---------- |
-| D-001 | Module layout and import boundaries                      | Proposed | 2026-10-09 |
-| D-002 | Cross-event integrity with composite foreign keys        | Proposed | 2026-10-09 |
-| D-003 | Supplier records are the source of truth for money       | Approved | 2026-10-09 |
-| D-004 | Deleting an event purges its audit log                   | Approved | 2026-10-09 |
-| D-005 | Event reference numbers come from a per-year counter     | Proposed | 2026-10-09 |
-| D-006 | Upper-case documentation file names                      | Approved | 2026-10-09 |
-| D-007 | Exact dependency versions in package.json                | Proposed | 2026-10-09 |
-| D-008 | B0-08 initial schema covers users and events only        | Approved | 2026-10-09 |
-| D-009 | The Supabase user mirror is `User` (table `users`)       | Approved | 2026-10-09 |
-| D-010 | CHECK constraints on events                              | Approved | 2026-10-09 |
-| D-011 | An event's creator cannot be deleted                     | Approved | 2026-10-09 |
-| D-012 | B0-09 includes minimal sign-in and sign-up pages         | Approved | 2026-10-09 |
-| D-013 | Server checks verify the user with getUser()             | Approved | 2026-10-09 |
-| D-014 | Email confirmation is required                           | Approved | 2026-10-09 |
-| D-015 | Passwords have at least 8 characters                     | Approved | 2026-10-09 |
-| D-016 | The users row is created at sign-in, not by a trigger    | Proposed | 2026-10-09 |
-| D-017 | Public routes, landing page and sign-out scope           | Proposed | 2026-10-09 |
-| D-018 | Event context placeholder reads only the URL             | Approved | 2026-10-10 |
-| D-019 | Placeholder pages and API routes until each feature task | Approved | 2026-10-10 |
-| D-020 | Inline SVG icons instead of the lucide-react package     | Approved | 2026-10-10 |
-| D-021 | Navigation: desktop sidebar, mobile drawer               | Approved | 2026-10-10 |
-| D-022 | Every event has an OWNER, enforced by a database trigger | Approved | 2026-10-11 |
-| D-023 | Length limits on event text                              | Approved | 2026-10-11 |
-| D-024 | Dev-only demo sign-in                                    | Approved | 2026-10-11 |
-| D-025 | Creating an event: who, time zone, and what is required  | Approved | 2026-10-11 |
-| D-026 | The event list: membership only, grouped, plus an API    | Approved | 2026-10-11 |
-| D-027 | Event workspace access: members only, others see 404     | Approved | 2026-10-11 |
-| D-031 | Permission matrix, first row: editing an event           | Approved | 2026-10-11 |
-| D-032 | Editing an event: fields, stale saves, audit later       | Approved | 2026-10-11 |
-| D-033 | Deleting an event: Owner only, typed confirmation        | Approved | 2026-10-11 |
+| ID    | Title                                                     | Status   | Date       |
+| ----- | --------------------------------------------------------- | -------- | ---------- |
+| D-001 | Module layout and import boundaries                       | Proposed | 2026-10-09 |
+| D-002 | Cross-event integrity with composite foreign keys         | Proposed | 2026-10-09 |
+| D-003 | Supplier records are the source of truth for money        | Approved | 2026-10-09 |
+| D-004 | Deleting an event purges its audit log                    | Approved | 2026-10-09 |
+| D-005 | Event reference numbers come from a per-year counter      | Proposed | 2026-10-09 |
+| D-006 | Upper-case documentation file names                       | Approved | 2026-10-09 |
+| D-007 | Exact dependency versions in package.json                 | Proposed | 2026-10-09 |
+| D-008 | B0-08 initial schema covers users and events only         | Approved | 2026-10-09 |
+| D-009 | The Supabase user mirror is `User` (table `users`)        | Approved | 2026-10-09 |
+| D-010 | CHECK constraints on events                               | Approved | 2026-10-09 |
+| D-011 | An event's creator cannot be deleted                      | Approved | 2026-10-09 |
+| D-012 | B0-09 includes minimal sign-in and sign-up pages          | Approved | 2026-10-09 |
+| D-013 | Server checks verify the user with getUser()              | Approved | 2026-10-09 |
+| D-014 | Email confirmation is required                            | Approved | 2026-10-09 |
+| D-015 | Passwords have at least 8 characters                      | Approved | 2026-10-09 |
+| D-016 | The users row is created at sign-in, not by a trigger     | Proposed | 2026-10-09 |
+| D-017 | Public routes, landing page and sign-out scope            | Proposed | 2026-10-09 |
+| D-018 | Event context placeholder reads only the URL              | Approved | 2026-10-10 |
+| D-019 | Placeholder pages and API routes until each feature task  | Approved | 2026-10-10 |
+| D-020 | Inline SVG icons instead of the lucide-react package      | Approved | 2026-10-10 |
+| D-021 | Navigation: desktop sidebar, mobile drawer                | Approved | 2026-10-10 |
+| D-022 | Every event has an OWNER, enforced by a database trigger  | Approved | 2026-10-11 |
+| D-023 | Length limits on event text                               | Approved | 2026-10-11 |
+| D-024 | Dev-only demo sign-in                                     | Approved | 2026-10-11 |
+| D-025 | Creating an event: who, time zone, and what is required   | Approved | 2026-10-11 |
+| D-026 | The event list: membership only, grouped, plus an API     | Approved | 2026-10-11 |
+| D-027 | Event workspace access: members only, others see 404      | Approved | 2026-10-11 |
+| D-031 | Permission matrix, first row: editing an event            | Approved | 2026-10-11 |
+| D-032 | Editing an event: fields, stale saves, audit later        | Approved | 2026-10-11 |
+| D-033 | Deleting an event: Owner only, typed confirmation         | Approved | 2026-10-11 |
+| D-034 | Event membership: model and enforcement, management later | Approved | 2026-10-12 |
 
 ---
 
@@ -634,6 +635,23 @@ action checks the role itself every time, and the edit's database update checks 
 - Errors: refused or already deleted gives "This event isn't available"; a database failure says
   nothing was removed. Both keep the dialog open.
 - No audit entry: the event's audit log is deleted with it (D-004), and no audit log exists yet.
+
+---
+
+## D-034 Event membership: model and enforcement, management later
+
+**Status:** Approved by the technical lead on 2026-10-12 (B1-07 plan).
+
+**Decision.**
+
+- The membership model is `EventMember` (B0-08): one row per user per event, with exactly one role
+  from `member_role` (Owner, Coordinator, Viewer). Every event keeps at least one Owner (D-022).
+- Membership is checked on the server for every event page, action and API route (D-027). Since
+  B1-07 this includes the placeholder section pages, and a test walks every page under
+  `/events/<id>` so a new page without the check fails.
+- B1-07 adds no schema and no UI. Adding members, changing roles and removing members (and who may
+  do it) are a separate task. Until then, members other than the creator exist only in seeded or
+  test data.
 
 ---
 

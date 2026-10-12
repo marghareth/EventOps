@@ -9,6 +9,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-07 Event Membership.**
+  - Every page under `/events/<id>`, including the placeholder section pages, now checks
+    membership itself. A test walks every event page so a new one without the check fails (D-034).
+  - Consolidated membership isolation tests: one or many events per user, a role per event, no
+    access to other events by ID, removed members lose access, unknown or missing roles refused.
+  - `SECURITY.md` maps each membership criterion to where it is enforced and tested.
 - **B1-06 Delete Event.**
   - Owners can permanently delete an event from the bottom of its Settings page. The destructive
     dialog names the event, says it can't be undone, and enables Delete only after the event
