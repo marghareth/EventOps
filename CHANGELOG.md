@@ -9,6 +9,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-10 Event Settings.** Verified, no code change: the Settings page from B1-05, B1-06 and B1-08
+  meets every criterion. Rechecked in a browser for Owner, Coordinator and Viewer at 375, 768 and
+  1280 px (no sideways scrolling, every control at least 44 px tall, keyboard reaches Delete, the
+  delete dialog fits a phone screen). Changing event status is recorded as an open item.
 - **B1-09 Server-Side Event Authorization.**
   - One authorization pattern for every event operation: `authorizeEvent` (server actions) and
     `authorizeEventRequest` (API routes; 401, 403, 404, 503), alongside `requireEventAccess`
