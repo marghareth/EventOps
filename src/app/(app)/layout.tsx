@@ -5,6 +5,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { DemoAuthBanner } from "@/components/layout/DemoAuthBanner";
+import { EventContextProvider } from "@/components/layout/EventContext";
 import { BrandMark } from "@/components/layout/NavIcon";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
@@ -21,38 +22,40 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const profile = await getUserProfile(user);
 
   return (
-    <div className="min-h-dvh md:flex">
-      {/* Desktop sidebar. Below md it moves into the header's Menu drawer. */}
-      <div className="hidden md:sticky md:top-0 md:flex md:h-dvh md:w-64 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-white">
-        <Link
-          href="/events"
-          className="flex min-h-16 items-center gap-2 border-b border-line px-5 font-display text-h4 font-extrabold"
-        >
-          <BrandMark className="size-7" />
-          EventOps
-        </Link>
-        <Sidebar className="flex-1 overflow-y-auto" />
-      </div>
+    <EventContextProvider>
+      <div className="min-h-dvh md:flex">
+        {/* Desktop sidebar. Below md it moves into the header's Menu drawer. */}
+        <div className="hidden md:sticky md:top-0 md:flex md:h-dvh md:w-64 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-white">
+          <Link
+            href="/events"
+            className="flex min-h-16 items-center gap-2 border-b border-line px-5 font-display text-h4 font-extrabold"
+          >
+            <BrandMark className="size-7" />
+            EventOps
+          </Link>
+          <Sidebar className="flex-1 overflow-y-auto" />
+        </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar user={profile} signOutAction={signOutAction} />
-        <main
-          id="main"
-          tabIndex={-1}
-          className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 focus:outline-none md:px-8 md:py-8"
-        >
-          {isDemoAuthEnabled() ? (
-            <DemoAuthBanner
-              // With a database the sample ID is not a real event, so the link would 404.
-              sampleEventHref={
-                isDemoWithoutDatabase() ? `/events/${DEMO_EVENT_ID}/attendees` : undefined
-              }
-              className="mb-6"
-            />
-          ) : null}
-          {children}
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar user={profile} signOutAction={signOutAction} />
+          <main
+            id="main"
+            tabIndex={-1}
+            className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 focus:outline-none md:px-8 md:py-8"
+          >
+            {isDemoAuthEnabled() ? (
+              <DemoAuthBanner
+                // With a database the sample ID is not a real event, so the link would 404.
+                sampleEventHref={
+                  isDemoWithoutDatabase() ? `/events/${DEMO_EVENT_ID}/attendees` : undefined
+                }
+                className="mb-6"
+              />
+            ) : null}
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </EventContextProvider>
   );
 }

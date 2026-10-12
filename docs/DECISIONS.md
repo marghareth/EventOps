@@ -12,42 +12,43 @@ Status values:
   The code may already follow it; if it is rejected, the code changes.
 - **Superseded**: replaced by a later entry.
 
-| ID    | Title                                                     | Status   | Date       |
-| ----- | --------------------------------------------------------- | -------- | ---------- |
-| D-001 | Module layout and import boundaries                       | Proposed | 2026-10-09 |
-| D-002 | Cross-event integrity with composite foreign keys         | Proposed | 2026-10-09 |
-| D-003 | Supplier records are the source of truth for money        | Approved | 2026-10-09 |
-| D-004 | Deleting an event purges its audit log                    | Approved | 2026-10-09 |
-| D-005 | Event reference numbers come from a per-year counter      | Proposed | 2026-10-09 |
-| D-006 | Upper-case documentation file names                       | Approved | 2026-10-09 |
-| D-007 | Exact dependency versions in package.json                 | Proposed | 2026-10-09 |
-| D-008 | B0-08 initial schema covers users and events only         | Approved | 2026-10-09 |
-| D-009 | The Supabase user mirror is `User` (table `users`)        | Approved | 2026-10-09 |
-| D-010 | CHECK constraints on events                               | Approved | 2026-10-09 |
-| D-011 | An event's creator cannot be deleted                      | Approved | 2026-10-09 |
-| D-012 | B0-09 includes minimal sign-in and sign-up pages          | Approved | 2026-10-09 |
-| D-013 | Server checks verify the user with getUser()              | Approved | 2026-10-09 |
-| D-014 | Email confirmation is required                            | Approved | 2026-10-09 |
-| D-015 | Passwords have at least 8 characters                      | Approved | 2026-10-09 |
-| D-016 | The users row is created at sign-in, not by a trigger     | Proposed | 2026-10-09 |
-| D-017 | Public routes, landing page and sign-out scope            | Proposed | 2026-10-09 |
-| D-018 | Event context placeholder reads only the URL              | Approved | 2026-10-10 |
-| D-019 | Placeholder pages and API routes until each feature task  | Approved | 2026-10-10 |
-| D-020 | Inline SVG icons instead of the lucide-react package      | Approved | 2026-10-10 |
-| D-021 | Navigation: desktop sidebar, mobile drawer                | Approved | 2026-10-10 |
-| D-022 | Every event has an OWNER, enforced by a database trigger  | Approved | 2026-10-11 |
-| D-023 | Length limits on event text                               | Approved | 2026-10-11 |
-| D-024 | Dev-only demo sign-in                                     | Approved | 2026-10-11 |
-| D-025 | Creating an event: who, time zone, and what is required   | Approved | 2026-10-11 |
-| D-026 | The event list: membership only, grouped, plus an API     | Approved | 2026-10-11 |
-| D-027 | Event workspace access: members only, others see 404      | Approved | 2026-10-11 |
-| D-031 | Permission matrix, first row: editing an event            | Approved | 2026-10-11 |
-| D-032 | Editing an event: fields, stale saves, audit later        | Approved | 2026-10-11 |
-| D-033 | Deleting an event: Owner only, typed confirmation         | Approved | 2026-10-11 |
-| D-034 | Event membership: model and enforcement, management later | Approved | 2026-10-12 |
-| D-035 | The full event permission matrix                          | Approved | 2026-10-12 |
-| D-036 | One authorization pattern for every event operation       | Approved | 2026-10-12 |
-| D-037 | Audit log: controlled actions, written with each change   | Approved | 2026-10-12 |
+| ID    | Title                                                      | Status   | Date       |
+| ----- | ---------------------------------------------------------- | -------- | ---------- |
+| D-001 | Module layout and import boundaries                        | Proposed | 2026-10-09 |
+| D-002 | Cross-event integrity with composite foreign keys          | Proposed | 2026-10-09 |
+| D-003 | Supplier records are the source of truth for money         | Approved | 2026-10-09 |
+| D-004 | Deleting an event purges its audit log                     | Approved | 2026-10-09 |
+| D-005 | Event reference numbers come from a per-year counter       | Proposed | 2026-10-09 |
+| D-006 | Upper-case documentation file names                        | Approved | 2026-10-09 |
+| D-007 | Exact dependency versions in package.json                  | Proposed | 2026-10-09 |
+| D-008 | B0-08 initial schema covers users and events only          | Approved | 2026-10-09 |
+| D-009 | The Supabase user mirror is `User` (table `users`)         | Approved | 2026-10-09 |
+| D-010 | CHECK constraints on events                                | Approved | 2026-10-09 |
+| D-011 | An event's creator cannot be deleted                       | Approved | 2026-10-09 |
+| D-012 | B0-09 includes minimal sign-in and sign-up pages           | Approved | 2026-10-09 |
+| D-013 | Server checks verify the user with getUser()               | Approved | 2026-10-09 |
+| D-014 | Email confirmation is required                             | Approved | 2026-10-09 |
+| D-015 | Passwords have at least 8 characters                       | Approved | 2026-10-09 |
+| D-016 | The users row is created at sign-in, not by a trigger      | Proposed | 2026-10-09 |
+| D-017 | Public routes, landing page and sign-out scope             | Proposed | 2026-10-09 |
+| D-018 | Event context placeholder reads only the URL               | Approved | 2026-10-10 |
+| D-019 | Placeholder pages and API routes until each feature task   | Approved | 2026-10-10 |
+| D-020 | Inline SVG icons instead of the lucide-react package       | Approved | 2026-10-10 |
+| D-021 | Navigation: desktop sidebar, mobile drawer                 | Approved | 2026-10-10 |
+| D-022 | Every event has an OWNER, enforced by a database trigger   | Approved | 2026-10-11 |
+| D-023 | Length limits on event text                                | Approved | 2026-10-11 |
+| D-024 | Dev-only demo sign-in                                      | Approved | 2026-10-11 |
+| D-025 | Creating an event: who, time zone, and what is required    | Approved | 2026-10-11 |
+| D-026 | The event list: membership only, grouped, plus an API      | Approved | 2026-10-11 |
+| D-027 | Event workspace access: members only, others see 404       | Approved | 2026-10-11 |
+| D-031 | Permission matrix, first row: editing an event             | Approved | 2026-10-11 |
+| D-032 | Editing an event: fields, stale saves, audit later         | Approved | 2026-10-11 |
+| D-033 | Deleting an event: Owner only, typed confirmation          | Approved | 2026-10-11 |
+| D-034 | Event membership: model and enforcement, management later  | Approved | 2026-10-12 |
+| D-035 | The full event permission matrix                           | Approved | 2026-10-12 |
+| D-036 | One authorization pattern for every event operation        | Approved | 2026-10-12 |
+| D-037 | Audit log: controlled actions, written with each change    | Approved | 2026-10-12 |
+| D-038 | Event context in the shell: URL first, confirmed by access | Approved | 2026-10-12 |
 
 ---
 
@@ -717,6 +718,29 @@ B3-05's held D-029; B3-05 will use this log when it is applied.
 - Owners and Coordinators read the log on the event's Activity page (`audit.view`, D-035), through
   `getEventActivity`, which authorizes itself. Latest 100 entries; filters and paging later.
 - Full rules: [AUDIT.md](AUDIT.md).
+
+---
+
+## D-038 Event context in the shell: URL first, confirmed by access
+
+**Status:** Approved by the technical lead on 2026-10-12 (B1-13 plan).
+
+**Decision.**
+
+- The event a page works on comes only from the URL (`/events/<id>/...`), so a refresh or a shared
+  link keeps it, and links inside an event stay inside it. Leaving is only through "All events" or
+  "Switch event". Nothing about the current event is stored in the browser.
+- The shell (sidebar, top bar) learns the event's name only after the event layout's server-side
+  access check passed (`ConfirmEvent` in `EventContext.tsx`). This is display only, never an
+  access check.
+- Not-found inside the app (`src/app/(app)/not-found.tsx`) renders inside the shell's single
+  `<main>`, links back to My events, and makes the sidebar show the normal links instead of the
+  unavailable event's sections.
+- Browser tabs name the event: "Settings · Santos wedding · EventOps", from the same
+  request-cached access check. Refused or unknown events add nothing to the title.
+- The top bar shows the event name from tablet width up; on phones the workspace header shows it.
+- `getCurrentUser` is cached per request, so the page, its layout and its title share one sign-in
+  check. Never across requests or users.
 
 ---
 

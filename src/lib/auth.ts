@@ -10,6 +10,7 @@
 import "server-only";
 import type { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { displayNameFor, loginUrlFor } from "./auth-rules";
 import { getDb } from "./db";
 import { DEMO_USER, isDemoAuthEnabled } from "./demo-auth";
@@ -35,8 +36,10 @@ function toAuthUser(user: User): AuthUser {
  * Returns the verified signed-in user, or null when there is no valid session.
  * Uses getUser(), which asks Supabase Auth on every call, so signed-out, banned or deleted users
  * are rejected immediately (D-013). Throws AuthUnavailableError if Supabase cannot be reached.
+ * Cached for the current request only (B1-13), so the page, its layout and its metadata share one
+ * check instead of asking Supabase several times. Never cached across requests or users.
  */
-export async function getCurrentUser(): Promise<AuthUser | null> {
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<AuthUser | null> {
   // Dev-only demo sign-in (D-024). Off unless DEV_DEMO_AUTH=true under `next dev`.
   if (isDemoAuthEnabled()) return { id: DEMO_USER.id, email: DEMO_USER.email };
 
@@ -50,7 +53,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     throw new AuthUnavailableError();
   }
   return data.user ? toAuthUser(data.user) : null;
-}
+});
 
 /**
  * Returns the signed-in user or redirects to the login page. Pass the current path as `nextPath`
