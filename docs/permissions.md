@@ -42,9 +42,10 @@ least one Owner (D-022).
 1. **Membership.** `requireEventAccess` / `getEventAccess` load the event only for its members.
    Everyone else gets the same 404 as an unknown event (D-027). Membership alone grants
    `event.view`.
-2. **Role, on the server.** Every server action and route handler that writes calls
-   `can(role, permission)` with the role loaded from the database, never a role sent by the
-   browser.
+2. **Role, on the server.** Every server action calls `authorizeEvent(eventId, permission)` and
+   every route handler `authorizeEventRequest(eventId, permission)` (B1-09, D-036). Both check
+   sign-in, membership and the role loaded from the database, never a role sent by the browser.
+   Route handlers answer 403 to a member without the permission.
 3. **Role, in the database.** Where a write is a single statement, it also filters by
    `rolesAllowed(permission)`, so a role change between the check and the write changes nothing.
 4. **The UI follows the role** (hidden buttons, read-only views) but is never the check. Tests call
@@ -59,3 +60,6 @@ Each row's action and database tests are written when its feature is built.
 | `event.view`   | B1-04    | `access.test.ts`, `access-coverage.test.tsx` | `members/membership.db.test.ts` |
 | `event.edit`   | B1-05    | `actions.test.ts` (updateEventAction)        | `update-event.db.test.ts`       |
 | `event.delete` | B1-06    | `actions.test.ts` (deleteEventAction)        | `delete-event.db.test.ts`       |
+
+End to end, through the real server actions, API route and database: `authorization.db.test.ts`
+(B1-09) covers the required security matrix, cross-event access and role escalation attempts.

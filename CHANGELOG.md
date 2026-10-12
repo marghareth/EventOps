@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-09 Server-Side Event Authorization.**
+  - One authorization pattern for every event operation: `authorizeEvent` (server actions) and
+    `authorizeEventRequest` (API routes; 401, 403, 404, 503), alongside `requireEventAccess`
+    (pages) (D-036). Edit, delete and `GET /api/events/<id>` now use it, with unchanged behaviour.
+  - End-to-end security test against a real database: the required matrix (User A/B × Event A/B,
+    Viewer write, Coordinator Owner-only, Owner), cross-event access and role escalation attempts
+    (forged role, user or owner fields, demotion and removal after opening a form).
+  - Guard test: every server action that takes an event ID must call `authorizeEvent` first.
+  - SECURITY.md: "How to authorize an event operation", with templates and a checklist.
 - **B1-08 Event Roles.**
   - The full permission matrix for Owner, Coordinator and Viewer is documented in
     `docs/PERMISSIONS.md` and encoded in `permissions.ts`; a test fails if they differ (D-035).

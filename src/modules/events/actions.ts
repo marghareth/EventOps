@@ -10,7 +10,7 @@ import { ensureDemoUserRecord, requireUser } from "@/lib/auth";
 import { fieldErrorsFrom } from "@/lib/auth-rules";
 import { getDb } from "@/lib/db";
 import { isDemoWithoutDatabase } from "@/lib/demo-auth";
-import { getEventAccess } from "./access";
+import { authorizeEvent } from "./authorize";
 import { createEvent, type CreatedEvent } from "./create-event";
 import { deleteEvent } from "./delete-event";
 import {
@@ -23,7 +23,6 @@ import {
   type DeleteEventFormState,
   type EditEventFormState,
 } from "./form-state";
-import { can } from "./permissions";
 import { createEventFormSchema, sameEventDetails, toNewEvent } from "./schema";
 import { updateEvent } from "./update-event";
 
@@ -86,20 +85,22 @@ export async function updateEventAction(
   _previous: EditEventFormState,
   formData: FormData,
 ): Promise<EditEventFormState> {
-  const user = await requireUser(`/events/${encodeURIComponent(eventId)}/settings`);
+  const auth = await authorizeEvent(
+    eventId,
+    "event.edit",
+    `/events/${encodeURIComponent(eventId)}/settings`,
+  );
   const values = formValues(formData);
-
-  const access = await getEventAccess(user.id, eventId);
-  if (access.kind === "no-database") {
-    return { status: "error", message: EDIT_EVENT_MESSAGES.noDatabase, values };
+  if (!auth.ok) {
+    const message = {
+      "no-database": EDIT_EVENT_MESSAGES.noDatabase,
+      // Same answer for another user's event as for a missing one (D-027).
+      "not-found": EDIT_EVENT_MESSAGES.notFound,
+      forbidden: EDIT_EVENT_MESSAGES.forbidden,
+    }[auth.reason];
+    return { status: "error", message, values };
   }
-  // Same answer for another user's event as for a missing one (D-027).
-  if (access.kind === "not-found") {
-    return { status: "error", message: EDIT_EVENT_MESSAGES.notFound, values };
-  }
-  if (!can(access.event.role, "event.edit")) {
-    return { status: "error", message: EDIT_EVENT_MESSAGES.forbidden, values };
-  }
+  const { user, event } = auth;
 
   const parsed = createEventFormSchema.safeParse(values);
   if (!parsed.success) {
@@ -109,13 +110,13 @@ export async function updateEventAction(
   if (!version.success) return { status: "error", message: EDIT_EVENT_MESSAGES.stale, values };
 
   const details = toNewEvent(parsed.data);
-  if (sameEventDetails(access.event, details)) {
+  if (sameEventDetails(event, details)) {
     return { status: "success", message: EDIT_EVENT_MESSAGES.unchanged };
   }
 
   try {
     const result = await updateEvent(getDb(), {
-      eventId: access.event.id,
+      eventId: event.id,
       editorId: user.id,
       version: new Date(version.data),
       details,
@@ -130,7 +131,7 @@ export async function updateEventAction(
   }
 
   // Refresh the whole workspace (header, overview, this form) with the saved values.
-  revalidatePath(`/events/${access.event.id}`, "layout");
+  revalidatePath(`/events/${event.id}`, "layout");
   return { status: "success", message: EDIT_EVENT_MESSAGES.saved };
 }
 
@@ -143,26 +144,28 @@ export async function deleteEventAction(
   _previous: DeleteEventFormState,
   formData: FormData,
 ): Promise<DeleteEventFormState> {
-  const user = await requireUser(`/events/${encodeURIComponent(eventId)}/settings`);
-
-  const access = await getEventAccess(user.id, eventId);
-  if (access.kind === "no-database") {
-    return { status: "error", message: DELETE_EVENT_MESSAGES.noDatabase };
+  const auth = await authorizeEvent(
+    eventId,
+    "event.delete",
+    `/events/${encodeURIComponent(eventId)}/settings`,
+  );
+  if (!auth.ok) {
+    const message = {
+      "no-database": DELETE_EVENT_MESSAGES.noDatabase,
+      // Same answer for another user's event as for a missing one (D-027).
+      "not-found": DELETE_EVENT_MESSAGES.notFound,
+      forbidden: DELETE_EVENT_MESSAGES.forbidden,
+    }[auth.reason];
+    return { status: "error", message };
   }
-  // Same answer for another user's event as for a missing one (D-027).
-  if (access.kind === "not-found") {
-    return { status: "error", message: DELETE_EVENT_MESSAGES.notFound };
-  }
-  if (!can(access.event.role, "event.delete")) {
-    return { status: "error", message: DELETE_EVENT_MESSAGES.forbidden };
-  }
+  const { user, event } = auth;
   const typed = formData.get("confirmation");
-  if (typeof typed !== "string" || typed.trim() !== access.event.reference) {
+  if (typeof typed !== "string" || typed.trim() !== event.reference) {
     return { status: "error", message: DELETE_EVENT_MESSAGES.confirmation };
   }
 
   try {
-    const result = await deleteEvent(getDb(), { eventId: access.event.id, userId: user.id });
+    const result = await deleteEvent(getDb(), { eventId: event.id, userId: user.id });
     if (!result.ok) return { status: "error", message: DELETE_EVENT_MESSAGES.notFound };
   } catch {
     return { status: "error", message: DELETE_EVENT_MESSAGES.failed };
@@ -170,5 +173,5 @@ export async function deleteEventAction(
 
   revalidatePath("/events");
   // redirect() works by throwing, so it stays outside the try block.
-  redirect(`/events?deleted=${encodeURIComponent(access.event.reference)}`);
+  redirect(`/events?deleted=${encodeURIComponent(event.reference)}`);
 }

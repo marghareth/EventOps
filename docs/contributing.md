@@ -130,7 +130,9 @@ Keep commits small and focused. Do not commit generated files, secrets or unrela
 ## Pull request checklist
 
 - [ ] The change matches the approved task, and nothing outside it changed.
-- [ ] Server-side authorization and validation are in place where data is read or written.
+- [ ] Every event operation authorizes with `authorizeEvent`, `authorizeEventRequest` or
+      `requireEventAccess`, following "How to authorize an event operation" in
+      [docs/SECURITY.md](docs/SECURITY.md); validation is in place where data is read or written.
 - [ ] Loading, empty, error and success states are handled; keyboard and screen-reader use work.
 - [ ] Tests were added or updated, and `npm run check` and `npm run build` pass locally.
 - [ ] Docs, `CHANGELOG.md` and `BUILD_BACKLOG.md` are updated.
