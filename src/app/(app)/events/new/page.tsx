@@ -1,10 +1,20 @@
 // src/app/(app)/events/new/page.tsx
-// Placeholder (B0-10, D-019). Replaced by this page's feature task.
+// Create Event (B1-02). The (app) layout already requires sign-in; the server action checks again.
 import type { Metadata } from "next";
-import { PagePlaceholder } from "@/components/layout/PagePlaceholder";
+import { CreateEventForm, createEventAction } from "@/modules/events/public";
 
 export const metadata: Metadata = { title: "New event" };
 
 export default function NewEventPage() {
-  return <PagePlaceholder title="New event" />;
+  return (
+    <div className="max-w-3xl">
+      <h1 className="text-h2 font-extrabold">Create an event</h1>
+      <p className="mt-2 text-ink-2">
+        Start with the essentials. You become the event&apos;s Owner and can add details later.
+      </p>
+      <div className="mt-6 rounded-xl bg-white p-6 shadow-xs sm:p-8">
+        <CreateEventForm action={createEventAction} />
+      </div>
+    </div>
+  );
 }
