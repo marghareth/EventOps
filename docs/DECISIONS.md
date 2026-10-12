@@ -46,6 +46,7 @@ Status values:
 | D-033 | Deleting an event: Owner only, typed confirmation         | Approved | 2026-10-11 |
 | D-034 | Event membership: model and enforcement, management later | Approved | 2026-10-12 |
 | D-035 | The full event permission matrix                          | Approved | 2026-10-12 |
+| D-036 | One authorization pattern for every event operation       | Approved | 2026-10-12 |
 
 ---
 
@@ -673,6 +674,26 @@ action checks the role itself every time, and the edit's database update checks 
 Rows D-031 (`event.edit`) and D-033 (`event.delete`) are part of this matrix. Each feature task
 enforces its row on the server and in the database, and adds action and database tests for every
 role; PERMISSIONS.md lists which boundaries are tested so far.
+
+---
+
+## D-036 One authorization pattern for every event operation
+
+**Status:** Approved by the technical lead on 2026-10-12 (B1-09 plan).
+
+**Decision.**
+
+- Every event operation authorizes through one helper in `src/modules/events/authorize.ts`:
+  `authorizeEvent` for server actions, `authorizeEventRequest` for API route handlers, and
+  `requireEventAccess` for pages. Each verifies sign-in, takes the user from the server session,
+  checks membership and checks the role against the permission matrix (D-035), in that order.
+- Non-members get the same answer as an unknown event (404, D-027). A member whose role lacks the
+  permission gets 403 from the API and a role message in the UI.
+- Single-statement writes also filter by the allowed roles in the database, so a role change
+  between the check and the write changes nothing.
+- Guard tests fail if an event page or server action skips the check. `authorization.db.test.ts`
+  proves the required security matrix end to end against a real database.
+- The pattern and checklist are in SECURITY.md, "How to authorize an event operation".
 
 ---
 

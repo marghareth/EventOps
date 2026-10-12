@@ -1,16 +1,25 @@
 // src/app/api/events/[eventId]/route.test.ts
 // @vitest-environment node
-// GET /api/events/<id> (B1-04) with auth and the access check mocked.
+// GET /api/events/<id> (B1-04, B1-09) with sign-in and the membership lookup mocked.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 class AuthUnavailableError extends Error {}
 const getCurrentUser = vi.fn();
 const getEventAccess = vi.fn();
 
-vi.mock("@/lib/auth", () => ({ AuthUnavailableError, getCurrentUser: () => getCurrentUser() }));
-vi.mock("@/modules/events/public", () => ({
-  getEventAccess: (...args: unknown[]) => getEventAccess(...args),
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/auth", () => ({
+  AuthUnavailableError,
+  getCurrentUser: () => getCurrentUser(),
+  requireUser: vi.fn(),
 }));
+// The route authorizes through authorizeEventRequest (B1-09); only its membership lookup is mocked.
+vi.mock("@/modules/events/access", () => ({
+  getEventAccess: (...args: unknown[]) => getEventAccess(...args),
+  requireEventAccess: vi.fn(),
+}));
+vi.mock("@/modules/events/actions", () => ({}));
+vi.mock("@/modules/events/queries", () => ({}));
 
 const { GET } = await import("./route");
 

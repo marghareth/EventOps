@@ -106,6 +106,51 @@ cover every flag and environment combination and the build guard.
 Password reset, changing email or password, social sign-in, multi-factor authentication and account
 deletion.
 
+## How to authorize an event operation (B1-09, D-036)
+
+This is the pattern for every event operation in every batch. Use the helpers in
+`src/modules/events/authorize.ts` (exported from `@/modules/events/public`); never write the checks
+by hand.
+
+**Server action** (a form submit or button):
+
+```ts
+export async function saveTaskAction(eventId: string, _prev: State, formData: FormData) {
+  const auth = await authorizeEvent(eventId, "tasks.manage", `/events/${eventId}/tasks`);
+  if (!auth.ok) return { status: "error", message: MESSAGES[auth.reason] };
+  // Only now read and validate the input. Use auth.user.id and auth.event.id from here on,
+  // never a user, role or event ID taken from the form.
+}
+```
+
+**Route handler** (`src/app/api/...`):
+
+```ts
+export async function GET(_req: Request, { params }: { params: Promise<{ eventId: string }> }) {
+  const auth = await authorizeEventRequest((await params).eventId, "attendees.export");
+  if (!auth.ok) return auth.response; // 401, 403, 404, 500 or 503, never cached
+  return Response.json(data, { headers: auth.headers });
+}
+```
+
+**Page** under `/events/<id>`: `const { access } = await requireEventAccess(eventId);`
+
+**Checklist for every new event operation**
+
+1. Pick the permission from [PERMISSIONS.md](PERMISSIONS.md). A new permission needs the technical
+   lead's approval and a change to both the doc and `permissions.ts`.
+2. Call the helper first, before reading the input you will act on.
+3. Read and write only through the authorized event: filter every query by `auth.event.id`, and
+   for single-statement writes also by the member's role (`rolesAllowed(permission)`).
+4. Ignore any user, role, owner or event ID sent by the browser.
+5. Add tests: each role allowed or refused (action and database), a member of another event, and
+   the 404 for non-members.
+
+**Guards that fail the build if this is skipped:**
+`events/[eventId]/access-coverage.test.tsx` (every event page checks access) and
+`action-coverage.test.ts` (every server action taking an event ID calls `authorizeEvent` before
+touching the event). The end-to-end proof is `authorization.db.test.ts`.
+
 ## Event membership (B1-07, D-034)
 
 Where each membership criterion is enforced and tested:
