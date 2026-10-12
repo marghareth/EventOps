@@ -2,6 +2,9 @@
 // Event overview (B1-04): checks access itself, shows the details and the section tiles.
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { EventDetails } from "@/modules/events/public";
+
+type MemberRole = EventDetails["role"];
 
 const requireEventAccess = vi.fn();
 
@@ -92,7 +95,7 @@ describe("event overview", () => {
     ["OWNER", true],
     ["COORDINATOR", true],
     ["VIEWER", false],
-  ])("shows %s an Edit event link: %s", async (role, shown) => {
+  ])("shows %s an Edit event link: %s", async (role: MemberRole, shown: boolean) => {
     requireEventAccess.mockResolvedValue({
       user: {},
       access: { kind: "ok", event: { ...event, role } },
@@ -101,12 +104,5 @@ describe("event overview", () => {
     const link = screen.queryByRole("link", { name: "Edit event" });
     if (shown) expect(link).toHaveAttribute("href", `/events/${ID}/settings`);
     else expect(link).not.toBeInTheDocument();
-  });
-
-  it("skips the details in demo mode without a database", async () => {
-    requireEventAccess.mockResolvedValue({ user: {}, access: { kind: "no-database" } });
-    await renderPage();
-    expect(screen.queryByRole("region", { name: "Event details" })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Sections" })).toBeInTheDocument();
   });
 });

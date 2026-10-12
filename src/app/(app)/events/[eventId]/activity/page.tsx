@@ -2,7 +2,6 @@
 // Activity (B1-11): the event's audit log, newest first, for Owners and Coordinators (audit.view,
 // D-035). Checks membership itself (D-027); getEventActivity checks the role on the server.
 import type { Metadata } from "next";
-import { Banner } from "@/components/shared/Banner";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { UnauthorizedState } from "@/components/shared/UnauthorizedState";
 import { describeAuditEntry, formatAuditTime } from "@/modules/events/audit/public";
@@ -13,17 +12,6 @@ export const metadata: Metadata = { title: "Activity" };
 export default async function ActivityPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
   const { access } = await requireEventAccess(eventId);
-
-  if (access.kind === "no-database") {
-    return (
-      <div className="flex flex-col gap-6">
-        <h1 className="text-h2 font-extrabold">Activity</h1>
-        <Banner severity="info" title="No database connected">
-          Demo sign-in has no activity to show. Set DATABASE_URL in .env.local.
-        </Banner>
-      </div>
-    );
-  }
 
   const activity = await getEventActivity(access.event.id);
   if (!activity.ok) {

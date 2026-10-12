@@ -66,9 +66,7 @@ describe("GET /api/events/[eventId]", () => {
     expect(bodies).toEqual([{ error: "Event not found." }, { error: "Event not found." }]);
   });
 
-  it("answers 503 when sign-in or (demo) the database is unavailable", async () => {
-    getEventAccess.mockResolvedValue({ kind: "no-database" });
-    expect((await call()).status).toBe(503);
+  it("answers 503 when sign-in is unavailable", async () => {
     getCurrentUser.mockRejectedValue(new AuthUnavailableError());
     expect((await call()).status).toBe(503);
   });
