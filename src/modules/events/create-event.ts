@@ -2,11 +2,13 @@
 // Create-event use case (B1-02). One transaction:
 //   1. take the next EVT-<year>-<number> from event_reference_counters (D-005),
 //   2. insert the event,
-//   3. insert the creator's OWNER membership (required by the D-022 trigger).
+//   3. insert the creator's OWNER membership (required by the D-022 trigger),
+//   4. record "event.created" in the audit log (B1-11, D-037).
 // If anything fails, everything rolls back, including the reference number, so numbers have no
 // gaps. The caller must have authenticated the creator; this function does not check access.
 import "server-only";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { writeAudit } from "@/modules/events/audit/public";
 import { formatEventReference, manilaYear } from "./reference";
 import type { NewEvent } from "./schema";
 
@@ -27,7 +29,7 @@ export async function createEvent(
         SET "lastNumber" = event_reference_counters."lastNumber" + 1, "updatedAt" = now()
       RETURNING "lastNumber"`;
 
-    return tx.event.create({
+    const created = await tx.event.create({
       data: {
         ...args.event,
         reference: formatEventReference(year, counter.lastNumber),
@@ -36,5 +38,13 @@ export async function createEvent(
       },
       select: { id: true, reference: true },
     });
+    await writeAudit(tx, {
+      eventId: created.id,
+      actorId: args.creatorId,
+      action: "event.created",
+      entityId: created.id,
+      details: { reference: created.reference, name: args.event.name },
+    });
+    return created;
   });
 }

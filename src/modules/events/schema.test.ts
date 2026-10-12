@@ -6,6 +6,7 @@ import {
   createEventFormSchema,
   isCalendarDate,
   manilaDateTime,
+  eventChanges,
   sameEventDetails,
   toEventFormValues,
   toNewEvent,
@@ -203,5 +204,43 @@ describe("toEventFormValues (B1-05)", () => {
   ])("notices a changed %s", (_label, change) => {
     const base = toNewEvent(createEventFormSchema.parse({ ...valid, endTime: "22:00" }));
     expect(sameEventDetails(base, { ...base, ...change })).toBe(false);
+  });
+});
+
+describe("eventChanges (B1-11 audit)", () => {
+  const base = toNewEvent(
+    createEventFormSchema.parse({
+      ...valid,
+      endTime: "22:00",
+      venue: "Cebu",
+      description: "Notes",
+    }),
+  );
+
+  it("is empty when nothing changed", () => {
+    expect(eventChanges(base, { ...base })).toEqual({});
+  });
+
+  it("records each changed field old → new, dates as ISO strings", () => {
+    expect(
+      eventChanges(base, {
+        ...base,
+        venue: null,
+        endsAt: null,
+        expectedAttendees: 220,
+        startsAt: new Date("2026-12-12T09:00:00Z"),
+      }),
+    ).toEqual({
+      venue: { from: "Cebu", to: null },
+      endsAt: { from: "2026-12-12T14:00:00.000Z", to: null },
+      expectedAttendees: { from: 0, to: 220 },
+      startsAt: { from: "2026-12-12T08:00:00.000Z", to: "2026-12-12T09:00:00.000Z" },
+    });
+  });
+
+  it("marks the description as changed without copying its text", () => {
+    expect(eventChanges(base, { ...base, description: "Secret new text" })).toEqual({
+      description: { changed: true },
+    });
   });
 });

@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-11 Audit Log Foundation.**
+  - Table `audit_logs` (migration `20261012090000_audit_log`): event, actor, action, entity, details
+    and time, append-only through a database trigger, deleted with its event (D-037).
+  - A controlled list of audited actions with strict schemas: `event.created` and `event.updated`
+    (changed fields, old → new; the description is marked changed, never copied). Written in the
+    same transaction as the change. See `docs/AUDIT.md`.
+  - Activity page for Owners and Coordinators: the latest 100 entries, newest first, with time,
+    who and what changed. Viewers are refused; loading, empty and error states.
+  - Tests: recording, rollback, append-only, cascade, deleted actor, registry rules, and who can
+    read the log, including end to end against a real database.
 - **B1-10 Event Settings.** Verified, no code change: the Settings page from B1-05, B1-06 and B1-08
   meets every criterion. Rechecked in a browser for Owner, Coordinator and Viewer at 375, 768 and
   1280 px (no sideways scrolling, every control at least 44 px tall, keyboard reaches Delete, the

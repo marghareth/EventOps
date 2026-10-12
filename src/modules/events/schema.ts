@@ -4,6 +4,7 @@
 // Dates and times are entered in Philippine time (Asia/Manila, UTC+8, no daylight saving) and
 // stored in UTC (D-025).
 import { z } from "zod";
+import type { EventChanges } from "@/modules/events/audit/public";
 
 export const EVENT_LIMITS = {
   name: 120,
@@ -158,4 +159,29 @@ export function sameEventDetails(current: NewEvent, next: NewEvent): boolean {
     current.capacity === next.capacity &&
     current.expectedAttendees === next.expectedAttendees
   );
+}
+
+/**
+ * What changed between two versions of an event, as recorded in the audit log (B1-11, D-037).
+ * Dates become ISO strings; the free-text description is marked changed, never copied.
+ */
+export function eventChanges(before: NewEvent, after: NewEvent): EventChanges {
+  const changes: EventChanges = {};
+  const iso = (date: Date | null) => (date ? date.toISOString() : null);
+  if (before.name !== after.name) changes.name = { from: before.name, to: after.name };
+  if (before.venue !== after.venue) changes.venue = { from: before.venue, to: after.venue };
+  if (before.description !== after.description) changes.description = { changed: true };
+  if (before.startsAt.getTime() !== after.startsAt.getTime()) {
+    changes.startsAt = { from: before.startsAt.toISOString(), to: after.startsAt.toISOString() };
+  }
+  if (iso(before.endsAt) !== iso(after.endsAt)) {
+    changes.endsAt = { from: iso(before.endsAt), to: iso(after.endsAt) };
+  }
+  if (before.capacity !== after.capacity) {
+    changes.capacity = { from: before.capacity, to: after.capacity };
+  }
+  if (before.expectedAttendees !== after.expectedAttendees) {
+    changes.expectedAttendees = { from: before.expectedAttendees, to: after.expectedAttendees };
+  }
+  return changes;
 }

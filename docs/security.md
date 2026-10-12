@@ -151,6 +151,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ eventId
 `action-coverage.test.ts` (every server action taking an event ID calls `authorizeEvent` before
 touching the event). The end-to-end proof is `authorization.db.test.ts`.
 
+## Audit log (B1-11, D-037)
+
+- Meaningful changes are recorded with who, what, which record and when, in the same transaction as
+  the change. Only actions in the audit registry can be written, each with a strict schema.
+- Entries can't be changed or deleted through the application or a direct SQL statement (database
+  trigger); they go only with their event.
+- Personal data is kept out of the details; free text is never copied. See [AUDIT.md](AUDIT.md).
+- Reading the log needs `audit.view` (Owner, Coordinator), checked by `getEventActivity` on the
+  server. Tests: `audit/audit.db.test.ts`, `authorization.db.test.ts`.
+
 ## Event membership (B1-07, D-034)
 
 Where each membership criterion is enforced and tested:

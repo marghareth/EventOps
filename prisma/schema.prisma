@@ -1,6 +1,7 @@
 // prisma/schema.prisma
 //
-// EventOps data model, B0-08 Database Foundation: users, events and event members.
+// EventOps data model. B0-08 Database Foundation: users, events and event members; B1-11 adds the
+// audit log.
 // Other tables (attendees, suppliers, budget, tasks, ...) are added by their own batch tasks,
 // following docs/DECISIONS.md (D-002, D-003) and docs/DATA_MODEL.md.
 //
@@ -62,6 +63,7 @@ model User {
 
   memberships   EventMember[]
   createdEvents Event[]
+  auditLogs     AuditLog[]
 
   @@map("users")
 }
@@ -102,6 +104,7 @@ model Event {
 
   createdBy User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
   members   EventMember[]
+  auditLogs AuditLog[]
 
   @@index([createdById])
   @@index([status, startsAt])
@@ -137,4 +140,41 @@ model EventMember {
   @@unique([eventId, id])
   @@index([userId])
   @@map("event_members")
+}
+
+// ─────────────────────────── Audit log ───────────────────────────
+
+// Append-only record of meaningful changes inside an event (B1-11, D-037). Only actions in the audit
+// registry (src/modules/events/audit/actions.ts) are written, each with validated details, in the
+// same transaction as the change. See docs/AUDIT.md.
+//
+// Trigger audit_logs_append_only (migration 20261012090000_audit_log) rejects direct UPDATE and
+// DELETE. Rows still go when their event is deleted (D-004), and actorId becomes NULL if the user is
+// deleted.
+//
+// CHECK constraints (same migration):
+// - audit_logs_action_format: action looks like "<entity>.<verb>", lower case.
+// - audit_logs_entity_pair:   entityType and entityId are both set or both NULL.
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  eventId    String   @db.Uuid
+  // Who made the change. NULL only if that user has since been deleted.
+  actorId    String?  @db.Uuid
+  // For example "event.updated". Only actions in the audit registry.
+  action     String   @db.VarChar(64)
+  // The record the action is about, where there is one, for example "event" and its id.
+  entityType String?  @db.VarChar(64)
+  entityId   String?  @db.Uuid
+  // Action-specific details, validated by the registry on write and read. Never personal data
+  // beyond what the action needs (docs/AUDIT.md).
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, createdAt])
+  @@index([eventId, entityType, entityId])
+  @@index([actorId])
+  @@map("audit_logs")
 }

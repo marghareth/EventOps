@@ -60,6 +60,7 @@ Each row's action and database tests are written when its feature is built.
 | `event.view`   | B1-04    | `access.test.ts`, `access-coverage.test.tsx` | `members/membership.db.test.ts` |
 | `event.edit`   | B1-05    | `actions.test.ts` (updateEventAction)        | `update-event.db.test.ts`       |
 | `event.delete` | B1-06    | `actions.test.ts` (deleteEventAction)        | `delete-event.db.test.ts`       |
+| `audit.view`   | B1-11    | `activity.test.ts`, activity `page.test.tsx` | `authorization.db.test.ts`      |
 
 End to end, through the real server actions, API route and database: `authorization.db.test.ts`
 (B1-09) covers the required security matrix, cross-event access and role escalation attempts.

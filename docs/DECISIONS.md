@@ -47,6 +47,7 @@ Status values:
 | D-034 | Event membership: model and enforcement, management later | Approved | 2026-10-12 |
 | D-035 | The full event permission matrix                          | Approved | 2026-10-12 |
 | D-036 | One authorization pattern for every event operation       | Approved | 2026-10-12 |
+| D-037 | Audit log: controlled actions, written with each change   | Approved | 2026-10-12 |
 
 ---
 
@@ -609,8 +610,7 @@ action checks the role itself every time, and the edit's database update checks 
 - A save that changes nothing writes nothing.
 - After a save the whole event workspace is refreshed, so the header, overview and form show the
   new values at once.
-- Audit: the criterion applies "once that system is available". There is no audit log yet (B3-05
-  is not applied), so the update records nothing; `update-event.ts` marks where the entry goes.
+- Audit: since B1-11 every saved change records `event.updated` with the changed fields (D-037).
 - The Settings page has its own loading and error screens. They sit below the event layout, so
   refused events still answer with HTTP 404 (checked).
 
@@ -694,6 +694,29 @@ role; PERMISSIONS.md lists which boundaries are tested so far.
 - Guard tests fail if an event page or server action skips the check. `authorization.db.test.ts`
   proves the required security matrix end to end against a real database.
 - The pattern and checklist are in SECURITY.md, "How to authorize an event operation".
+
+---
+
+## D-037 Audit log: controlled actions, written with each change
+
+**Status:** Approved by the technical lead on 2026-10-12 (B1-11 plan). Replaces the audit part of
+B3-05's held D-029; B3-05 will use this log when it is applied.
+
+**Decision.**
+
+- Table `audit_logs`: event, actor, action, optional entity type and ID, validated details, time
+  (migration `20261012090000_audit_log`).
+- Only actions in the registry (`src/modules/events/audit/actions.ts`) can be written, each with a
+  strict schema. B1 records `event.created` and `event.updated`. Deleting an event is not recorded,
+  because D-004 deletes its log. Reads are never audited.
+- `event.updated` stores only changed fields, old → new. The free-text description is marked as
+  changed and never copied. Personal data is kept out of details (see AUDIT.md).
+- Entries are written in the same transaction as the change; if the entry fails, the change fails.
+- Append-only, enforced by a database trigger. Entries go with their event; a deleted user's
+  entries stay with no actor.
+- Owners and Coordinators read the log on the event's Activity page (`audit.view`, D-035), through
+  `getEventActivity`, which authorizes itself. Latest 100 entries; filters and paging later.
+- Full rules: [AUDIT.md](AUDIT.md).
 
 ---
 
