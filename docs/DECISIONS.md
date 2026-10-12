@@ -45,6 +45,7 @@ Status values:
 | D-032 | Editing an event: fields, stale saves, audit later        | Approved | 2026-10-11 |
 | D-033 | Deleting an event: Owner only, typed confirmation         | Approved | 2026-10-11 |
 | D-034 | Event membership: model and enforcement, management later | Approved | 2026-10-12 |
+| D-035 | The full event permission matrix                          | Approved | 2026-10-12 |
 
 ---
 
@@ -655,6 +656,26 @@ action checks the role itself every time, and the edit's database update checks 
 
 ---
 
+## D-035 The full event permission matrix
+
+**Status:** Approved by the technical lead on 2026-10-12 (B1-08 plan). Resolves open item 7.
+
+**Decision.** The complete Tier 1 permission matrix is in [PERMISSIONS.md](PERMISSIONS.md) and in
+`src/modules/events/permissions.ts`; a test fails if they differ. In short:
+
+- **Owner:** everything, including the two Owner-only permissions: deleting the event
+  (`event.delete`, D-033) and managing members (`members.manage`).
+- **Coordinator:** everything else: event details and status, attendees (including CSV export of
+  guest data), import, accessibility, suppliers and payments, budget, tasks, impact assumptions, and
+  the activity log.
+- **Viewer:** read-only (`event.view` only). No exports and no activity log.
+
+Rows D-031 (`event.edit`) and D-033 (`event.delete`) are part of this matrix. Each feature task
+enforces its row on the server and in the database, and adds action and database tests for every
+role; PERMISSIONS.md lists which boundaries are tested so far.
+
+---
+
 ## Open items needing a decision
 
 These were found during review. Each one is a conflict between sources or a product question, so
@@ -673,8 +694,6 @@ PROJECT_RULES says to stop and ask rather than choose.
 5. **Commit type for security work.** PROJECT_RULES section 17 suggests `security(B4-19): ...`, but
    `commitlint.config.mjs` follows the hackathon convention and rejects the `security` type.
 6. **Payment status rule.** See D-003, "Not decided yet".
-7. **Permission matrix.** Started in D-031 with editing an event; D-033 adds deleting it. Every
-   other permission (members, suppliers, budget, tasks) is still undocumented. D-002, D-004 and
-   D-011 depend on it.
+7. ~~**Permission matrix.**~~ Resolved by D-035 (see PERMISSIONS.md).
 8. ~~**Last owner.**~~ Resolved at the data level by D-022: the database blocks removing, demoting or
    deleting an event's last `OWNER`.

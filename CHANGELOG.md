@@ -9,6 +9,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-08 Event Roles.**
+  - The full permission matrix for Owner, Coordinator and Viewer is documented in
+    `docs/PERMISSIONS.md` and encoded in `permissions.ts`; a test fails if they differ (D-035).
+  - Settings tells each member their role and what it allows.
+  - Tests for every built role boundary (edit and delete, each role), plus whole-matrix checks:
+    Viewer can only view, Owner can do everything, Coordinator is refused exactly the Owner-only
+    permissions.
 - **B1-07 Event Membership.**
   - Every page under `/events/<id>`, including the placeholder section pages, now checks
     membership itself. A test walks every event page so a new one without the check fails (D-034).
