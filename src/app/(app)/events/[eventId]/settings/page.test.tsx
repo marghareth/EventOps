@@ -12,6 +12,7 @@ vi.mock("@/modules/events/access", () => ({
 vi.mock("@/modules/events/actions", () => ({
   createEventAction: vi.fn(),
   updateEventAction: vi.fn(),
+  deleteEventAction: vi.fn(),
 }));
 vi.mock("@/modules/events/queries", () => ({ getMyEvents: vi.fn() }));
 
@@ -57,6 +58,17 @@ describe("Settings page", () => {
       expect(screen.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
     },
   );
+
+  it.each([
+    ["OWNER", true],
+    ["COORDINATOR", false],
+    ["VIEWER", false],
+  ])("shows %s the Delete event section: %s", async (role, shown) => {
+    await renderAs(role);
+    const section = screen.queryByRole("region", { name: "Delete event" });
+    if (shown) expect(section).toBeInTheDocument();
+    else expect(section).not.toBeInTheDocument();
+  });
 
   it("shows a Viewer the details read-only", async () => {
     await renderAs("VIEWER");

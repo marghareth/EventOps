@@ -1,12 +1,15 @@
 // src/app/(app)/events/[eventId]/settings/page.tsx
 // Event settings (B1-05): edit the event's details. Checks access itself (D-027). Owners and
-// Coordinators get the form (D-031); Viewers see the details read-only. The action checks again.
+// Coordinators get the form (D-031); Viewers see the details read-only. Owners can also delete the
+// event (B1-06, D-033). The actions check again.
 import type { Metadata } from "next";
 import { Banner } from "@/components/shared/Banner";
 import {
+  DeleteEventSection,
   EditEventForm,
   EventDetailsCard,
   can,
+  deleteEventAction,
   requireEventAccess,
   toEventFormValues,
   updateEventAction,
@@ -26,23 +29,32 @@ export default async function SettingsPage({ params }: { params: Promise<{ event
           Demo sign-in has no event to edit. Set DATABASE_URL in .env.local.
         </Banner>
       ) : can(access.event.role, "event.edit") ? (
-        <section
-          aria-labelledby="edit-event-heading"
-          className="rounded-xl bg-white p-6 shadow-xs sm:p-8"
-        >
-          <h2 id="edit-event-heading" className="text-h4 font-bold">
-            Event details
-          </h2>
-          <p className="mt-1 mb-6 text-sm text-ink-2">
-            Changes show across the workspace as soon as you save. The status and event number
-            don&apos;t change here.
-          </p>
-          <EditEventForm
-            action={updateEventAction.bind(null, access.event.id)}
-            saved={toEventFormValues(access.event)}
-            version={access.event.updatedAt.toISOString()}
-          />
-        </section>
+        <>
+          <section
+            aria-labelledby="edit-event-heading"
+            className="rounded-xl bg-white p-6 shadow-xs sm:p-8"
+          >
+            <h2 id="edit-event-heading" className="text-h4 font-bold">
+              Event details
+            </h2>
+            <p className="mt-1 mb-6 text-sm text-ink-2">
+              Changes show across the workspace as soon as you save. The status and event number
+              don&apos;t change here.
+            </p>
+            <EditEventForm
+              action={updateEventAction.bind(null, access.event.id)}
+              saved={toEventFormValues(access.event)}
+              version={access.event.updatedAt.toISOString()}
+            />
+          </section>
+          {can(access.event.role, "event.delete") ? (
+            <DeleteEventSection
+              action={deleteEventAction.bind(null, access.event.id)}
+              name={access.event.name}
+              reference={access.event.reference}
+            />
+          ) : null}
+        </>
       ) : (
         <>
           <p className="text-sm text-ink-2">

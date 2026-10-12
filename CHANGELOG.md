@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-06 Delete Event.**
+  - Owners can permanently delete an event from the bottom of its Settings page. The destructive
+    dialog names the event, says it can't be undone, and enables Delete only after the event
+    number is typed. Cancel deletes nothing (D-033).
+  - Everything that belongs to the event is deleted with it (D-004, reconfirmed). The user lands on
+    My events with an "Event deleted" notice; the event's pages and API then answer 404.
+  - `ConfirmDialog` gained two optional props: `confirmDisabled` and extra content (`children`).
+  - The permission matrix gains `event.delete` (Owner only).
+  - Tests: 26 unit, component and page tests and 8 database tests, including one that fails if any
+    foreign key to `events` does not cascade.
 - **B1-05 Edit Event.**
   - Settings page (`/events/<id>/settings`): Owners and Coordinators edit the event's name, date,
     times, venue, description, capacity and expected attendees, with the current values filled

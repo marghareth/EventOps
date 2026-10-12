@@ -62,3 +62,16 @@ export const EDIT_EVENT_MESSAGES = {
   noDatabase:
     "Demo sign-in has no database to save to. Set DATABASE_URL in .env.local to edit events.",
 } as const;
+
+/** Delete Event (B1-06). Success redirects, so only errors come back. */
+export type DeleteEventFormState = { status: "idle" | "error"; message?: string };
+
+export const initialDeleteEventState: DeleteEventFormState = { status: "idle" };
+
+export const DELETE_EVENT_MESSAGES = {
+  confirmation: "Type the event number exactly as shown to confirm.",
+  forbidden: "Only the event's Owner can delete it.",
+  notFound: "This event isn't available. It may already have been deleted.",
+  failed: "We couldn't delete the event. Nothing was removed. Try again in a moment.",
+  noDatabase: "Demo sign-in has no database. Set DATABASE_URL in .env.local to delete events.",
+} as const;

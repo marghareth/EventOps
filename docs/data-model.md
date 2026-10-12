@@ -111,11 +111,11 @@ the app recognises the error by that message prefix.
 
 ## Deletion behaviour
 
-Who may delete what is set by the permission matrix, which is not yet documented.
+Who may delete what is set by the permission matrix (D-031, D-033).
 
 | Deleted row | Effect                                                                                                                                  |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Event       | Its memberships are deleted (cascade). Later event-owned tables also cascade (D-004).                                                   |
+| Event       | Owners only (D-033). Its memberships are deleted (cascade). Later event-owned tables also cascade (D-004).                              |
 | User        | Blocked while the user created any event (D-011), or is the last `OWNER` of any event (D-022). Otherwise their memberships are deleted. |
 | Membership  | Blocked if it is the event's last `OWNER` (D-022). Demoting or moving the last `OWNER` is blocked too.                                  |
 
@@ -130,7 +130,8 @@ These decisions already apply to the tables later tasks will add:
 
 - Money is `Decimal(12, 2)` in Philippine pesos, never floating point.
 - Every event-owned table has `eventId`, an index that starts with it, and an `ON DELETE CASCADE`
-  foreign key to `events` (D-004).
+  foreign key to `events` (D-004). `delete-event.db.test.ts` fails if any foreign key to `events`
+  does not cascade.
 - Links between two event-owned rows are composite foreign keys on `(eventId, id)`; optional ones use
   `ON DELETE NO ACTION`, and delete use cases unlink first (D-002).
 - Supplier money: paid = sum of supplier payments, committed = accepted quote, payment status

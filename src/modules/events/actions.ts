@@ -12,12 +12,15 @@ import { getDb } from "@/lib/db";
 import { isDemoWithoutDatabase } from "@/lib/demo-auth";
 import { getEventAccess } from "./access";
 import { createEvent, type CreatedEvent } from "./create-event";
+import { deleteEvent } from "./delete-event";
 import {
   CREATE_EVENT_FIELDS,
   CREATE_EVENT_MESSAGES,
+  DELETE_EVENT_MESSAGES,
   EDIT_EVENT_MESSAGES,
   type CreateEventField,
   type CreateEventFormState,
+  type DeleteEventFormState,
   type EditEventFormState,
 } from "./form-state";
 import { can } from "./permissions";
@@ -129,4 +132,43 @@ export async function updateEventAction(
   // Refresh the whole workspace (header, overview, this form) with the saved values.
   revalidatePath(`/events/${access.event.id}`, "layout");
   return { status: "success", message: EDIT_EVENT_MESSAGES.saved };
+}
+
+/**
+ * B1-06: permanently deletes the event and everything in it (D-004). Owners only (D-033), and only
+ * after the user typed the event number. Then opens My events with a "deleted" notice.
+ */
+export async function deleteEventAction(
+  eventId: string,
+  _previous: DeleteEventFormState,
+  formData: FormData,
+): Promise<DeleteEventFormState> {
+  const user = await requireUser(`/events/${encodeURIComponent(eventId)}/settings`);
+
+  const access = await getEventAccess(user.id, eventId);
+  if (access.kind === "no-database") {
+    return { status: "error", message: DELETE_EVENT_MESSAGES.noDatabase };
+  }
+  // Same answer for another user's event as for a missing one (D-027).
+  if (access.kind === "not-found") {
+    return { status: "error", message: DELETE_EVENT_MESSAGES.notFound };
+  }
+  if (!can(access.event.role, "event.delete")) {
+    return { status: "error", message: DELETE_EVENT_MESSAGES.forbidden };
+  }
+  const typed = formData.get("confirmation");
+  if (typeof typed !== "string" || typed.trim() !== access.event.reference) {
+    return { status: "error", message: DELETE_EVENT_MESSAGES.confirmation };
+  }
+
+  try {
+    const result = await deleteEvent(getDb(), { eventId: access.event.id, userId: user.id });
+    if (!result.ok) return { status: "error", message: DELETE_EVENT_MESSAGES.notFound };
+  } catch {
+    return { status: "error", message: DELETE_EVENT_MESSAGES.failed };
+  }
+
+  revalidatePath("/events");
+  // redirect() works by throwing, so it stays outside the try block.
+  redirect(`/events?deleted=${encodeURIComponent(access.event.reference)}`);
 }
