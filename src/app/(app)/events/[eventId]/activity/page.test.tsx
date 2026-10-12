@@ -16,6 +16,11 @@ vi.mock("@/modules/events/activity", () => ({
 vi.mock("@/modules/events/actions", () => ({}));
 vi.mock("@/modules/events/queries", () => ({}));
 
+const refresh = vi.fn();
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh }),
+}));
 const { default: ActivityPage } = await import("./page");
 const { default: ActivityError } = await import("./error");
 const ID = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";

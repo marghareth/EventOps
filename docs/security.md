@@ -188,6 +188,7 @@ Where each membership criterion is enforced and tested:
     `eventId` and the session user's membership.
   - Non-members get the same 404 as unknown events.
   - Do not add a `loading.tsx` above `events/[eventId]`: it makes refused events answer 200.
+    `access-coverage.test.tsx` fails if one appears (D-040).
   - Tests: `access.test.ts`, `queries.db.test.ts`, `src/app/api/events/[eventId]/route.test.ts`.
 - **Role permissions (D-035).** The full matrix is in [PERMISSIONS.md](PERMISSIONS.md), with
   the same values in `src/modules/events/permissions.ts` (a test keeps them identical). After the

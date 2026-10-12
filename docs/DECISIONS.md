@@ -765,6 +765,28 @@ B3-05's held D-029; B3-05 will use this log when it is applied.
 
 ---
 
+## D-040 Loading and error screens for the event foundation
+
+**Status:** Approved by the technical lead on 2026-10-12 (B1-15 plan).
+
+**Decision.**
+
+- One error screen inside the app shell, `src/app/(app)/error.tsx`, catches failures in any
+  signed-in page without its own error screen, including the event layout's access check. The
+  sidebar and header stay. Failures of the shell itself (the signed-in check) still reach
+  `src/app/error.tsx`. Error screens never show the error message, only the digest as a reference.
+- "Try again" on every error screen fetches fresh server data and then resets the screen
+  (`useRetry`). Resetting alone only re-rendered in the browser, so a server failure stayed on
+  screen. We keep our own small hook rather than Next's `unstable_retry`, so a rename of that
+  unstable API cannot silently break the buttons.
+- Loading screens live in the `(list)` group or inside `events/[eventId]`, never above the event
+  layout: a loading screen there lets the page start with status 200 before the access check, so a
+  refused event would lose its real 404 (D-027). A test fails if one is added above it.
+- Accessibility and layout were checked in a browser with axe-core used only in the sandbox; it is
+  not a project dependency. Results: [QUALITY.md](QUALITY.md).
+
+---
+
 ## Open items needing a decision
 
 These were found during review. Each one is a conflict between sources or a product question, so
@@ -789,8 +811,5 @@ PROJECT_RULES says to stop and ask rather than choose.
 9. **Event status changes.** D-035 lets Owners and Coordinators change status (`event.status`),
    but which changes are allowed (for example Completed back to Draft, or leaving Cancelled) is not
    decided, so there is no status control yet. Found while closing B1-10; needs its own task.
-10. **Errors inside an event lose the app shell.** If the database fails while an event loads (the
-    event layout's access check), the app-wide error page replaces the sidebar and header. It is
-    safe (no internal details, a Try again button), but the per-page error screens (Settings,
-    Activity) only catch failures after the event has loaded. An `error.tsx` in `src/app/(app)/`
-    would keep the shell. Found in B1-04, confirmed while closing B1-12; not yet scheduled.
+10. ~~**Errors inside an event lose the app shell.**~~ Resolved by D-040 (B1-15): an error screen
+    inside the shell.

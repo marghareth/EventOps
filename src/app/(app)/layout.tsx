@@ -24,8 +24,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <EventContextProvider>
       <div className="min-h-dvh md:flex">
-        {/* Desktop sidebar. Below md it moves into the header's Menu drawer. */}
-        <div className="hidden md:sticky md:top-0 md:flex md:h-dvh md:w-64 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-white">
+        {/* Desktop sidebar. Below md it moves into the header's Menu drawer. An <aside> so the
+            brand link sits inside a landmark like everything else on the page (B1-15). */}
+        <aside
+          aria-label="Sidebar"
+          className="hidden md:sticky md:top-0 md:flex md:h-dvh md:w-64 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-white"
+        >
           <Link
             href="/events"
             className="flex min-h-16 items-center gap-2 border-b border-line px-5 font-display text-h4 font-extrabold"
@@ -34,7 +38,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             EventOps
           </Link>
           <Sidebar className="flex-1 overflow-y-auto" />
-        </div>
+        </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar user={profile} signOutAction={signOutAction} />

@@ -42,3 +42,27 @@ describe("event pages check membership themselves", () => {
     expect(requireEventAccess).toHaveBeenCalledWith(ID);
   });
 });
+
+// A loading screen is a Suspense boundary: placed above the event layout, it lets the page start
+// streaming with status 200 before the access check runs, so a refused event would no longer get a
+// real 404 (D-027, D-040). Loading screens belong in (list) or inside [eventId] only.
+describe("no loading screen above the event layout", () => {
+  const loadings = Object.keys(
+    import.meta.glob([
+      "/src/app/**/loading.tsx",
+      "/src/app/**/loading.ts",
+      "/src/app/**/loading.jsx",
+    ]),
+  );
+
+  it("finds the loading screens that do exist", () => {
+    expect(loadings).toContain("/src/app/(app)/events/[eventId]/loading.tsx");
+  });
+
+  it.each(loadings.sort())("%s sits below the event layout or in the list group", (path) => {
+    expect(
+      path.startsWith("/src/app/(app)/events/[eventId]/") ||
+        path.startsWith("/src/app/(app)/events/(list)/"),
+    ).toBe(true);
+  });
+});

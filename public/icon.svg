@@ -1,0 +1,9 @@
+<!-- public/icon.svg -->
+<!-- Browser tab icon (B1-15): the EventOps mark from the brand book, same as BrandMark.
+     Linked from every page by the root layout's metadata (icons), so browsers stop requesting a
+     missing /favicon.ico. Static images and icons live in public/, served from the site root. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <circle cx="24" cy="24" r="22" fill="none" stroke="#0B4FD9" stroke-width="2" opacity=".6"/>
+  <circle cx="24" cy="24" r="14" fill="none" stroke="#0B4FD9" stroke-width="3"/>
+  <circle cx="24" cy="24" r="6" fill="#1E1E20"/>
+</svg>
