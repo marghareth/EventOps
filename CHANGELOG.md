@@ -15,7 +15,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Error screen inside the app shell (`src/app/(app)/error.tsx`): a failure while an event loads
     keeps the sidebar and header, with Try again and Back to my events. Resolves open item 10.
   - Loading screen for the event overview and sections, below the event header.
-  - Browser tab icon (`src/app/icon.svg`), the brand mark.
+  - Browser tab icon (`public/icon.svg`), the brand mark. Static images and icons live in `public/`.
   - A test that fails if a loading screen is added above the event layout.
 
 - **B1-14 Event Foundation Integration Tests.**
