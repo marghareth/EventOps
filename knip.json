@@ -1,5 +1,5 @@
 {
-  "entry": ["vitest.server-only-stub.ts", "src/**/*.db.test.ts"],
+  "entry": ["vitest.server-only-stub.ts", "src/**/*.db.test.ts", "e2e/lifecycle/*.ts"],
   "ignore": ["src/generated/**"],
   "ignoreDependencies": ["@prisma/client", "pg", "@testing-library/dom", "tailwindcss"]
 }

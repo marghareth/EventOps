@@ -56,24 +56,25 @@ Every new page, server action and route handler must check the signed-in user on
 
 ## Scripts
 
-| Script                | What it does                                           |
-| --------------------- | ------------------------------------------------------ |
-| `npm run dev`         | Start the dev server                                   |
-| `npm run build`       | Production build                                       |
-| `npm run lint`        | ESLint, including the module boundary rules            |
-| `npm run typecheck`   | TypeScript, no emit                                    |
-| `npm run knip`        | Find unused files, exports and dependencies            |
-| `npm test`            | Unit and component tests (Vitest)                      |
-| `npm run test:db`     | Database integration tests (needs `TEST_DATABASE_URL`) |
-| `npm run test:e2e`    | End-to-end tests (Playwright)                          |
-| `npm run check`       | lint, typecheck, knip and test together                |
-| `npm run format`      | Format with Prettier                                   |
-| `npm run db:generate` | Generate the Prisma client                             |
-| `npm run db:validate` | Validate `prisma/schema.prisma`                        |
-| `npm run db:format`   | Format `prisma/schema.prisma`                          |
-| `npm run db:migrate`  | Create and apply a migration in development            |
-| `npm run db:deploy`   | Apply pending migrations (CI and production)           |
-| `npm run db:status`   | Show which migrations are applied                      |
+| Script                       | What it does                                                           |
+| ---------------------------- | ---------------------------------------------------------------------- |
+| `npm run dev`                | Start the dev server                                                   |
+| `npm run build`              | Production build                                                       |
+| `npm run lint`               | ESLint, including the module boundary rules                            |
+| `npm run typecheck`          | TypeScript, no emit                                                    |
+| `npm run knip`               | Find unused files, exports and dependencies                            |
+| `npm test`                   | Unit and component tests (Vitest)                                      |
+| `npm run test:db`            | Database integration tests (needs `TEST_DATABASE_URL`)                 |
+| `npm run test:e2e`           | End-to-end tests (Playwright)                                          |
+| `npm run test:e2e:lifecycle` | Browser lifecycle test (needs `E2E_DATABASE_URL`, see docs/TESTING.md) |
+| `npm run check`              | lint, typecheck, knip and test together                                |
+| `npm run format`             | Format with Prettier                                                   |
+| `npm run db:generate`        | Generate the Prisma client                                             |
+| `npm run db:validate`        | Validate `prisma/schema.prisma`                                        |
+| `npm run db:format`          | Format `prisma/schema.prisma`                                          |
+| `npm run db:migrate`         | Create and apply a migration in development                            |
+| `npm run db:deploy`          | Apply pending migrations (CI and production)                           |
+| `npm run db:status`          | Show which migrations are applied                                      |
 
 ## Code structure
 
@@ -114,6 +115,9 @@ npm run test:db
 
 `TEST_DATABASE_URL` can also live in `.env.local`. CI runs the same steps against a fresh
 PostgreSQL 17 on every push and pull request.
+
+All test layers, the event lifecycle tests and how to run the browser lifecycle test are described
+in [docs/TESTING.md](docs/TESTING.md).
 
 ## Branches and commits
 

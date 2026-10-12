@@ -9,6 +9,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-14 Event Foundation Integration Tests.**
+  - `lifecycle.db.test.ts`: the whole event lifecycle as one story through the real server code and
+    PostgreSQL, with four users (Owner, Coordinator, Viewer, outsider) and role changes; runs in CI
+    with `npm run test:db` (D-039).
+  - `e2e/lifecycle/event-lifecycle.spec.ts`: the same story in a real browser with dev demo
+    sign-in, run locally with `npm run test:e2e:lifecycle` against a reset test database.
+  - `scripts/reset-demo.ts` resets the demo user's data, refusing databases not named for tests.
+  - `docs/TESTING.md`: every test layer, the lifecycle tests and how to run them.
 - **B1-13 Event Navigation & Context.**
   - Browser tabs name the event, for example "Settings · Santos wedding · EventOps" (D-038).
   - The top bar names the event (tablet and desktop) once the server confirmed access.
