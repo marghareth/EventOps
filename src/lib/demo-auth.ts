@@ -25,6 +25,14 @@ export function isDemoAuthEnabled(env: Env = process.env): boolean {
 }
 
 /**
+ * Demo sign-in with no DATABASE_URL: pages and actions that need data explain how to connect a
+ * database instead of failing (B1-02, B1-03).
+ */
+export function isDemoWithoutDatabase(env: Env = process.env): boolean {
+  return isDemoAuthEnabled(env) && !env.DATABASE_URL;
+}
+
+/**
  * Throws when a production build is attempted with the demo flag set. Called from next.config.ts
  * so a misconfigured deployment fails loudly instead of shipping with the flag in its env.
  */

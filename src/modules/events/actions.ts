@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { ensureDemoUserRecord, requireUser } from "@/lib/auth";
 import { fieldErrorsFrom } from "@/lib/auth-rules";
 import { getDb } from "@/lib/db";
-import { isDemoAuthEnabled } from "@/lib/demo-auth";
+import { isDemoWithoutDatabase } from "@/lib/demo-auth";
 import { createEvent, type CreatedEvent } from "./create-event";
 import {
   CREATE_EVENT_FIELDS,
@@ -43,7 +43,7 @@ export async function createEventAction(
     return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error), values };
   }
 
-  if (isDemoAuthEnabled() && !process.env.DATABASE_URL) {
+  if (isDemoWithoutDatabase()) {
     return { status: "error", message: CREATE_EVENT_MESSAGES.noDatabase, values };
   }
 

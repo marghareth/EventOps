@@ -15,7 +15,9 @@ vi.mock("@/lib/auth", () => ({
   ensureDemoUserRecord: () => ensureDemoUserRecord(),
 }));
 vi.mock("@/lib/db", () => ({ getDb: () => "db" }));
-vi.mock("@/lib/demo-auth", () => ({ isDemoAuthEnabled: () => demo }));
+vi.mock("@/lib/demo-auth", () => ({
+  isDemoWithoutDatabase: () => demo && !process.env.DATABASE_URL,
+}));
 vi.mock("./create-event", () => ({ createEvent: (...args: unknown[]) => createEvent(...args) }));
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {

@@ -39,6 +39,7 @@ Status values:
 | D-023 | Length limits on event text                              | Approved | 2026-10-11 |
 | D-024 | Dev-only demo sign-in                                    | Approved | 2026-10-11 |
 | D-025 | Creating an event: who, time zone, and what is required  | Approved | 2026-10-11 |
+| D-026 | The event list: membership only, grouped, plus an API    | Approved | 2026-10-11 |
 
 ---
 
@@ -490,13 +491,38 @@ flag set, which fails as intended.
 - Dates and times are entered in Philippine time (Asia/Manila, UTC+8, no daylight saving) and
   stored in UTC. The form says so.
 - The end time is on the same day as the start and can't be before it. Multi-day events are a
-  matter for event editing (B1-03).
+  matter for the event editing task.
 - On success the user is sent to `/events/<id>?created=<reference>`, which shows an "Event created"
   notice. The reference in the URL is only displayed, and only if it is well formed.
 - Database errors show a generic message ("We couldn't save the event. Try again in a moment.") and
   keep what the user typed; no internal detail reaches the browser.
 - In demo sign-in (D-024) creation works when `DATABASE_URL` is set: the demo user's `users` row is
   created first. Without a database the form says so instead of failing.
+
+---
+
+## D-026 The event list: membership only, grouped, plus an API
+
+**Status:** Approved by the technical lead on 2026-10-11 (B1-03 plan).
+
+**Decision.**
+
+- "My events" (`/events`) and `GET /api/events` return only events the signed-in user has an
+  `event_members` row for, with the user's own role. Every role (Owner, Coordinator, Viewer) sees
+  its events. The user ID comes from the server session; the route takes no parameters.
+- Each listed event carries an allow-list of fields: id, reference, name, venue, start, end,
+  status, expected attendees and the user's role. Description, capacity and creator are not listed.
+- Cards in a responsive grid (one column on phones), grouped into "Upcoming", soonest first, and
+  "Past", most recent first. An event stays upcoming for the whole of its last day in Philippine
+  time (its end, or its start when it has no end). Status does not move an event between groups.
+- No paging or search. Recorded as debt: fine for the expected few dozen events per coordinator.
+- `GET /api/events` answers 401 when signed out, 503 when sign-in or (demo) the database is
+  unavailable, 500 with a generic message on database errors, and sends `Cache-Control: private,
+no-store`.
+
+**Evidence.** Database tests: another user's events are never listed, a removed member stops
+seeing the event, two members of one event each see their own role. A browser run with another
+user's private event in the database: it appears in neither the page nor the API response.
 
 ---
 

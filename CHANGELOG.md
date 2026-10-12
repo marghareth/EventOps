@@ -9,6 +9,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-03 Event List.**
+  - "My events" page: the events you belong to as cards with name, reference, date and time in
+    Philippine time, venue, expected attendees, status and your role, grouped into Upcoming and
+    Past. Each card opens the event's workspace. Loading, empty, error and "no database" (demo)
+    states.
+  - `GET /api/events`: the same list as JSON, for the signed-in user only (D-026).
+  - Tests: 13 list-rule, 6 database isolation, 5 API, 3 card and 4 page/error-state tests.
 - **B1-02 Create Event.**
   - "Create an event" page at `/events/new`: name, date and start time required; end time, venue,
     description, capacity and expected attendees optional. Times are in Philippine time (D-025).

@@ -4,7 +4,13 @@
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import nextConfig from "../../next.config";
-import { DEMO_EVENT_ID, DEMO_USER, assertDemoAuthNotInBuild, isDemoAuthEnabled } from "./demo-auth";
+import {
+  DEMO_EVENT_ID,
+  DEMO_USER,
+  assertDemoAuthNotInBuild,
+  isDemoAuthEnabled,
+  isDemoWithoutDatabase,
+} from "./demo-auth";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -54,5 +60,15 @@ describe("demo identities", () => {
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
     expect(DEMO_USER.id).toMatch(uuid);
     expect(DEMO_EVENT_ID).toMatch(uuid);
+  });
+});
+
+describe("isDemoWithoutDatabase", () => {
+  const dev = { DEV_DEMO_AUTH: "true", NODE_ENV: "development" };
+  it("is true only in demo mode with no DATABASE_URL", () => {
+    expect(isDemoWithoutDatabase(dev)).toBe(true);
+    expect(isDemoWithoutDatabase({ ...dev, DATABASE_URL: "postgresql://localhost/x" })).toBe(false);
+    expect(isDemoWithoutDatabase({ NODE_ENV: "development" })).toBe(false);
+    expect(isDemoWithoutDatabase({ ...dev, NODE_ENV: "production" })).toBe(false);
   });
 });

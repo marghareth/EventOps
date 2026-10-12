@@ -119,6 +119,11 @@ Who may delete what is set by the permission matrix, which is not yet documented
 | User        | Blocked while the user created any event (D-011), or is the last `OWNER` of any event (D-022). Otherwise their memberships are deleted. |
 | Membership  | Blocked if it is the event's last `OWNER` (D-022). Demoting or moving the last `OWNER` is blocked too.                                  |
 
+## Reading events
+
+Events are only ever read through a membership filter (`members: { some: { userId } }`), using the
+user ID from the server session (D-026). The list uses the `event_members (userId)` index.
+
 ## Rules for tables added later
 
 These decisions already apply to the tables later tasks will add:
