@@ -12,25 +12,32 @@ Status values:
   The code may already follow it; if it is rejected, the code changes.
 - **Superseded**: replaced by a later entry.
 
-| ID    | Title                                                 | Status   | Date       |
-| ----- | ----------------------------------------------------- | -------- | ---------- |
-| D-001 | Module layout and import boundaries                   | Proposed | 2026-10-09 |
-| D-002 | Cross-event integrity with composite foreign keys     | Proposed | 2026-10-09 |
-| D-003 | Supplier records are the source of truth for money    | Approved | 2026-10-09 |
-| D-004 | Deleting an event purges its audit log                | Approved | 2026-10-09 |
-| D-005 | Event reference numbers come from a per-year counter  | Proposed | 2026-10-09 |
-| D-006 | Upper-case documentation file names                   | Approved | 2026-10-09 |
-| D-007 | Exact dependency versions in package.json             | Proposed | 2026-10-09 |
-| D-008 | B0-08 initial schema covers users and events only     | Approved | 2026-10-09 |
-| D-009 | The Supabase user mirror is `User` (table `users`)    | Approved | 2026-10-09 |
-| D-010 | CHECK constraints on events                           | Approved | 2026-10-09 |
-| D-011 | An event's creator cannot be deleted                  | Approved | 2026-10-09 |
-| D-012 | B0-09 includes minimal sign-in and sign-up pages      | Approved | 2026-10-09 |
-| D-013 | Server checks verify the user with getUser()          | Approved | 2026-10-09 |
-| D-014 | Email confirmation is required                        | Approved | 2026-10-09 |
-| D-015 | Passwords have at least 8 characters                  | Approved | 2026-10-09 |
-| D-016 | The users row is created at sign-in, not by a trigger | Proposed | 2026-10-09 |
-| D-017 | Public routes, landing page and sign-out scope        | Proposed | 2026-10-09 |
+| ID    | Title                                                    | Status   | Date       |
+| ----- | -------------------------------------------------------- | -------- | ---------- |
+| D-001 | Module layout and import boundaries                      | Proposed | 2026-10-09 |
+| D-002 | Cross-event integrity with composite foreign keys        | Proposed | 2026-10-09 |
+| D-003 | Supplier records are the source of truth for money       | Approved | 2026-10-09 |
+| D-004 | Deleting an event purges its audit log                   | Approved | 2026-10-09 |
+| D-005 | Event reference numbers come from a per-year counter     | Proposed | 2026-10-09 |
+| D-006 | Upper-case documentation file names                      | Approved | 2026-10-09 |
+| D-007 | Exact dependency versions in package.json                | Proposed | 2026-10-09 |
+| D-008 | B0-08 initial schema covers users and events only        | Approved | 2026-10-09 |
+| D-009 | The Supabase user mirror is `User` (table `users`)       | Approved | 2026-10-09 |
+| D-010 | CHECK constraints on events                              | Approved | 2026-10-09 |
+| D-011 | An event's creator cannot be deleted                     | Approved | 2026-10-09 |
+| D-012 | B0-09 includes minimal sign-in and sign-up pages         | Approved | 2026-10-09 |
+| D-013 | Server checks verify the user with getUser()             | Approved | 2026-10-09 |
+| D-014 | Email confirmation is required                           | Approved | 2026-10-09 |
+| D-015 | Passwords have at least 8 characters                     | Approved | 2026-10-09 |
+| D-016 | The users row is created at sign-in, not by a trigger    | Proposed | 2026-10-09 |
+| D-017 | Public routes, landing page and sign-out scope           | Proposed | 2026-10-09 |
+| D-018 | Event context placeholder reads only the URL             | Approved | 2026-10-10 |
+| D-019 | Placeholder pages and API routes until each feature task | Approved | 2026-10-10 |
+| D-020 | Inline SVG icons instead of the lucide-react package     | Approved | 2026-10-10 |
+| D-021 | Navigation: desktop sidebar, mobile drawer               | Approved | 2026-10-10 |
+| D-022 | Every event has an OWNER, enforced by a database trigger | Approved | 2026-10-11 |
+| D-023 | Length limits on event text                              | Approved | 2026-10-11 |
+| D-024 | Dev-only demo sign-in                                    | Approved | 2026-10-11 |
 
 ---
 
@@ -351,6 +358,120 @@ an error.
 
 ---
 
+## D-018 Event context placeholder reads only the URL
+
+**Status:** Approved by the technical lead on 2026-10-10.
+
+**Decision.** Inside `/events/[eventId]/...`, the shell shows the event ID from the URL, a "Switch
+event" link and the event's sidebar sections. It loads no event data, because loading an event
+before the membership and role check exists would break PROJECT_RULES section 7.
+`events/[eventId]/layout.tsx` rejects malformed IDs (not a UUID) with the not-found page, but this
+is input hygiene, **not** an access check. The event-workspace task replaces the placeholder with
+the event name and the membership check.
+
+---
+
+## D-019 Placeholder pages and API routes until each feature task
+
+**Status:** Approved by the technical lead on 2026-10-10.
+
+**Context.** Empty `page.tsx` and `route.ts` files crashed their routes and failed `npm run build`.
+
+**Decision.**
+
+- Every route that has no feature yet renders `PagePlaceholder` ("Not built yet"). Tier 2 pages
+  (check-in, event day, volunteers, timeline) say they are Tier 2 and are not linked in the
+  navigation.
+- Placeholder API routes answer 401 to signed-out callers and 501 Not Implemented to signed-in
+  callers, and never return data.
+- Each feature task replaces its own placeholder.
+
+---
+
+## D-020 Inline SVG icons instead of the lucide-react package
+
+**Status:** Approved by the technical lead on 2026-10-10.
+
+**Decision.** Shell icons are inline SVG paths copied from Lucide (ISC License) in
+`src/components/layout/NavIcon.tsx`, like the existing `StateIcon`. No new dependency
+(PROJECT_RULES section 15). The license notice is in `THIRD-PARTY-LICENSES.md`.
+
+---
+
+## D-021 Navigation: desktop sidebar, mobile drawer
+
+**Status:** Approved by the technical lead on 2026-10-10.
+
+**Decision.**
+
+- From the `md` breakpoint (768 px) the sidebar is always visible on the left. Below it, a "Menu"
+  button in the header opens the same sidebar in a drawer built on the native `<dialog>`.
+- Outside an event the sidebar shows "My events" and "New event". Inside an event it shows the Tier
+  1 sections: Overview, Attendees, Accessibility, Suppliers, Budget, Tasks, Impact, Import,
+  Activity, Settings.
+- The current page is marked with `aria-current="page"`, a bar and bold text, not color alone.
+
+---
+
+## D-022 Every event has an OWNER, enforced by a database trigger
+
+**Status:** Approved by the technical lead on 2026-10-11.
+
+**Context.** B1-01 requires that an event belongs to its owner through the membership model.
+Nothing stopped an event from having no members, or from losing its last OWNER (open item 8).
+
+**Decision.**
+
+- Deferred constraint triggers check, at commit, that an inserted event has an `OWNER` membership
+  and that updating or deleting a membership never leaves an event without one.
+- The create-event use case (B1-02) inserts the event and the creator's `OWNER` membership in one
+  transaction, for example as a nested Prisma create.
+- Deleting a whole event is allowed. Deleting a user who is an event's last `OWNER` is blocked.
+- The migration stops if existing data already breaks the rule.
+- Errors start with `events_must_have_owner:` (Postgres code 23514); the app maps them to a safe
+  message.
+
+**Evidence.** 10 database tests. Dropping either trigger makes exactly the matching tests fail.
+
+**Consequences.** Resolves open item 8 at the data level. Who may add or remove owners is still a
+permission-matrix question (open item 7).
+
+---
+
+## D-023 Length limits on event text
+
+**Status:** Approved by the technical lead on 2026-10-11.
+
+**Decision.** `events.name` is `varchar(120)`, `venue` `varchar(200)` and `description`
+`varchar(5000)`, counted in characters. Forms (B1-02) validate the same limits with Zod for friendly
+messages; the database is the backstop. Too-long values fail with Prisma error `P2000`.
+
+---
+
+## D-024 Dev-only demo sign-in
+
+**Status:** Approved by the technical lead on 2026-10-11.
+
+**Context.** The technical lead needs to view signed-in pages on `localhost` before a Supabase
+project is connected.
+
+**Decision.**
+
+- `DEV_DEMO_AUTH=true` in `.env.local` makes `npm run dev` treat every request as a fixed demo user
+  (`demo@eventops.local`, "Demo Coordinator"). The proxy skips Supabase, the sign-in and sign-up
+  forms validate input and then continue, and sign-out goes to the home page.
+- It is on only when `NODE_ENV` is `development`, which only `next dev` sets. `next start`, Vercel
+  and tests ignore it, and `next build` refuses to run while it is set (`next.config.ts`).
+- A "Demo sign-in is on" banner shows on every page while it is on.
+- No Supabase or database settings are needed to view the shell. Pages that read event data will
+  need a database once they exist.
+
+**Evidence.** Unit tests for every combination of flag and environment, and for the build guard. A
+browser run with no Supabase or database settings, and a real production build attempt with the
+flag set, which fails as intended.
+
+---
+
 ## Open items needing a decision
 
 These were found during review. Each one is a conflict between sources or a product question, so
@@ -371,5 +492,5 @@ PROJECT_RULES says to stop and ask rather than choose.
 6. **Payment status rule.** See D-003, "Not decided yet".
 7. **Permission matrix.** Owner, Coordinator and Viewer permissions are not documented. D-002,
    D-004 and D-011 depend on it.
-8. **Last owner.** Nothing stops an event from losing its last Owner membership (for example when
-   that user is deleted). Whether this must be blocked, and where, is a permission-matrix question.
+8. ~~**Last owner.**~~ Resolved at the data level by D-022: the database blocks removing, demoting or
+   deleting an event's last `OWNER`.

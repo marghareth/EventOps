@@ -7,6 +7,8 @@ const serverSchema = z.object({
   DATABASE_URL: z.string().url(),
   DIRECT_URL: z.string().url(),
   AI_IMPORT_ENABLED: z.enum(["true", "false"]).default("false"),
+  // Dev-only demo sign-in (D-024). Honoured only under `next dev`; see src/lib/demo-auth.ts.
+  DEV_DEMO_AUTH: z.enum(["true", "false"]).default("false"),
 });
 
 export function parseServerEnv(source: Record<string, string | undefined>) {

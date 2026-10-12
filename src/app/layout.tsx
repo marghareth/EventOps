@@ -1,29 +1,55 @@
-// src/app/layout.tsx
-import type { Metadata } from "next";
-import { inter, manrope } from "./fonts";
-import "./globals.css";
+// src/app/(app)/layout.tsx
+// Application shell for every signed-in page (B0-10): sidebar, header with user menu, and the main
+// content area. The requireUser() check runs on the server for every request; the proxy redirect
+// is only a convenience. Server actions and route handlers must still check the user themselves.
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { DemoAuthBanner } from "@/components/layout/DemoAuthBanner";
+import { BrandMark } from "@/components/layout/NavIcon";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { Topbar } from "@/components/layout/Topbar";
+import { getUserProfile, requireUser } from "@/lib/auth";
+import { DEMO_EVENT_ID, isDemoAuthEnabled } from "@/lib/demo-auth";
+import { signOutAction } from "./(auth)/actions";
 
-export const metadata: Metadata = {
-  // Pages set a short title ("Attendees"); the template adds the product name.
-  title: { default: "EventOps", template: "%s · EventOps" },
-  description: "The connected operations workspace for running better events.",
-};
+// Pages behind sign-in are per user: never prerender them at build time. Without this, a build
+// with no Supabase settings (CI) tries to prerender them and fails.
+export const dynamic = "force-dynamic";
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  const user = await requireUser();
+  const profile = await getUserProfile(user);
+
   return (
-    <html lang="en" className={`${manrope.variable} ${inter.variable}`}>
-      <body>
-        {/* First focusable element: lets keyboard users jump past the navigation. Every page's
-            main content has id="main". */}
-        <a
-          href="#main"
-          // not-sr-only resets padding, so the visible styles are applied under focus: too.
-          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-ink focus:px-5 focus:py-3 focus:font-semibold focus:text-white"
+    <div className="min-h-dvh md:flex">
+      {/* Desktop sidebar. Below md it moves into the header's Menu drawer. */}
+      <div className="hidden md:sticky md:top-0 md:flex md:h-dvh md:w-64 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-white">
+        <Link
+          href="/events"
+          className="flex min-h-16 items-center gap-2 border-b border-line px-5 font-display text-h4 font-extrabold"
         >
-          Skip to main content
-        </a>
-        {children}
-      </body>
-    </html>
+          <BrandMark className="size-7" />
+          EventOps
+        </Link>
+        <Sidebar className="flex-1 overflow-y-auto" />
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Topbar user={profile} signOutAction={signOutAction} />
+        <main
+          id="main"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 focus:outline-none md:px-8 md:py-8"
+        >
+          {isDemoAuthEnabled() ? (
+            <DemoAuthBanner
+              sampleEventHref={`/events/${DEMO_EVENT_ID}/attendees`}
+              className="mb-6"
+            />
+          ) : null}
+          {children}
+        </main>
+      </div>
+    </div>
   );
 }

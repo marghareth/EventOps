@@ -68,6 +68,12 @@ model User {
 
 // ───────────────────────────── Events ─────────────────────────────
 
+// Ownership (D-022): every event has at least one OWNER membership. A deferred constraint trigger
+// (migration 20261011090000_event_ownership) checks it at commit, so create the event and its OWNER
+// membership in the same transaction. Removing or demoting the last OWNER fails.
+//
+// Text limits (D-023): name 120, venue 200, description 5,000 characters (VarChar).
+//
 // CHECK constraints (migration SQL, D-010):
 // - events_name_not_blank:            name has at least one non-space character.
 // - events_capacity_positive:         capacity is NULL or greater than 0.
@@ -78,9 +84,9 @@ model Event {
   // Human-readable ID, for example EVT-2026-0001. Issued from EventReferenceCounter inside the
   // creating transaction (D-005). The unique index is the last line of defence against a duplicate.
   reference         String      @unique
-  name              String
-  description       String?
-  venue             String?
+  name              String      @db.VarChar(120)
+  description       String?     @db.VarChar(5000)
+  venue             String?     @db.VarChar(200)
   startsAt          DateTime
   endsAt            DateTime?
   // Venue capacity. Compared with expectedAttendees by the seating rule.
@@ -91,6 +97,7 @@ model Event {
   // Restrict: a user who created events cannot be deleted while those events exist (D-011).
   createdById       String      @db.Uuid
   createdAt         DateTime    @default(now())
+  // Set by Prisma on every update through the client. Raw SQL updates must set it themselves.
   updatedAt         DateTime    @updatedAt
 
   createdBy User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
@@ -113,6 +120,7 @@ model EventReferenceCounter {
   @@map("event_reference_counters")
 }
 
+// Changes that would leave an event without an OWNER fail at commit (D-022).
 model EventMember {
   id        String     @id @default(uuid()) @db.Uuid
   eventId   String     @db.Uuid

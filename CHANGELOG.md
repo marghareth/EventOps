@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-01 Event Data Model.**
+  - Every event has at least one `OWNER` membership, enforced by deferred database triggers
+    (migration `20261011090000_event_ownership`, D-022). Removing, demoting or deleting the last
+    owner fails; the migration stops if existing data already breaks the rule.
+  - Length limits: event name 120, venue 200 and description 5,000 characters (D-023).
+  - Database tests: ownership, length limits and `createdAt`/`updatedAt` behaviour (16 new, 42 in
+    total).
+- **Dev-only demo sign-in (D-024).** `DEV_DEMO_AUTH=true` lets `npm run dev` show signed-in pages
+  without Supabase, as a demo user with a warning banner. Ignored outside `next dev`; `npm run
+build` fails if it is set.
 - **B0-10 Application Shell.**
   - Authenticated layout with a desktop sidebar, a header and a main content area capped at
     1200 px. Below 768 px the sidebar moves into a "Menu" drawer (D-021).
@@ -53,6 +63,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `db:status`.
 - `docs/DECISIONS.md`, `BUILD_BACKLOG.md`, `ROADMAP.md`, `CONTRIBUTING.md`, `SECURITY.md`,
   `CODE_OF_CONDUCT.md`, `docs/DATA_MODEL.md` and a populated `.env.example`.
+
+### Fixed
+
+- `npm run build` no longer fails when Supabase settings are absent (as in CI): pages behind
+  sign-in are marked dynamic, so the build never tries to prerender them.
 
 ### Changed
 

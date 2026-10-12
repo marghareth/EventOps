@@ -2,6 +2,8 @@
 // Shell for the sign-in and sign-up pages (B0-09 minimal pages; Tier 1 polishes them).
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { DemoAuthBanner } from "@/components/layout/DemoAuthBanner";
+import { isDemoAuthEnabled } from "@/lib/demo-auth";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -12,6 +14,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             EventOps
           </Link>
         </p>
+        {isDemoAuthEnabled() ? <DemoAuthBanner className="mb-4" /> : null}
         <div className="rounded-xl bg-white p-6 shadow-sm sm:p-8">{children}</div>
       </div>
     </main>

@@ -5,11 +5,16 @@
 //    /login or /sign-up to the app.
 // This is a convenience, not the security boundary: proxies can be bypassed, so every protected
 // page, server action and route handler checks the user itself (src/lib/auth.ts).
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { decideProxyAction } from "@/lib/auth-rules";
+import { isDemoAuthEnabled } from "@/lib/demo-auth";
 import { redirectWithSession, updateSession } from "@/lib/supabase/middleware";
 
 export async function proxy(request: NextRequest) {
+  // Dev-only demo sign-in (D-024): no Supabase session to refresh, and every page is reachable,
+  // including /login and /sign-up so they can be viewed too.
+  if (isDemoAuthEnabled()) return NextResponse.next();
+
   const session = await updateSession(request);
   const decision = decideProxyAction(
     request.nextUrl.pathname,

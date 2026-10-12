@@ -7,6 +7,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { syncUserRecord } from "@/lib/auth";
+import { isDemoAuthEnabled } from "@/lib/demo-auth";
 import {
   AUTH_MESSAGES,
   LOGIN_PATH,
@@ -37,6 +38,9 @@ export async function signInAction(
   if (!parsed.success) {
     return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error), values };
   }
+
+  // Dev-only demo sign-in (D-024): any valid email and password continue as the demo user.
+  if (isDemoAuthEnabled()) redirect(next);
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
@@ -72,6 +76,9 @@ export async function signUpAction(
     return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error), values };
   }
 
+  // Dev-only demo sign-in (D-024): nothing is created; continue as the demo user.
+  if (isDemoAuthEnabled()) redirect(next);
+
   // Where the confirmation link returns. Supabase only follows URLs on its allow list.
   const origin = (await headers()).get("origin");
   const emailRedirectTo = origin
@@ -106,6 +113,9 @@ export async function signUpAction(
 }
 
 export async function signOutAction(): Promise<void> {
+  // Dev-only demo sign-in (D-024): there is no session to end; go to the public home page.
+  if (isDemoAuthEnabled()) redirect("/");
+
   const supabase = await createSupabaseServerClient();
   // "local" ends this browser's session only; other devices stay signed in.
   await supabase.auth.signOut({ scope: "local" });

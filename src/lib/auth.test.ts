@@ -108,3 +108,34 @@ describe("syncUserRecord", () => {
     });
   });
 });
+
+describe("dev-only demo sign-in (D-024)", () => {
+  it("returns the demo user under next dev with the flag, without asking Supabase", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("DEV_DEMO_AUTH", "true");
+    try {
+      await expect(getCurrentUser()).resolves.toEqual({
+        id: "00000000-0000-4000-8000-00000000d3e0",
+        email: "demo@eventops.local",
+      });
+      expect(getUser).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("ignores the flag outside next dev and checks Supabase as usual", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DEV_DEMO_AUTH", "true");
+    try {
+      getUser.mockResolvedValue({
+        data: { user: null },
+        error: { name: "AuthSessionMissingError" },
+      });
+      await expect(getCurrentUser()).resolves.toBeNull();
+      expect(getUser).toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
