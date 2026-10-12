@@ -41,6 +41,8 @@ Status values:
 | D-025 | Creating an event: who, time zone, and what is required  | Approved | 2026-10-11 |
 | D-026 | The event list: membership only, grouped, plus an API    | Approved | 2026-10-11 |
 | D-027 | Event workspace access: members only, others see 404     | Approved | 2026-10-11 |
+| D-031 | Permission matrix, first row: editing an event           | Approved | 2026-10-11 |
+| D-032 | Editing an event: fields, stale saves, audit later       | Approved | 2026-10-11 |
 
 ---
 
@@ -494,8 +496,8 @@ flag set, which fails as intended.
   the server ignores any extra fields such as a creator, role or status.
 - Dates and times are entered in Philippine time (Asia/Manila, UTC+8, no daylight saving) and
   stored in UTC. The form says so.
-- The end time is on the same day as the start and can't be before it. Multi-day events are a
-  matter for the event editing task.
+- The end time is on the same day as the start and can't be before it. Editing keeps the same rule
+  (D-032); multi-day events need a separate decision.
 - On success the user is sent to `/events/<id>?created=<reference>`, which shows an "Event created"
   notice. The reference in the URL is only displayed, and only if it is well formed.
 - Database errors show a generic message ("We couldn't save the event. Try again in a moment.") and
@@ -565,6 +567,49 @@ API answers identically for all three.
 
 ---
 
+## D-031 Permission matrix, first row: editing an event
+
+**Status:** Approved by the technical lead on 2026-10-11 (B1-05 plan). Partly resolves open item 7.
+D-028 to D-030 are held for B3-05, which is written but not applied.
+
+**Decision.** `src/modules/events/permissions.ts` holds the matrix; `can(role, permission)` answers
+it and `rolesAllowed(permission)` lists the roles. Rows are added only when the technical lead
+approves them.
+
+| Permission   | Owner | Coordinator | Viewer |
+| ------------ | ----- | ----------- | ------ |
+| `event.edit` | Yes   | Yes         | No     |
+
+Every member may read the event's details. Pages hide controls a role cannot use, but the server
+action checks the role itself every time, and the edit's database update checks it again.
+
+---
+
+## D-032 Editing an event: fields, stale saves, audit later
+
+**Status:** Approved by the technical lead on 2026-10-11 (B1-05 plan).
+
+**Decision.**
+
+- Event details are edited on the event's Settings page (`/events/<id>/settings`). The overview
+  links to it for roles that may edit.
+- Editable: name, date, start and end time, venue, description, capacity and expected attendees,
+  with the same validation as Create Event (one shared schema). Same-day only, as in D-025.
+- Not editable here: status (its rules are a separate decision), reference, creator and members.
+  The server ignores any such fields in the request.
+- Stale saves are refused. The form carries the event's `updatedAt` from when it was opened; the
+  update applies only if it still matches, in the same statement that checks membership and role.
+  Otherwise: "This event changed since you opened it", with the user's input kept.
+- A save that changes nothing writes nothing.
+- After a save the whole event workspace is refreshed, so the header, overview and form show the
+  new values at once.
+- Audit: the criterion applies "once that system is available". There is no audit log yet (B3-05
+  is not applied), so the update records nothing; `update-event.ts` marks where the entry goes.
+- The Settings page has its own loading and error screens. They sit below the event layout, so
+  refused events still answer with HTTP 404 (checked).
+
+---
+
 ## Open items needing a decision
 
 These were found during review. Each one is a conflict between sources or a product question, so
@@ -583,7 +628,8 @@ PROJECT_RULES says to stop and ask rather than choose.
 5. **Commit type for security work.** PROJECT_RULES section 17 suggests `security(B4-19): ...`, but
    `commitlint.config.mjs` follows the hackathon convention and rejects the `security` type.
 6. **Payment status rule.** See D-003, "Not decided yet".
-7. **Permission matrix.** Owner, Coordinator and Viewer permissions are not documented. D-002,
-   D-004 and D-011 depend on it.
+7. **Permission matrix.** Started in D-031 with editing an event only. Every other permission
+   (deleting events, members, suppliers, budget, tasks) is still undocumented. D-002, D-004 and
+   D-011 depend on it.
 8. ~~**Last owner.**~~ Resolved at the data level by D-022: the database blocks removing, demoting or
    deleting an event's last `OWNER`.

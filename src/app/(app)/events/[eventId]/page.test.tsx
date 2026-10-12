@@ -88,6 +88,21 @@ describe("event overview", () => {
     expect(screen.queryByText("Event created")).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["OWNER", true],
+    ["COORDINATOR", true],
+    ["VIEWER", false],
+  ])("shows %s an Edit event link: %s", async (role, shown) => {
+    requireEventAccess.mockResolvedValue({
+      user: {},
+      access: { kind: "ok", event: { ...event, role } },
+    });
+    await renderPage();
+    const link = screen.queryByRole("link", { name: "Edit event" });
+    if (shown) expect(link).toHaveAttribute("href", `/events/${ID}/settings`);
+    else expect(link).not.toBeInTheDocument();
+  });
+
   it("skips the details in demo mode without a database", async () => {
     requireEventAccess.mockResolvedValue({ user: {}, access: { kind: "no-database" } });
     await renderPage();

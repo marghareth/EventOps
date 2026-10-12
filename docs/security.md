@@ -121,5 +121,8 @@ deletion.
   - Non-members get the same 404 as unknown events.
   - Do not add a `loading.tsx` above `events/[eventId]`: it makes refused events answer 200.
   - Tests: `access.test.ts`, `queries.db.test.ts`, `src/app/api/events/[eventId]/route.test.ts`.
-- **Not built yet:** role permissions (Owner, Coordinator, Viewer). They wait for the permission
-  matrix (DECISIONS.md open item 7).
+- **Role permissions (D-031).** After the membership check, a write checks the member's role with
+  `can(role, permission)` from `src/modules/events/permissions.ts`. So far only `event.edit`
+  exists (Owner and Coordinator). Hiding a control is not the check: the server action checks
+  again, and the edit's database update filters by the allowed roles too. Other permissions wait
+  for the rest of the matrix (open item 7). Tests: `actions.test.ts`, `update-event.db.test.ts`.

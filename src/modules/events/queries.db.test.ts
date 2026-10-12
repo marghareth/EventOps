@@ -143,6 +143,7 @@ describe("getEventForMember (B1-04)", () => {
       status: "DRAFT",
       capacity: 200,
       expectedAttendees: 180,
+      updatedAt: expect.any(Date),
       role: "OWNER",
     });
   });

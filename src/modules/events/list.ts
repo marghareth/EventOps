@@ -21,6 +21,8 @@ export type EventListItem = {
 export type EventDetails = EventListItem & {
   description: string | null;
   capacity: number | null;
+  /** Last saved change. Edit Event uses it to refuse stale saves (B1-05, D-032). */
+  updatedAt: Date;
 };
 
 export type EventGroups = { upcoming: EventListItem[]; past: EventListItem[] };
