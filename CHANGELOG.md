@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-12 Activity Feed.** Verified, no code change: the Activity page from B1-11 meets every
+  criterion and reads only the audit log. Rechecked in a browser for Owner (entries, newest first),
+  Coordinator (empty state), Viewer (refused) and a non-member (404) at 375, 768 and 1280 px, and
+  with the database stopped (safe error, no details). Errors while an event loads still replace the
+  app shell; recorded as open item 10.
 - **B1-11 Audit Log Foundation.**
   - Table `audit_logs` (migration `20261012090000_audit_log`): event, actor, action, entity, details
     and time, append-only through a database trigger, deleted with its event (D-037).
