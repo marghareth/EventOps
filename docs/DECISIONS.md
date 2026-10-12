@@ -718,3 +718,6 @@ PROJECT_RULES says to stop and ask rather than choose.
 7. ~~**Permission matrix.**~~ Resolved by D-035 (see PERMISSIONS.md).
 8. ~~**Last owner.**~~ Resolved at the data level by D-022: the database blocks removing, demoting or
    deleting an event's last `OWNER`.
+9. **Event status changes.** D-035 lets Owners and Coordinators change status (`event.status`),
+   but which changes are allowed (for example Completed back to Draft, or leaving Cancelled) is not
+   decided, so there is no status control yet. Found while closing B1-10; needs its own task.
