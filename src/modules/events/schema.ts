@@ -92,7 +92,7 @@ export const createEventFormSchema = z
     capacity: optionalWholeNumber(1, "Enter a whole number of 1 or more."),
     expectedAttendees: optionalWholeNumber(0, "Enter a whole number of 0 or more."),
   })
-  // The end is on the same day as the start (multi-day events are edited later, B1-03).
+  // The end is on the same day as the start (multi-day events belong to the event editing task).
   .refine((input) => input.endTime === "" || input.endTime >= input.startTime, {
     path: ["endTime"],
     message: "End time can't be before the start time.",

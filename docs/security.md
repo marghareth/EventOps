@@ -103,5 +103,15 @@ cover every flag and environment combination and the build guard.
 
 ### Not built yet
 
-Password reset, changing email or password, social sign-in, multi-factor authentication, account
-deletion, and event membership and role checks.
+Password reset, changing email or password, social sign-in, multi-factor authentication and account
+deletion.
+
+## Event isolation
+
+- **Event list (B1-03, D-026).** `listEventsForUser` in `src/modules/events/queries.ts` is the
+  only query that lists events. It filters by the session user's membership and returns an
+  allow-list of fields. `GET /api/events` and the My events page both use it. Tests:
+  `queries.db.test.ts` (real database) and `src/app/api/events/route.test.ts`.
+- **Not built yet:** membership and role checks for a single event. The event workspace pages
+  under `/events/<id>` are placeholders that read only the ID from the URL (D-018) and load no
+  event data. The task that first loads an event's data must add the check.
