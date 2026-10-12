@@ -744,3 +744,8 @@ PROJECT_RULES says to stop and ask rather than choose.
 9. **Event status changes.** D-035 lets Owners and Coordinators change status (`event.status`),
    but which changes are allowed (for example Completed back to Draft, or leaving Cancelled) is not
    decided, so there is no status control yet. Found while closing B1-10; needs its own task.
+10. **Errors inside an event lose the app shell.** If the database fails while an event loads (the
+    event layout's access check), the app-wide error page replaces the sidebar and header. It is
+    safe (no internal details, a Try again button), but the per-page error screens (Settings,
+    Activity) only catch failures after the event has loaded. An `error.tsx` in `src/app/(app)/`
+    would keep the shell. Found in B1-04, confirmed while closing B1-12; not yet scheduled.
