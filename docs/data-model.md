@@ -6,10 +6,10 @@ The source of truth is `prisma/schema.prisma` plus the migrations in `prisma/mig
 explains the rules the schema alone does not make obvious. Decisions are recorded in
 [DECISIONS.md](DECISIONS.md).
 
-**Status (B1-01):** the database has `users`, `events`, `event_members` and
-`event_reference_counters`, created by migrations `20261009143000_init` (B0-08) and
-`20261011090000_event_ownership` (B1-01). Other tables are added by their batch tasks (D-008). No
-event feature code reads or writes these tables yet; B1-02 onwards add it.
+**Status (B1-11):** the database has `users`, `events`, `event_members`,
+`event_reference_counters` and `audit_logs`, created by migrations `20261009143000_init` (B0-08),
+`20261011090000_event_ownership` (B1-01) and `20261012090000_audit_log` (B1-11). Other tables are
+added by their batch tasks (D-008).
 
 ## Connections
 
@@ -79,17 +79,37 @@ Indexes: `(eventId, userId)` unique (one membership per user per event), `(event
 | `lastNumber` | integer   | Last number issued for that year          |
 | `updatedAt`  | timestamp | Set automatically                         |
 
+### `audit_logs` (model `AuditLog`, D-037)
+
+Append-only record of meaningful changes inside an event. Rules and the list of actions:
+[AUDIT.md](AUDIT.md).
+
+| Column                   | Type              | Rules                                                             |
+| ------------------------ | ----------------- | ----------------------------------------------------------------- |
+| `id`                     | uuid              | Primary key                                                       |
+| `eventId`                | uuid              | Required. Foreign key to `events`, cascade on delete (D-004)      |
+| `actorId`                | uuid              | Foreign key to `users`, set to NULL if the user is deleted        |
+| `action`                 | varchar(64)       | `<entity>.<verb>`, from the audit registry only                   |
+| `entityType`, `entityId` | varchar(64), uuid | Both set or both NULL; no foreign key, so entries outlive records |
+| `details`                | jsonb             | Validated against the action's schema on write and on read        |
+| `createdAt`              | timestamp         | Set automatically                                                 |
+
+Indexes: `(eventId, createdAt)`, `(eventId, entityType, entityId)`, `actorId`.
+
 ## CHECK constraints (D-010)
 
-Prisma cannot express these, so they are written by hand at the end of the init migration. Prisma
-does not diff CHECK constraints, so later generated migrations leave them in place.
+Prisma cannot express these, so they are written by hand at the end of the migration that creates
+the table. Prisma does not diff CHECK constraints, so later generated migrations leave them in
+place.
 
-| Constraint                         | Rule                                              |
-| ---------------------------------- | ------------------------------------------------- |
-| `events_name_not_blank`            | `name` contains at least one non-space character. |
-| `events_capacity_positive`         | `capacity` is NULL or greater than 0.             |
-| `events_expected_attendees_nonneg` | `expectedAttendees` is 0 or more.                 |
-| `events_ends_not_before_start`     | `endsAt` is NULL or not earlier than `startsAt`.  |
+| Constraint                         | Rule                                                   |
+| ---------------------------------- | ------------------------------------------------------ |
+| `events_name_not_blank`            | `name` contains at least one non-space character.      |
+| `events_capacity_positive`         | `capacity` is NULL or greater than 0.                  |
+| `events_expected_attendees_nonneg` | `expectedAttendees` is 0 or more.                      |
+| `events_ends_not_before_start`     | `endsAt` is NULL or not earlier than `startsAt`.       |
+| `audit_logs_action_format`         | `action` looks like `<entity>.<verb>` in lower case.   |
+| `audit_logs_entity_pair`           | `entityType` and `entityId` are both set or both NULL. |
 
 ## Ownership trigger (D-022)
 
@@ -109,15 +129,24 @@ A violation fails with Postgres code `23514` and a message that starts with
 `events_must_have_owner:`. Database drivers do not reliably pass the constraint name through, so
 the app recognises the error by that message prefix.
 
+## Append-only audit log (D-037)
+
+Trigger `audit_logs_append_only` (migration `20261012090000_audit_log`) rejects any UPDATE or
+DELETE on `audit_logs` issued directly, with an error starting `audit_logs_append_only:`. Changes made
+by a foreign key action still happen: deleting an event removes its entries (D-004), and deleting a
+user sets `actorId` to NULL. The trigger tells them apart by trigger depth (a foreign key action runs
+inside its own trigger).
+
 ## Deletion behaviour
 
 Who may delete what is set by the permission matrix (D-031, D-033).
 
-| Deleted row | Effect                                                                                                                                  |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Event       | Owners only (D-033). Its memberships are deleted (cascade). Later event-owned tables also cascade (D-004).                              |
-| User        | Blocked while the user created any event (D-011), or is the last `OWNER` of any event (D-022). Otherwise their memberships are deleted. |
-| Membership  | Blocked if it is the event's last `OWNER` (D-022). Demoting or moving the last `OWNER` is blocked too.                                  |
+| Deleted row     | Effect                                                                                                                                  |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Event           | Owners only (D-033). Its memberships are deleted (cascade). Later event-owned tables also cascade (D-004).                              |
+| User            | Blocked while the user created any event (D-011), or is the last `OWNER` of any event (D-022). Otherwise their memberships are deleted. |
+| Membership      | Blocked if it is the event's last `OWNER` (D-022). Demoting or moving the last `OWNER` is blocked too.                                  |
+| Audit log entry | Never deleted directly (D-037). Removed only with its event.                                                                            |
 
 ## Reading events
 

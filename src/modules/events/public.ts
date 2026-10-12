@@ -1,6 +1,7 @@
 // src/modules/events/public.ts
 // The events context's public interface. Pages and other contexts import from here only (D-001).
 export { getEventAccess, requireEventAccess, type EventAccess } from "./access";
+export { getEventActivity, type EventActivity } from "./activity";
 export {
   authorizeEvent,
   authorizeEventRequest,

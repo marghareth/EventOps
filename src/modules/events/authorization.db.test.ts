@@ -54,6 +54,7 @@ const { createPrismaClient } = await import("@/lib/db");
 const { createEvent } = await import("./create-event");
 const { deleteEventAction, updateEventAction } = await import("./actions");
 const { requireEventAccess } = await import("./access");
+const { getEventActivity } = await import("./activity");
 const { toEventFormValues } = await import("./schema");
 const {
   DELETE_EVENT_MESSAGES,
@@ -320,5 +321,50 @@ describe("role escalation attempts", () => {
     expect(await edit(eventA)).toMatchObject({ status: "error" });
     expect((await api(eventA)).status).toBe(404);
     expect(await read(eventA)).toMatchObject({ venue: "Cebu" });
+  });
+});
+
+describe("audit access is authorization-protected (B1-11, audit.view)", () => {
+  it.each([
+    ["the Owner", () => userA],
+    ["a Coordinator", () => coordinator],
+  ])("%s can read the activity", async (_label, who) => {
+    as(who());
+    const activity = await getEventActivity(eventA);
+    expect(activity.ok).toBe(true);
+    if (activity.ok)
+      expect(activity.entries.map((entry) => entry.action)).toContain("event.created");
+  });
+
+  it("a Viewer is refused", async () => {
+    as(viewer);
+    expect(await getEventActivity(eventA)).toEqual({ ok: false, reason: "forbidden" });
+  });
+
+  it("another event's owner gets the same answer as for an unknown event", async () => {
+    as(userB);
+    expect(await getEventActivity(eventA)).toEqual({ ok: false, reason: "not-found" });
+    expect(await getEventActivity(randomUUID())).toEqual({ ok: false, reason: "not-found" });
+  });
+
+  it("signed out is sent to sign in", async () => {
+    as(null);
+    expect(await run(getEventActivity(eventA))).toMatchObject({
+      redirect: expect.stringMatching(/^\/login/),
+    });
+  });
+
+  it("each user's edits are recorded under their own name, in their own event only", async () => {
+    as(coordinator);
+    await edit(eventA);
+    as(userA);
+    const activity = await getEventActivity(eventA);
+    expect(activity.ok && activity.entries[0]).toMatchObject({
+      action: "event.updated",
+      actorName: "Coordinator",
+    });
+    expect(await db.auditLog.count({ where: { eventId: eventB, action: "event.updated" } })).toBe(
+      0,
+    );
   });
 });
