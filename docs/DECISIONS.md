@@ -49,6 +49,7 @@ Status values:
 | D-036 | One authorization pattern for every event operation        | Approved | 2026-10-12 |
 | D-037 | Audit log: controlled actions, written with each change    | Approved | 2026-10-12 |
 | D-038 | Event context in the shell: URL first, confirmed by access | Approved | 2026-10-12 |
+| D-039 | Event lifecycle tested end to end at two levels            | Approved | 2026-10-12 |
 
 ---
 
@@ -741,6 +742,26 @@ B3-05's held D-029; B3-05 will use this log when it is applied.
 - The top bar shows the event name from tablet width up; on phones the workspace header shows it.
 - `getCurrentUser` is cached per request, so the page, its layout and its title share one sign-in
   check. Never across requests or users.
+
+---
+
+## D-039 Event lifecycle tested end to end at two levels
+
+**Status:** Approved by the technical lead on 2026-10-12 (B1-14 plan).
+
+**Decision.**
+
+- The event foundation's lifecycle (sign in, create, list, open, edit, activity, role changes,
+  authorization, delete, gone) is tested as one continuous story at two levels:
+  - `lifecycle.db.test.ts`: real server code and PostgreSQL, four real users, in CI.
+  - `e2e/lifecycle/event-lifecycle.spec.ts`: real browser with dev demo sign-in, local only
+    (`npm run test:e2e:lifecycle`).
+- "Signed in" is mocked in the database test and is demo sign-in in the browser test; real
+  Supabase sign-in stays a manual check (SECURITY.md).
+- Role changes are applied directly in the database until member management exists (D-034).
+- Both start from a known state: the database test cleans up after itself; the browser test resets
+  the demo user's data first, and only in a database named for tests.
+- Details: [TESTING.md](TESTING.md).
 
 ---
 
