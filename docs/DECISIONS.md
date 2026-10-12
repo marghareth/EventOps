@@ -38,6 +38,7 @@ Status values:
 | D-022 | Every event has an OWNER, enforced by a database trigger | Approved | 2026-10-11 |
 | D-023 | Length limits on event text                              | Approved | 2026-10-11 |
 | D-024 | Dev-only demo sign-in                                    | Approved | 2026-10-11 |
+| D-025 | Creating an event: who, time zone, and what is required  | Approved | 2026-10-11 |
 
 ---
 
@@ -197,6 +198,9 @@ Prisma client.
 **Consequences.** Because the counter row stays locked until commit, a rolled-back event creation
 releases its number, so there are no gaps. Event creation is serialised per year, which is fine at
 the expected volume.
+
+**Implemented in B1-02** (`src/modules/events/create-event.ts`). Database tests confirm consecutive
+numbers, distinct numbers for 5 concurrent creations, and no gap after a failed creation.
 
 ---
 
@@ -469,6 +473,30 @@ project is connected.
 **Evidence.** Unit tests for every combination of flag and environment, and for the build guard. A
 browser run with no Supabase or database settings, and a real production build attempt with the
 flag set, which fails as intended.
+
+---
+
+## D-025 Creating an event: who, time zone, and what is required
+
+**Status:** Approved by the technical lead on 2026-10-11 (B1-02 plan).
+
+**Decision.**
+
+- Any signed-in user may create an event. Creating one is not an event-scoped operation, so it
+  needs no membership; the creator becomes the event's `OWNER` in the same transaction (D-022).
+- Required: name, date and start time. Optional: end time, venue, description, venue capacity and
+  expected attendees (default 0). New events start as `DRAFT`; the form has no status field, and
+  the server ignores any extra fields such as a creator, role or status.
+- Dates and times are entered in Philippine time (Asia/Manila, UTC+8, no daylight saving) and
+  stored in UTC. The form says so.
+- The end time is on the same day as the start and can't be before it. Multi-day events are a
+  matter for event editing (B1-03).
+- On success the user is sent to `/events/<id>?created=<reference>`, which shows an "Event created"
+  notice. The reference in the URL is only displayed, and only if it is well formed.
+- Database errors show a generic message ("We couldn't save the event. Try again in a moment.") and
+  keep what the user typed; no internal detail reaches the browser.
+- In demo sign-in (D-024) creation works when `DATABASE_URL` is set: the demo user's `users` row is
+  created first. Without a database the form says so instead of failing.
 
 ---
 

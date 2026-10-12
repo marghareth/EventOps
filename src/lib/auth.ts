@@ -83,6 +83,19 @@ export async function getUserProfile(
   };
 }
 
+/**
+ * Dev-only demo sign-in (D-024): makes sure the demo user has a users row, so records that point at
+ * a user (an event's creator, its OWNER membership) can be saved. No-op outside demo mode.
+ */
+export async function ensureDemoUserRecord(): Promise<void> {
+  if (!isDemoAuthEnabled()) return;
+  await upsertUserRecord(getDb(), {
+    id: DEMO_USER.id,
+    email: DEMO_USER.email,
+    displayName: DEMO_USER.displayName,
+  });
+}
+
 /** Creates or updates the users row for a freshly authenticated Supabase user. */
 export async function syncUserRecord(user: User): Promise<void> {
   await upsertUserRecord(getDb(), {

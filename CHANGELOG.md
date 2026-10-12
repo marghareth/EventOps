@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-02 Create Event.**
+  - "Create an event" page at `/events/new`: name, date and start time required; end time, venue,
+    description, capacity and expected attendees optional. Times are in Philippine time (D-025).
+  - Server action that checks the signed-in user, validates with Zod, and saves the event and the
+    creator's `OWNER` membership in one transaction with the next `EVT-<year>-<number>` reference
+    (D-005).
+  - Accessible field errors with a summary, kept input after an error, a "Creating event…" loading
+    state, a safe message when saving fails, and an "Event created" notice on the new workspace.
+  - Tests: 47 validation, 7 action, 5 form and notice, and 5 database tests.
 - **B1-01 Event Data Model.**
   - Every event has at least one `OWNER` membership, enforced by deferred database triggers
     (migration `20261011090000_event_ownership`, D-022). Removing, demoting or deleting the last
