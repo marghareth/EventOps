@@ -10,7 +10,7 @@ import { BrandMark } from "@/components/layout/NavIcon";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { getUserProfile, requireUser } from "@/lib/auth";
-import { DEMO_EVENT_ID, isDemoAuthEnabled, isDemoWithoutDatabase } from "@/lib/demo-auth";
+import { isDemoAuthEnabled, isSampleDataMode } from "@/lib/demo-auth";
 import { signOutAction } from "../(auth)/actions";
 
 // Pages behind sign-in are per user: never prerender them at build time. Without this, a build
@@ -48,13 +48,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 focus:outline-none md:px-8 md:py-8"
           >
             {isDemoAuthEnabled() ? (
-              <DemoAuthBanner
-                // With a database the sample ID is not a real event, so the link would 404.
-                sampleEventHref={
-                  isDemoWithoutDatabase() ? `/events/${DEMO_EVENT_ID}/attendees` : undefined
-                }
-                className="mb-6"
-              />
+              <DemoAuthBanner sampleData={isSampleDataMode()} className="mb-6" />
             ) : null}
             {children}
           </main>

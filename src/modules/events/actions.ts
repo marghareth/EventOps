@@ -9,7 +9,7 @@ import { z } from "zod";
 import { ensureDemoUserRecord, requireUser } from "@/lib/auth";
 import { fieldErrorsFrom } from "@/lib/auth-rules";
 import { getDb } from "@/lib/db";
-import { isDemoWithoutDatabase } from "@/lib/demo-auth";
+import { isSampleDataMode } from "@/lib/demo-auth";
 import { authorizeEvent } from "./authorize";
 import { createEvent, type CreatedEvent } from "./create-event";
 import { deleteEvent } from "./delete-event";
@@ -23,6 +23,7 @@ import {
   type DeleteEventFormState,
   type EditEventFormState,
 } from "./form-state";
+import { sampleCreateEvent, sampleDeleteEvent, sampleUpdateEvent } from "./sample-data";
 import { createEventFormSchema, sameEventDetails, toNewEvent } from "./schema";
 import { updateEvent } from "./update-event";
 
@@ -52,18 +53,16 @@ export async function createEventAction(
     return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error), values };
   }
 
-  if (isDemoWithoutDatabase()) {
-    return { status: "error", message: CREATE_EVENT_MESSAGES.noDatabase, values };
-  }
-
   let created: CreatedEvent;
   try {
-    await ensureDemoUserRecord();
-    created = await createEvent(getDb(), {
-      event: toNewEvent(parsed.data),
-      creatorId: user.id,
-      now: new Date(),
-    });
+    const args = { event: toNewEvent(parsed.data), creatorId: user.id, now: new Date() };
+    if (isSampleDataMode()) {
+      // Dev-only sample data (D-041): kept in memory until the dev server restarts.
+      created = sampleCreateEvent(args);
+    } else {
+      await ensureDemoUserRecord();
+      created = await createEvent(getDb(), args);
+    }
   } catch {
     // Database unreachable, a constraint failed, or anything unexpected: nothing was saved
     // (one transaction). Show a safe message and keep what the user typed.
@@ -93,7 +92,6 @@ export async function updateEventAction(
   const values = formValues(formData);
   if (!auth.ok) {
     const message = {
-      "no-database": EDIT_EVENT_MESSAGES.noDatabase,
       // Same answer for another user's event as for a missing one (D-027).
       "not-found": EDIT_EVENT_MESSAGES.notFound,
       forbidden: EDIT_EVENT_MESSAGES.forbidden,
@@ -115,12 +113,8 @@ export async function updateEventAction(
   }
 
   try {
-    const result = await updateEvent(getDb(), {
-      eventId: event.id,
-      editorId: user.id,
-      version: new Date(version.data),
-      details,
-    });
+    const args = { eventId: event.id, editorId: user.id, version: new Date(version.data), details };
+    const result = isSampleDataMode() ? sampleUpdateEvent(args) : await updateEvent(getDb(), args);
     if (!result.ok) {
       const message =
         result.reason === "stale" ? EDIT_EVENT_MESSAGES.stale : EDIT_EVENT_MESSAGES.notFound;
@@ -151,7 +145,6 @@ export async function deleteEventAction(
   );
   if (!auth.ok) {
     const message = {
-      "no-database": DELETE_EVENT_MESSAGES.noDatabase,
       // Same answer for another user's event as for a missing one (D-027).
       "not-found": DELETE_EVENT_MESSAGES.notFound,
       forbidden: DELETE_EVENT_MESSAGES.forbidden,
@@ -165,7 +158,8 @@ export async function deleteEventAction(
   }
 
   try {
-    const result = await deleteEvent(getDb(), { eventId: event.id, userId: user.id });
+    const args = { eventId: event.id, userId: user.id };
+    const result = isSampleDataMode() ? sampleDeleteEvent(args) : await deleteEvent(getDb(), args);
     if (!result.ok) return { status: "error", message: DELETE_EVENT_MESSAGES.notFound };
   } catch {
     return { status: "error", message: DELETE_EVENT_MESSAGES.failed };

@@ -28,9 +28,8 @@ export type EventAuthorization =
       /**
        * not-found: unknown event, malformed ID, or the user is not a member (indistinguishable).
        * forbidden: a member whose role lacks the permission.
-       * no-database: dev-only demo sign-in without a database (D-024).
        */
-      reason: "not-found" | "forbidden" | "no-database";
+      reason: "not-found" | "forbidden";
     };
 
 async function authorizeUser(
@@ -66,8 +65,8 @@ export function jsonError(status: number, message: string): Response {
 
 /**
  * For API route handlers. Answers 401 signed out, 404 unknown or not a member, 403 a member without
- * the permission (D-036), 503 when sign-in or (demo) the database is unavailable, 500 on a database
- * error. Never reveals whether an event the caller is not a member of exists.
+ * the permission (D-036), 503 when sign-in is unavailable, 500 on a database error. Never
+ * reveals whether an event the caller is not a member of exists.
  */
 export async function authorizeEventRequest(
   eventId: string,
@@ -103,7 +102,6 @@ export async function authorizeEventRequest(
   const response = {
     "not-found": () => jsonError(404, "Event not found."),
     forbidden: () => jsonError(403, "Your role doesn't allow this."),
-    "no-database": () => jsonError(503, "No database is configured."),
   }[result.reason]();
   return { ok: false, response };
 }

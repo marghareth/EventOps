@@ -51,6 +51,7 @@ const { getEventActivity } = await import("./activity");
 const { getMyEvents } = await import("./queries");
 const { toEventFormValues } = await import("./schema");
 const forms = await import("./form-state");
+const listRoute = await import("@/app/api/events/route");
 const eventRoute = await import("@/app/api/events/[eventId]/route");
 
 const users: Record<"ana" | "ben" | "cara" | "dan", User> = {
@@ -99,14 +100,14 @@ async function edit(changes: Record<string, string>) {
 const remove = () =>
   run(deleteEventAction(eventId, forms.initialDeleteEventState, form({ confirmation: reference })));
 
-async function apiGet(path: string, params: { eventId: string }) {
+async function apiGet(path: string, params?: { eventId: string }) {
   const request = new Request(`http://localhost${path}`);
-  return eventRoute.GET(request, { params: Promise.resolve(params) });
+  return params ? eventRoute.GET(request, { params: Promise.resolve(params) }) : listRoute.GET();
 }
 
 const listedNames = async (user: User) => {
-  const result = await getMyEvents(user.id);
-  return result.status === "ok" ? result.events.map((event) => event.id) : [];
+  const events = await getMyEvents(user.id);
+  return events.map((event) => event.id);
 };
 
 beforeAll(async () => {
@@ -153,11 +154,16 @@ describe("event lifecycle (B1-14)", () => {
     [, eventId, reference] = match!;
   });
 
-  it("2. the event appears in Ana's event list, and nobody else's", async () => {
+  it("2. the event appears in Ana's event list and API, and nobody else's", async () => {
     expect(await listedNames(users.ana)).toContain(eventId);
     for (const other of [users.ben, users.cara, users.dan]) {
       expect(await listedNames(other)).not.toContain(eventId);
     }
+    signIn(users.ana);
+    const response = await apiGet("/api/events");
+    expect((await response.json()).events.map((event: { id: string }) => event.id)).toContain(
+      eventId,
+    );
   });
 
   it("3. Ana opens the event as its Owner", async () => {

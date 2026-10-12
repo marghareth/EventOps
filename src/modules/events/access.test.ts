@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireUser = vi.fn();
 const getEventForMember = vi.fn();
-let noDatabase = false;
+const sampleGetEventForMember = vi.fn();
+let sampleData = false;
 
 vi.mock("server-only", () => ({}));
 vi.mock("react", async (original) => ({
@@ -15,7 +16,10 @@ vi.mock("react", async (original) => ({
 }));
 vi.mock("@/lib/auth", () => ({ requireUser: (...args: unknown[]) => requireUser(...args) }));
 vi.mock("@/lib/db", () => ({ getDb: () => "db" }));
-vi.mock("@/lib/demo-auth", () => ({ isDemoWithoutDatabase: () => noDatabase }));
+vi.mock("@/lib/demo-auth", () => ({ isSampleDataMode: () => sampleData }));
+vi.mock("./sample-data", () => ({
+  sampleGetEventForMember: (...args: unknown[]) => sampleGetEventForMember(...args),
+}));
 vi.mock("./queries", () => ({
   getEventForMember: (...args: unknown[]) => getEventForMember(...args),
 }));
@@ -33,7 +37,7 @@ const event = { id: ID, name: "Santos wedding", role: "OWNER" };
 
 beforeEach(() => {
   vi.resetAllMocks();
-  noDatabase = false;
+  sampleData = false;
   requireUser.mockResolvedValue(user);
 });
 
@@ -51,16 +55,24 @@ describe("getEventAccess", () => {
 
   it.each(["new-thing", "1", "' OR 1=1 --", "3f2c1b8e-9a4d-4c1e-8b2a"])(
     "returns not-found for the malformed ID %j without a query",
-    async (eventId) => {
+    async (eventId: string) => {
       expect(await getEventAccess("user-1", eventId)).toEqual({ kind: "not-found" });
       expect(getEventForMember).not.toHaveBeenCalled();
     },
   );
 
-  it("reports demo mode without a database", async () => {
-    noDatabase = true;
-    expect(await getEventAccess("user-1", ID)).toEqual({ kind: "no-database" });
+  it("with sample data (D-041), asks the sample store with the same user", async () => {
+    sampleData = true;
+    sampleGetEventForMember.mockReturnValue(event);
+    expect(await getEventAccess("user-1", ID)).toEqual({ kind: "ok", event });
+    expect(sampleGetEventForMember).toHaveBeenCalledWith(ID, "user-1");
     expect(getEventForMember).not.toHaveBeenCalled();
+  });
+
+  it("with sample data, a non-member still gets not-found", async () => {
+    sampleData = true;
+    sampleGetEventForMember.mockReturnValue(null);
+    expect(await getEventAccess("user-1", ID)).toEqual({ kind: "not-found" });
   });
 
   it("lets database errors through to the error page", async () => {
