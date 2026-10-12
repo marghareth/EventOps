@@ -5,7 +5,7 @@ import { Banner } from "@/components/shared/Banner";
 import { SIGN_UP_PATH, loginPageError, safeNextPath } from "@/lib/auth-rules";
 import { SignInForm } from "../_components/SignInForm";
 
-export const metadata: Metadata = { title: "Sign in · EventOps" };
+export const metadata: Metadata = { title: "Sign in" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

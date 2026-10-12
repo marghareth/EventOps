@@ -9,6 +9,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B0-10 Application Shell.**
+  - Authenticated layout with a desktop sidebar, a header and a main content area capped at
+    1200 px. Below 768 px the sidebar moves into a "Menu" drawer (D-021).
+  - Sidebar navigation: "My events" and "New event", or the event's Tier 1 sections inside an
+    event. The current page is marked with `aria-current="page"`.
+  - User menu with the signed-in user's name and email and Sign out, with full keyboard support.
+  - Event context placeholder: the event ID from the URL and a "Switch event" link, with no event
+    data loaded before access checks exist (D-018). Malformed event IDs show the not-found page.
+  - "Skip to main content" link and page titles in the form "Attendees · EventOps".
+  - Placeholder pages and API routes for every route without a feature yet (D-019).
+    `npm run build` now succeeds.
+  - Inline Lucide icons (D-020) with the license notice in `THIRD-PARTY-LICENSES.md`.
+  - Tests: 209 unit and component tests in total, 48 more than after B0-09.
 - **B0-09 Authentication Foundation.**
   - Supabase Auth with cookie sessions (`@supabase/ssr`): server client, session refresh in
     `src/proxy.ts`, and a redirect to `/login?next=...` for signed-out visitors of protected pages.
