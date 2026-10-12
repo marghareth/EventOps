@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import type { PrismaClient } from "@/generated/prisma/client";
 import { createPrismaClient } from "@/lib/db";
 import { createEvent } from "./create-event";
-import { listEventsForUser } from "./queries";
+import { getEventForMember, listEventsForUser } from "./queries";
 import type { NewEvent } from "./schema";
 
 vi.mock("server-only", () => ({}));
@@ -125,5 +125,47 @@ describe("listEventsForUser", () => {
     await create(mika, "Later", `${YEAR}-12-12T08:00:00Z`);
     await create(mika, "Sooner", `${YEAR}-07-01T08:00:00Z`);
     expect((await listEventsForUser(db, mika)).map((e) => e.name)).toEqual(["Sooner", "Later"]);
+  });
+});
+
+describe("getEventForMember (B1-04)", () => {
+  it("returns the event's details and the member's role", async () => {
+    const mika = await newUser();
+    const created = await create(mika, "Santos wedding");
+    expect(await getEventForMember(db, created.id, mika)).toEqual({
+      id: created.id,
+      reference: created.reference,
+      name: "Santos wedding",
+      venue: "Cebu",
+      description: "Private notes",
+      startsAt: new Date(`${YEAR}-12-12T08:00:00Z`),
+      endsAt: null,
+      status: "DRAFT",
+      capacity: 200,
+      expectedAttendees: 180,
+      role: "OWNER",
+    });
+  });
+
+  it("returns null for another user's event, just as for an unknown one", async () => {
+    const mika = await newUser();
+    const other = await newUser();
+    const created = await create(other, "Someone else's event");
+    expect(await getEventForMember(db, created.id, mika)).toBeNull();
+    expect(await getEventForMember(db, randomUUID(), mika)).toBeNull();
+  });
+
+  it("gives each member their own role, and nothing once removed", async () => {
+    const owner = await newUser();
+    const viewer = await newUser();
+    const created = await create(owner, "Shared event");
+    await db.eventMember.create({ data: { eventId: created.id, userId: viewer, role: "VIEWER" } });
+    expect((await getEventForMember(db, created.id, viewer))?.role).toBe("VIEWER");
+
+    await db.eventMember.delete({
+      where: { eventId_userId: { eventId: created.id, userId: viewer } },
+    });
+    expect(await getEventForMember(db, created.id, viewer)).toBeNull();
+    expect((await getEventForMember(db, created.id, owner))?.role).toBe("OWNER");
   });
 });

@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-04 Event Workspace.**
+  - `/events/<id>` loads the event on the server for members only. Other users' events, unknown
+    events and malformed IDs all show the not-found page with HTTP 404 (D-027).
+  - Workspace header on every event section: event number, name, date and time, venue, status
+    and your role. The top bar now shows "Switch event" instead of the raw event ID.
+  - Overview: event details and tiles for the Tier 1 sections, each marked "Not set up yet".
+  - `GET /api/events/<id>`: the event and your role, for members only.
+  - `requireEventAccess`, the access check every event page, action and route must call.
+  - Tests: 12 access, 3 layout, 5 overview, 5 API and 3 database tests.
 - **B1-03 Event List.**
   - "My events" page: the events you belong to as cards with name, reference, date and time in
     Philippine time, venue, expected attendees, status and your role, grouped into Upcoming and
@@ -82,6 +91,8 @@ build` fails if it is set.
 
 ### Fixed
 
+- My events: its loading and error files moved into the `(list)` route group, so refused event
+  pages answer with HTTP 404 instead of 200.
 - `npm run build` no longer fails when Supabase settings are absent (as in CI): pages behind
   sign-in are marked dynamic, so the build never tries to prerender them.
 

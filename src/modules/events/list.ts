@@ -17,6 +17,12 @@ export type EventListItem = {
   role: MemberRole;
 };
 
+/** One event as its workspace shows it (B1-04): the list fields plus description and capacity. */
+export type EventDetails = EventListItem & {
+  description: string | null;
+  capacity: number | null;
+};
+
 export type EventGroups = { upcoming: EventListItem[]; past: EventListItem[] };
 
 export const EVENT_STATUS_LABEL: Record<EventStatus, string> = {
@@ -61,6 +67,10 @@ export function formatEventWhen(startsAt: Date, endsAt: Date | null): string {
       ? TIME.format(endsAt)
       : `${DAY.format(endsAt)} · ${TIME.format(endsAt)}`;
   return `${start} – ${end} PHT`;
+}
+
+export function formatCapacity(capacity: number | null): string {
+  return capacity === null ? "Not set" : `${capacity.toLocaleString("en-US")} seats`;
 }
 
 export function formatExpectedAttendees(count: number): string {

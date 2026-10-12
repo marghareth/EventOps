@@ -6,7 +6,18 @@ import "server-only";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { getDb } from "@/lib/db";
 import { isDemoWithoutDatabase } from "@/lib/demo-auth";
-import type { EventListItem } from "./list";
+import type { EventDetails, EventListItem } from "./list";
+
+const LIST_FIELDS = {
+  id: true,
+  reference: true,
+  name: true,
+  venue: true,
+  startsAt: true,
+  endsAt: true,
+  status: true,
+  expectedAttendees: true,
+} as const;
 
 /** Events the user is a member of, with the user's role in each. Order is decided by groupEvents. */
 export async function listEventsForUser(
@@ -15,20 +26,33 @@ export async function listEventsForUser(
 ): Promise<EventListItem[]> {
   const rows = await db.event.findMany({
     where: { members: { some: { userId } } },
-    select: {
-      id: true,
-      reference: true,
-      name: true,
-      venue: true,
-      startsAt: true,
-      endsAt: true,
-      status: true,
-      expectedAttendees: true,
-      members: { where: { userId }, select: { role: true } },
-    },
+    select: { ...LIST_FIELDS, members: { where: { userId }, select: { role: true } } },
     orderBy: [{ startsAt: "asc" }, { reference: "asc" }],
   });
   return rows.map(({ members, ...event }) => ({ ...event, role: members[0].role }));
+}
+
+/**
+ * One event, only if the user is a member of it (B1-04). Returns null both for an unknown event and
+ * for another user's event, so callers cannot tell them apart (D-027).
+ */
+export async function getEventForMember(
+  db: PrismaClient,
+  eventId: string,
+  userId: string,
+): Promise<EventDetails | null> {
+  const row = await db.event.findFirst({
+    where: { id: eventId, members: { some: { userId } } },
+    select: {
+      ...LIST_FIELDS,
+      description: true,
+      capacity: true,
+      members: { where: { userId }, select: { role: true } },
+    },
+  });
+  if (!row) return null;
+  const { members, ...event } = row;
+  return { ...event, role: members[0].role };
 }
 
 export type MyEventsResult =

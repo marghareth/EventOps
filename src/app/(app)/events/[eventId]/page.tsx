@@ -1,22 +1,40 @@
 // src/app/(app)/events/[eventId]/page.tsx
-// Event overview. Still a placeholder (D-019) until the Event Health task; shows the B1-02
-// "Event created" notice when arriving from Create Event. The reference comes from the URL, so it
-// is shown only if it is well formed; it is never trusted for anything else.
+// Event overview (B1-04): event details and tiles for the Tier 1 sections. Checks access itself
+// (shared, cached query with the layout). Shows the B1-02 "Event created" notice when arriving from
+// Create Event; the reference in the URL is only displayed, and only if it is well formed.
 import type { Metadata } from "next";
-import { PagePlaceholder } from "@/components/layout/PagePlaceholder";
-import { EventCreatedNotice, isEventReference } from "@/modules/events/public";
+import { navigationFor } from "@/components/layout/navigation";
+import {
+  EventCreatedNotice,
+  EventDetailsCard,
+  SectionTiles,
+  isEventReference,
+  requireEventAccess,
+} from "@/modules/events/public";
 
 export const metadata: Metadata = { title: "Overview" };
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+type Props = {
+  params: Promise<{ eventId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default async function EventOverviewPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function EventOverviewPage({ params, searchParams }: Props) {
+  const { eventId } = await params;
+  const { access } = await requireEventAccess(eventId);
   const { created } = await searchParams;
   const reference = Array.isArray(created) ? created[0] : created;
+
+  const sections = navigationFor(`/events/${eventId}`)
+    .items.filter((item) => item.match === "prefix")
+    .map(({ href, label }) => ({ href, label }));
+
   return (
-    <>
+    <div className="flex flex-col gap-8">
       {isEventReference(reference) ? <EventCreatedNotice reference={reference} /> : null}
-      <PagePlaceholder title="Overview" />
-    </>
+      <h1 className="text-h2 font-extrabold">Overview</h1>
+      {access.kind === "ok" ? <EventDetailsCard event={access.event} /> : null}
+      <SectionTiles sections={sections} />
+    </div>
   );
 }

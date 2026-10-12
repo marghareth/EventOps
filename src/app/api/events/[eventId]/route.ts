@@ -1,8 +1,9 @@
-// src/app/api/events/route.ts
-// GET /api/events (B1-03): the signed-in user's events, as JSON. Only events the user is a member
-// of are returned (see listEventsForUser); the user comes from the session, never the request.
+// src/app/api/events/[eventId]/route.ts
+// GET /api/events/<id> (B1-04): one event and the caller's role, for members only. Unknown events,
+// other users' events and malformed IDs all answer the same 404, so the API never reveals whether
+// an event exists (D-027).
 import { AuthUnavailableError, getCurrentUser } from "@/lib/auth";
-import { getMyEvents } from "@/modules/events/public";
+import { getEventAccess } from "@/modules/events/public";
 
 const headers = { "Cache-Control": "private, no-store" };
 
@@ -10,7 +11,10 @@ function error(status: number, message: string) {
   return Response.json({ error: message }, { status, headers });
 }
 
-export async function GET(): Promise<Response> {
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ eventId: string }> },
+): Promise<Response> {
   let user;
   try {
     user = await getCurrentUser();
@@ -22,11 +26,13 @@ export async function GET(): Promise<Response> {
   }
   if (!user) return error(401, "Sign in to continue.");
 
+  const { eventId } = await params;
   try {
-    const result = await getMyEvents(user.id);
-    if (result.status === "no-database") return error(503, "No database is configured.");
-    return Response.json({ events: result.events }, { headers });
+    const access = await getEventAccess(user.id, eventId);
+    if (access.kind === "not-found") return error(404, "Event not found.");
+    if (access.kind === "no-database") return error(503, "No database is configured.");
+    return Response.json({ event: access.event }, { headers });
   } catch {
-    return error(500, "We couldn't load your events. Try again in a moment.");
+    return error(500, "We couldn't load this event. Try again in a moment.");
   }
 }
