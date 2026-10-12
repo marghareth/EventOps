@@ -12,6 +12,7 @@ const { MobileNav } = await import("./MobileNav");
 const { UserMenu, initialsOf } = await import("./UserMenu");
 const { EventSwitcher } = await import("./EventSwitcher");
 const { PagePlaceholder } = await import("./PagePlaceholder");
+const { ConfirmEvent, EventContextProvider, MarkEventUnavailable } = await import("./EventContext");
 
 const ID = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
 
@@ -203,5 +204,79 @@ describe("PagePlaceholder", () => {
   it("explains Tier 2 pages", () => {
     render(<PagePlaceholder title="Check-in" tier={2} />);
     expect(screen.getByText(/Tier 2 feature/)).toBeInTheDocument();
+  });
+});
+
+describe("event context in the shell (B1-13)", () => {
+  const confirmed = { id: ID, name: "Santos wedding", reference: "EVT-2026-0001" };
+
+  it("shows the event's sections inside an event", () => {
+    pathname = `/events/${ID}/budget`;
+    render(
+      <EventContextProvider>
+        <Sidebar />
+      </EventContextProvider>,
+    );
+    expect(screen.getByRole("navigation", { name: "Event sections" })).toBeInTheDocument();
+  });
+
+  it("falls back to the global links when the event is unavailable", () => {
+    pathname = `/events/${ID}/budget`;
+    render(
+      <EventContextProvider>
+        <MarkEventUnavailable />
+        <Sidebar />
+      </EventContextProvider>,
+    );
+    expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Budget/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("All events")).not.toBeInTheDocument();
+  });
+
+  it("names the event in the top bar only once access is confirmed", () => {
+    pathname = `/events/${ID}/settings`;
+    const { rerender } = render(
+      <EventContextProvider>
+        <EventSwitcher />
+      </EventContextProvider>,
+    );
+    expect(screen.queryByText("Santos wedding")).not.toBeInTheDocument();
+    rerender(
+      <EventContextProvider>
+        <ConfirmEvent event={confirmed} />
+        <EventSwitcher />
+      </EventContextProvider>,
+    );
+    expect(screen.getByText("Santos wedding")).toBeInTheDocument();
+    expect(screen.getByText(/Current event:/)).toHaveClass("sr-only");
+  });
+
+  it("never shows a confirmed event's name for a different event in the URL", () => {
+    pathname = "/events/7a1e2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b";
+    render(
+      <EventContextProvider>
+        <ConfirmEvent event={confirmed} />
+        <EventSwitcher />
+      </EventContextProvider>,
+    );
+    expect(screen.queryByText("Santos wedding")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Switch event" })).toBeInTheDocument();
+  });
+
+  it("forgets the event when its layout unmounts", () => {
+    pathname = `/events/${ID}`;
+    const { rerender } = render(
+      <EventContextProvider>
+        <ConfirmEvent event={confirmed} />
+        <EventSwitcher />
+      </EventContextProvider>,
+    );
+    expect(screen.getByText("Santos wedding")).toBeInTheDocument();
+    rerender(
+      <EventContextProvider>
+        <EventSwitcher />
+      </EventContextProvider>,
+    );
+    expect(screen.queryByText("Santos wedding")).not.toBeInTheDocument();
   });
 });

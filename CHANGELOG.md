@@ -9,6 +9,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-13 Event Navigation & Context.**
+  - Browser tabs name the event, for example "Settings · Santos wedding · EventOps" (D-038).
+  - The top bar names the event (tablet and desktop) once the server confirmed access.
+  - Not-found inside the app keeps the app shell, has a single `<main>`, links back to My events
+    and stops offering the unavailable event's sections.
+  - `getCurrentUser` is cached per request.
+  - Verified in a browser: refresh keeps the event, sidebar links stay inside it, malformed and
+    refused event IDs give a 404 with no event navigation, no sideways scrolling at 375 px.
 - **B1-12 Activity Feed.** Verified, no code change: the Activity page from B1-11 meets every
   criterion and reads only the audit log. Rechecked in a browser for Owner (entries, newest first),
   Coordinator (empty state), Viewer (refused) and a non-member (404) at 375, 768 and 1280 px, and
@@ -153,6 +161,7 @@ build` fails if it is set.
 
 ### Fixed
 
+- The not-found page inside the app no longer nests a second `<main>` (found in B1-04).
 - My events: its loading and error files moved into the `(list)` route group, so refused event
   pages answer with HTTP 404 instead of 200.
 - `npm run build` no longer fails when Supabase settings are absent (as in CI): pages behind

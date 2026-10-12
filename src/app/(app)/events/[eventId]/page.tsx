@@ -14,8 +14,13 @@ import {
   isEventReference,
   requireEventAccess,
 } from "@/modules/events/public";
+import { eventNameForTitle } from "./event-title";
 
-export const metadata: Metadata = { title: "Overview" };
+/** "Overview · Santos wedding · EventOps" (B1-13, D-038). */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const name = await eventNameForTitle((await params).eventId);
+  return { title: name ? { absolute: `Overview · ${name} · EventOps` } : "Overview" };
+}
 
 type Props = {
   params: Promise<{ eventId: string }>;

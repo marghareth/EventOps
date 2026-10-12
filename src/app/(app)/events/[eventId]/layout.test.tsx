@@ -4,15 +4,20 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireEventAccess = vi.fn();
+const getEventAccess = vi.fn();
+const getCurrentUser = vi.fn();
 
+vi.mock("@/lib/auth", () => ({ getCurrentUser: () => getCurrentUser() }));
 vi.mock("@/modules/events/access", () => ({
   requireEventAccess: (...args: unknown[]) => requireEventAccess(...args),
-  getEventAccess: vi.fn(),
+  getEventAccess: (...args: unknown[]) => getEventAccess(...args),
 }));
 vi.mock("@/modules/events/actions", () => ({ createEventAction: vi.fn() }));
 vi.mock("@/modules/events/queries", () => ({ getMyEvents: vi.fn() }));
 
-const { default: EventLayout } = await import("./layout");
+const { default: EventLayout, generateMetadata } = await import("./layout");
+const { EventContextProvider, useConfirmedEvent } =
+  await import("@/components/layout/EventContext");
 
 const ID = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
 const event = {
@@ -66,5 +71,83 @@ describe("events/[eventId] layout", () => {
     await renderLayout();
     expect(screen.getByText("No database connected")).toBeInTheDocument();
     expect(screen.getByText("section content")).toBeInTheDocument();
+  });
+});
+
+describe("event context and tab title (B1-13)", () => {
+  function ShowConfirmed() {
+    const confirmed = useConfirmedEvent(ID);
+    return <p>confirmed: {confirmed ? `${confirmed.name} ${confirmed.reference}` : "none"}</p>;
+  }
+
+  it("tells the shell which event it is, once access is confirmed", async () => {
+    requireEventAccess.mockResolvedValue({ user: {}, access: { kind: "ok", event } });
+    render(
+      <EventContextProvider>
+        {await EventLayout({
+          children: <ShowConfirmed />,
+          params: Promise.resolve({ eventId: ID }),
+        })}
+      </EventContextProvider>,
+    );
+    expect(await screen.findByText("confirmed: Santos wedding EVT-2026-0001")).toBeInTheDocument();
+  });
+
+  it("confirms nothing in demo mode without a database", async () => {
+    requireEventAccess.mockResolvedValue({ user: {}, access: { kind: "no-database" } });
+    render(
+      <EventContextProvider>
+        {await EventLayout({
+          children: <ShowConfirmed />,
+          params: Promise.resolve({ eventId: ID }),
+        })}
+      </EventContextProvider>,
+    );
+    expect(screen.getByText("confirmed: none")).toBeInTheDocument();
+  });
+
+  const metadata = () => generateMetadata({ params: Promise.resolve({ eventId: ID }) });
+
+  it("names the event in the browser tab for a member", async () => {
+    getCurrentUser.mockResolvedValue({ id: "user-1", email: "mika@example.com" });
+    getEventAccess.mockResolvedValue({ kind: "ok", event });
+    expect(await metadata()).toEqual({
+      title: { template: "%s · Santos wedding · EventOps", default: "Santos wedding · EventOps" },
+    });
+    expect(getEventAccess).toHaveBeenCalledWith("user-1", ID);
+  });
+
+  it("names the event on the overview tab too", async () => {
+    getCurrentUser.mockResolvedValue({ id: "user-1", email: "mika@example.com" });
+    getEventAccess.mockResolvedValue({ kind: "ok", event });
+    const { generateMetadata: overviewMetadata } = await import("./page");
+    expect(
+      await overviewMetadata({
+        params: Promise.resolve({ eventId: ID }),
+        searchParams: Promise.resolve({}),
+      }),
+    ).toEqual({ title: { absolute: "Overview · Santos wedding · EventOps" } });
+    getCurrentUser.mockResolvedValue(null);
+    expect(
+      await overviewMetadata({
+        params: Promise.resolve({ eventId: ID }),
+        searchParams: Promise.resolve({}),
+      }),
+    ).toEqual({ title: "Overview" });
+  });
+
+  it.each([
+    ["signed out", () => getCurrentUser.mockResolvedValue(null)],
+    [
+      "not a member",
+      () => {
+        getCurrentUser.mockResolvedValue({ id: "user-2", email: "x@example.com" });
+        getEventAccess.mockResolvedValue({ kind: "not-found" });
+      },
+    ],
+    ["sign-in unavailable", () => getCurrentUser.mockRejectedValue(new Error("down"))],
+  ])("adds nothing to the title when %s", async (_label, arrange) => {
+    arrange();
+    expect(await metadata()).toEqual({});
   });
 });

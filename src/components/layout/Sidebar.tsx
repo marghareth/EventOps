@@ -1,12 +1,14 @@
 // src/components/layout/Sidebar.tsx
 // Section navigation. Outside an event it shows the global links; inside /events/[eventId] it
 // shows that event's Tier 1 sections. The current page is marked with aria-current="page" and a
-// visible bar plus bold text, never by color alone.
+// visible bar plus bold text, never by color alone. If the event in the URL turned out to be
+// unavailable (not found or not a member), it falls back to the global links (B1-13, D-038).
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useEventUnavailable } from "./EventContext";
 import { NavIcon } from "./NavIcon";
 import { isCurrent, navigationFor } from "./navigation";
 
@@ -18,7 +20,9 @@ type SidebarProps = {
 
 export function Sidebar({ onNavigate, className }: SidebarProps) {
   const pathname = usePathname() ?? "/";
-  const nav = navigationFor(pathname);
+  const unavailable = useEventUnavailable();
+  // Never offer an unavailable event's sections: they would only lead to more not-found pages.
+  const nav = navigationFor(unavailable ? "/events" : pathname);
 
   return (
     <nav aria-label={nav.label} className={cn("flex flex-col gap-2 p-3", className)}>
