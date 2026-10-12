@@ -1,24 +1,62 @@
 // src/modules/events/permissions.test.ts
 // @vitest-environment node
-import { expect, it } from "vitest";
-import { can, rolesAllowed } from "./permissions";
+// The permission matrix (D-035): the code must match docs/PERMISSIONS.md cell by cell, and the
+// approved role boundaries hold.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { MEMBER_ROLES, PERMISSIONS, ROLE_SUMMARY, can, rolesAllowed } from "./permissions";
 
-it.each([
-  ["OWNER", true],
-  ["COORDINATOR", true],
-  ["VIEWER", false],
-] as const)("event.edit: %s -> %s", (role, allowed) => {
-  expect(can(role, "event.edit")).toBe(allowed);
-});
+/** Rows of the "## Matrix" table in docs/PERMISSIONS.md: permission -> [Owner, Coordinator, Viewer]. */
+function documentedMatrix(): Record<string, boolean[]> {
+  const doc = readFileSync(join(process.cwd(), "docs/PERMISSIONS.md"), "utf8");
+  const section = doc.split("## Matrix")[1].split("\n## ")[0];
+  const rows: Record<string, boolean[]> = {};
+  for (const line of section.split("\n")) {
+    const match =
+      /^\|\s*`([a-z.]+)`\s*\|[^|]*\|\s*(Yes|No)\s*\|\s*(Yes|No)\s*\|\s*(Yes|No)\s*\|/.exec(line);
+    if (match) rows[match[1]] = [match[2], match[3], match[4]].map((cell) => cell === "Yes");
+  }
+  return rows;
+}
 
-it("lists the roles for a permission", () => {
-  expect(rolesAllowed("event.edit")).toEqual(["OWNER", "COORDINATOR"]);
-});
+describe("permission matrix", () => {
+  it("matches docs/PERMISSIONS.md exactly, permission by permission and role by role", () => {
+    const documented = documentedMatrix();
+    expect(Object.keys(documented).sort()).toEqual([...PERMISSIONS].sort());
+    for (const permission of PERMISSIONS) {
+      expect(
+        MEMBER_ROLES.map((role) => can(role, permission)),
+        permission,
+      ).toEqual(documented[permission]);
+    }
+  });
 
-it.each([
-  ["OWNER", true],
-  ["COORDINATOR", false],
-  ["VIEWER", false],
-] as const)("event.delete: %s -> %s", (role, allowed) => {
-  expect(can(role, "event.delete")).toBe(allowed);
+  it("covers exactly the three roles", () => {
+    expect(MEMBER_ROLES).toEqual(["OWNER", "COORDINATOR", "VIEWER"]);
+    expect(Object.keys(ROLE_SUMMARY).sort()).toEqual(["COORDINATOR", "OWNER", "VIEWER"]);
+  });
+
+  it("Viewer can only view", () => {
+    expect(PERMISSIONS.filter((permission) => can("VIEWER", permission))).toEqual(["event.view"]);
+  });
+
+  it("Owner can do everything", () => {
+    expect(PERMISSIONS.every((permission) => can("OWNER", permission))).toBe(true);
+  });
+
+  it("Owner-only operations are deleting the event and managing members", () => {
+    expect(PERMISSIONS.filter((permission) => !can("COORDINATOR", permission))).toEqual([
+      "event.delete",
+      "members.manage",
+    ]);
+  });
+
+  it("every permission allows at least the Owner, and lists no role twice", () => {
+    for (const permission of PERMISSIONS) {
+      const roles = rolesAllowed(permission);
+      expect(roles).toContain("OWNER");
+      expect(new Set(roles).size).toBe(roles.length);
+    }
+  });
 });

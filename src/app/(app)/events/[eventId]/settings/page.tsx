@@ -8,6 +8,8 @@ import {
   DeleteEventSection,
   EditEventForm,
   EventDetailsCard,
+  MEMBER_ROLE_LABEL,
+  ROLE_SUMMARY,
   can,
   deleteEventAction,
   requireEventAccess,
@@ -24,6 +26,15 @@ export default async function SettingsPage({ params }: { params: Promise<{ event
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <h1 className="text-h2 font-extrabold">Settings</h1>
+      {access.kind === "ok" ? (
+        // Explains what the role allows (D-035). The server checks the role on every change.
+        <p className="text-sm text-ink-2">
+          <span className="font-semibold text-ink">
+            Your role: {MEMBER_ROLE_LABEL[access.event.role]}.
+          </span>{" "}
+          {ROLE_SUMMARY[access.event.role]}
+        </p>
+      ) : null}
       {access.kind === "no-database" ? (
         <Banner severity="info" title="No database connected">
           Demo sign-in has no event to edit. Set DATABASE_URL in .env.local.

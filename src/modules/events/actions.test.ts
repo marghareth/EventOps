@@ -405,3 +405,60 @@ describe("deleteEventAction (B1-06)", () => {
     expect((await remove()).state).toMatchObject({ message: DELETE_EVENT_MESSAGES.noDatabase });
   });
 });
+
+describe("role boundaries for every built protected operation (D-035)", () => {
+  const EVENT = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
+  const VERSION = "2026-10-11T01:02:03.456Z";
+  const event = {
+    id: EVENT,
+    reference: "EVT-2026-0001",
+    name: "Santos wedding",
+    venue: "Cebu",
+    description: null,
+    startsAt: new Date("2026-12-12T08:00:00Z"),
+    endsAt: new Date("2026-12-12T14:00:00Z"),
+    capacity: 200,
+    expectedAttendees: 180,
+    updatedAt: new Date(VERSION),
+  };
+
+  const operations = {
+    "event.edit": async () => {
+      const data = form({ ...valid, venue: "Manila", version: VERSION });
+      return updateEventAction(EVENT, initialEditEventState, data);
+    },
+    "event.delete": async () => {
+      const data = new FormData();
+      data.set("confirmation", "EVT-2026-0001");
+      try {
+        return await deleteEventAction(EVENT, initialDeleteEventState, data);
+      } catch (error) {
+        if ((error as { url?: string }).url) return { status: "redirected" };
+        throw error;
+      }
+    },
+  } as const;
+
+  it.each([
+    ["event.edit", "OWNER", true],
+    ["event.edit", "COORDINATOR", true],
+    ["event.edit", "VIEWER", false],
+    ["event.delete", "OWNER", true],
+    ["event.delete", "COORDINATOR", false],
+    ["event.delete", "VIEWER", false],
+  ] as const)("%s as %s: allowed %s", async (operation, role, allowed) => {
+    getEventAccess.mockResolvedValue({ kind: "ok", event: { ...event, role } });
+    updateEvent.mockResolvedValue({ ok: true });
+    deleteEvent.mockResolvedValue({ ok: true });
+
+    const state = await operations[operation]();
+    const write = operation === "event.edit" ? updateEvent : deleteEvent;
+    if (allowed) {
+      expect(write).toHaveBeenCalledOnce();
+      expect(state.status).not.toBe("error");
+    } else {
+      expect(write).not.toHaveBeenCalled();
+      expect(state.status).toBe("error");
+    }
+  });
+});

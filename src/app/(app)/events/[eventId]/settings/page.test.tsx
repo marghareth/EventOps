@@ -70,6 +70,15 @@ describe("Settings page", () => {
     else expect(section).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["OWNER", "Your role: Owner. Full event management"],
+    ["COORDINATOR", "Your role: Coordinator. Day-to-day operations"],
+    ["VIEWER", "Your role: Viewer. Read-only access"],
+  ])("tells a %s what their role allows", async (role, text) => {
+    await renderAs(role);
+    expect(screen.getByText(/^Your role:/).closest("p")).toHaveTextContent(text);
+  });
+
   it("shows a Viewer the details read-only", async () => {
     await renderAs("VIEWER");
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
