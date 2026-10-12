@@ -16,6 +16,11 @@ vi.mock("@/modules/events/actions", () => ({
 }));
 vi.mock("@/modules/events/queries", () => ({ getMyEvents: vi.fn() }));
 
+const refresh = vi.fn();
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh }),
+}));
 const { default: SettingsPage } = await import("./page");
 const { default: SettingsError } = await import("./error");
 

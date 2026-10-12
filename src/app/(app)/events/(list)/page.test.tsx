@@ -12,6 +12,11 @@ vi.mock("@/modules/events/queries", () => ({
   getMyEvents: (...args: unknown[]) => getMyEvents(...args),
 }));
 vi.mock("@/modules/events/actions", () => ({ createEventAction: vi.fn() }));
+const refresh = vi.fn();
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh }),
+}));
 
 const { default: EventsPage } = await import("./page");
 const { default: EventsError } = await import("./error");
@@ -91,6 +96,7 @@ describe("My events error state", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load your events");
     expect(screen.queryByText(/ECONNREFUSED/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(refresh).toHaveBeenCalledOnce();
     expect(reset).toHaveBeenCalledOnce();
   });
 });

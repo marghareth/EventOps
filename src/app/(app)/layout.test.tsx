@@ -62,10 +62,47 @@ describe("(app) layout", () => {
     });
   });
 
+  it("keeps the brand link inside a landmark, the labelled sidebar (B1-15)", async () => {
+    getUser.mockResolvedValue(signedIn);
+    findUnique.mockResolvedValue({ displayName: "Mika Santos" });
+    render(await AppLayout({ children: <p>page</p> }));
+    const sidebar = screen.getByRole("complementary", { name: "Sidebar" });
+    expect(within(sidebar).getByRole("link", { name: "EventOps" })).toHaveAttribute(
+      "href",
+      "/events",
+    );
+    expect(within(sidebar).getByRole("navigation", { name: "Main" })).toBeInTheDocument();
+  });
+
   it("falls back to the email name when the users row is missing", async () => {
     getUser.mockResolvedValue(signedIn);
     findUnique.mockResolvedValue(null);
     render(await AppLayout({ children: <p>page</p> }));
     expect(screen.getByRole("button", { name: "Account: mika" })).toBeInTheDocument();
+  });
+
+  it("shows no demo banner normally", async () => {
+    getUser.mockResolvedValue(signedIn);
+    findUnique.mockResolvedValue({ displayName: "Mika Santos" });
+    render(await AppLayout({ children: <p>page</p> }));
+    expect(screen.queryByText("Demo sign-in is on")).not.toBeInTheDocument();
+  });
+
+  it("in demo mode shows the demo user and a warning banner, with no Supabase or database", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("DEV_DEMO_AUTH", "true");
+    try {
+      render(await AppLayout({ children: <p>page</p> }));
+      expect(screen.getByText("Demo sign-in is on")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Account: Demo Coordinator" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Open a sample event" })).toHaveAttribute(
+        "href",
+        "/events/00000000-0000-4000-8000-0000000000e1/attendees",
+      );
+      expect(getUser).not.toHaveBeenCalled();
+      expect(findUnique).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

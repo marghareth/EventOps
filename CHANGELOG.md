@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B1-15 Event Foundation Polish.** Every screen checked in a browser at 375, 768 and 1280 px for
+  each role: automated accessibility scan, console, keyboard, layout, form, loading and error
+  states. Results in `docs/QUALITY.md` (D-040).
+  - Error screen inside the app shell (`src/app/(app)/error.tsx`): a failure while an event loads
+    keeps the sidebar and header, with Try again and Back to my events. Resolves open item 10.
+  - Loading screen for the event overview and sections, below the event header.
+  - Browser tab icon (`src/app/icon.svg`), the brand mark.
+  - A test that fails if a loading screen is added above the event layout.
+
 - **B1-14 Event Foundation Integration Tests.**
   - `lifecycle.db.test.ts`: the whole event lifecycle as one story through the real server code and
     PostgreSQL, with four users (Owner, Coordinator, Viewer, outsider) and role changes; runs in CI
@@ -169,6 +178,10 @@ build` fails if it is set.
 
 ### Fixed
 
+- "Try again" on every error screen now fetches fresh server data before resetting; before, a page
+  that failed on the server stayed broken after the cause was gone (B1-15).
+- The desktop sidebar's EventOps link was outside any landmark; the sidebar is now an `<aside>`
+  (B1-15).
 - The not-found page inside the app no longer nests a second `<main>` (found in B1-04).
 - My events: its loading and error files moved into the `(list)` route group, so refused event
   pages answer with HTTP 404 instead of 200.
