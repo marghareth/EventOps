@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-12">
+    <main id="main" className="flex min-h-dvh items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <p className="mb-6 text-center font-display text-h3 font-extrabold">
           <Link href="/" className="rounded-sm">

@@ -31,6 +31,9 @@ yet.
   pages. Server actions are public HTTP endpoints.
 - **Route handlers** (`src/app/api/...`) must call `getCurrentUser()` and return 401 when it is
   null. The proxy deliberately does not redirect API routes.
+- **Event pages:** `events/[eventId]/layout.tsx` only checks that the ID is a UUID. That is not an
+  access check (D-018); event data must not be loaded there until the membership check exists.
+- **Placeholder API routes** answer 401 when signed out and 501 when signed in (D-019).
 - **Event data** additionally needs the membership and role check (later task). Signing in only
   proves who the user is, not what they may see.
 

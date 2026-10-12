@@ -4,7 +4,7 @@ import Link from "next/link";
 import { LOGIN_PATH, safeNextPath } from "@/lib/auth-rules";
 import { SignUpForm } from "../_components/SignUpForm";
 
-export const metadata: Metadata = { title: "Create account · EventOps" };
+export const metadata: Metadata = { title: "Create account" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

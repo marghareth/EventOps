@@ -58,6 +58,23 @@ export async function requireUser(nextPath?: string): Promise<AuthUser> {
   return user;
 }
 
+/**
+ * Name and email for the app shell's user menu. Reads only the signed-in user's own users row, so
+ * no event permission is involved. Falls back to the email's name part if the row is missing.
+ */
+export async function getUserProfile(
+  user: AuthUser,
+): Promise<{ displayName: string; email: string }> {
+  const row = await getDb().user.findUnique({
+    where: { id: user.id },
+    select: { displayName: true },
+  });
+  return {
+    displayName: row?.displayName ?? displayNameFor({ email: user.email }),
+    email: user.email,
+  };
+}
+
 /** Creates or updates the users row for a freshly authenticated Supabase user. */
 export async function syncUserRecord(user: User): Promise<void> {
   await upsertUserRecord(getDb(), {

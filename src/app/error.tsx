@@ -12,7 +12,7 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main id="main" className="mx-auto max-w-3xl p-8">
       <div className="rounded-xl bg-white shadow-sm">
         <ErrorState
           headingLevel={1}
