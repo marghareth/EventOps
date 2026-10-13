@@ -9,6 +9,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-07 Attendee Notes (D-048).**
+  - New attendee details page, opened from any name on the guest list by every member: ID, name,
+    RSVP, plus-ones, category and dietary needs, with "Edit attendee" for Owners and Coordinators.
+  - Notes appear in their own section with their line breaks, shown as text (never HTML), or "No
+    notes." Email, phone and notes are shown only to Owners and Coordinators (new permission row
+    `attendees.private`); the server doesn't load them for Viewers, and the page says who can see
+    them.
+  - The notes hint says who sees notes and that clearing the field removes them. Activity still
+    records only "Notes changed".
+  - Tests: creating, editing and clearing notes against PostgreSQL, the right attendee and event,
+    Activity without the text, every role, non-members, signed-out users and another event's
+    attendee; the read with each permission; the details view (line breaks, HTML-like text, empty
+    values); the page per role.
+
 - **B2-06 Dietary Needs (D-047).**
   - The guest list has a Dietary needs column for every member, Viewers included (new permission
     row `attendees.dietary`). An empty entry shows a dash, read as "Not recorded".

@@ -43,16 +43,16 @@ describe("AttendeeList", () => {
   });
 });
 
-describe("AttendeeList links (B2-03)", () => {
-  it("links each name to its edit page when editing is allowed", () => {
-    render(<AttendeeList attendees={attendees} editHref={(id) => `/edit/${id}`} />);
-    expect(screen.getByRole("link", { name: "Ana Reyes" })).toHaveAttribute("href", "/edit/a1");
+describe("AttendeeList links (B2-07)", () => {
+  it("links each name to its details page", () => {
+    render(<AttendeeList attendees={attendees} detailsHref={(id) => `/details/${id}`} />);
+    expect(screen.getByRole("link", { name: "Ana Reyes" })).toHaveAttribute("href", "/details/a1");
     expect(screen.getByRole("table")).toHaveAccessibleName(
-      "Guest list, by name. Select a name to edit that attendee.",
+      "Guest list, by name. Select a name to see that attendee's details.",
     );
   });
 
-  it("shows plain names without editing", () => {
+  it("shows plain names without a details link", () => {
     render(<AttendeeList attendees={attendees} />);
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });

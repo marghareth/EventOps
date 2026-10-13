@@ -58,6 +58,7 @@ Status values:
 | D-045 | Removing attendees                                          | Approved | 2026-10-12 |
 | D-046 | Plus-ones: a count, and the expected headcount rule         | Approved | 2026-10-13 |
 | D-047 | Dietary needs: one free-text entry, visible to every member | Approved | 2026-10-13 |
+| D-048 | Attendee notes and the attendee details page                | Approved | 2026-10-13 |
 
 ---
 
@@ -1010,6 +1011,38 @@ a caterer or client added as a Viewer could not see what they need to plan meals
 **Not decided here.** Catering counts or a breakdown by need; whether accessibility requirements
 (the brand book lists dietary requirements among them) read this field; dietary needs in CSV export
 and import. Those tasks must follow the `attendees.dietary` row.
+
+---
+
+## D-048 Attendee notes and the attendee details page
+
+**Status:** Approved by the technical lead on 2026-10-13 (B2-07 plan, options 1a, 2a and 3a).
+
+**Decision.**
+
+- **Representation (confirms D-042):** notes stay one optional free-text field on the attendee
+  (`notes`, up to 2,000 characters, line breaks kept). Clearing it and saving removes them (NULL).
+  No notes log, no author or date per note. Activity records only "Notes changed".
+- **Attendee details page:** `/events/<id>/attendees/<attendeeId>`, read-only, opened from the
+  name on the guest list by every member (`event.view`). It shows the readable ID, name, RSVP,
+  plus-ones and category, dietary needs with `attendees.dietary`, and email, phone and notes with
+  `attendees.private`. Owners and Coordinators also get "Edit attendee". An unknown, malformed or
+  other event's attendee is not found, as on the edit page (D-044).
+- **Who sees notes and contact details:** a new permission row, `attendees.private`, allows Owner
+  and Coordinator. The details read loads email, phone and notes only for roles with it, so a
+  Viewer's page never receives them; the page tells Viewers who can see them. The edit form
+  (`attendees.manage`) still loads every field. This refines D-047's note that only the edit form
+  loads them.
+- **Display:** values are rendered as text, never HTML; notes keep their line breaks; an empty
+  field shows a dash ("Not recorded" for screen readers) and empty notes say "No notes."
+
+**Alternatives not chosen.** A notes log (1b) needs a new table and rules for editing other
+people's notes. Using the edit form as the details view (2b) leaves Viewers with no way to open an
+attendee. Showing notes to every member (3b) exposes guest-specific remarks (health, family,
+security) to read-only users such as clients or suppliers.
+
+**Not decided here.** Notes in CSV export (must follow `attendees.private`), searching notes, and
+notes on plus-ones (they belong to the attendee, D-046).
 
 ---
 

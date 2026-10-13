@@ -9,10 +9,12 @@ export {
   type DeleteAttendeeFormState,
 } from "./form-state";
 export { expectedHeadcount, type ExpectedHeadcount, type HeadcountInput } from "./headcount";
-export type { AttendeeRecord, GuestListRow } from "./queries";
+export type { AttendeeDetails, AttendeeRecord, GuestListRow } from "./queries";
 export {
+  getAttendeeDetails,
   getAttendeeForEditing,
   getEventAttendees,
+  type AttendeeDetailsResult,
   type AttendeeForEditing,
   type EventAttendees,
 } from "./read";
@@ -27,6 +29,7 @@ export {
   type AttendeeField,
   type RsvpStatus,
 } from "./schema";
+export { AttendeeDetailsView } from "./ui/AttendeeDetailsView";
 export { AttendeeNotice } from "./ui/AttendeeNotice";
 export { AttendeeForm } from "./ui/AttendeeForm";
 export { AttendeeList, type AttendeeListItem } from "./ui/AttendeeList";

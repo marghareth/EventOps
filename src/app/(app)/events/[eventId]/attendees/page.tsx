@@ -1,7 +1,9 @@
 // src/app/(app)/events/[eventId]/attendees/page.tsx
 // The event's guest list (B2-02). Every member can read it (event.view); Owners and Coordinators
-// also get "Add attendee" and a link to edit each attendee (attendees.manage, D-035, B2-03). Checks access itself (D-027); the add action
-// checks again. Search, filters and row actions arrive with their own tasks.
+// also get "Add attendee" (attendees.manage, D-035). Every name opens the attendee's details (B2-07),
+// where editing starts. Dietary
+// needs show for roles with attendees.dietary (B2-06, D-047). Checks access itself (D-027); the add
+// action checks again. Search, filters and row actions arrive with their own tasks.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -42,7 +44,7 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
       </div>
     );
   }
-  const { attendees } = result;
+  const { attendees, showDietaryNeeds } = result;
   const canManage = can(event.role, "attendees.manage");
   const addHref = `/events/${event.id}/attendees/new`;
 
@@ -108,7 +110,8 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
           <HeadcountSummary headcount={expectedHeadcount(attendees)} />
           <AttendeeList
             attendees={attendees}
-            editHref={canManage ? (id) => `/events/${event.id}/attendees/${id}/edit` : undefined}
+            showDietaryNeeds={showDietaryNeeds}
+            detailsHref={(id) => `/events/${event.id}/attendees/${id}`}
           />
         </>
       )}

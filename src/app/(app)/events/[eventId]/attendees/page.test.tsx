@@ -1,6 +1,7 @@
 // src/app/(app)/events/[eventId]/attendees/page.test.tsx
 // Guest list, Add attendee (B2-02) and Edit attendee (B2-03) pages: access checked by each page,
-// add and edit only for roles that may manage attendees, the empty state, and the notices.
+// add and edit only for roles that may manage attendees, the empty state, and the notices. Attendee
+// details (B2-07) for every member.
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +9,7 @@ const requireEventAccess = vi.fn();
 const getEventAttendees = vi.fn();
 const createAttendeeAction = vi.fn();
 const getAttendeeForEditing = vi.fn();
+const getAttendeeDetails = vi.fn();
 
 vi.mock("@/modules/events/access", () => ({
   requireEventAccess: (...args: unknown[]) => requireEventAccess(...args),
@@ -22,6 +24,7 @@ vi.mock("@/modules/events/queries", () => ({ getMyEvents: vi.fn() }));
 vi.mock("@/modules/events/attendees/read", () => ({
   getEventAttendees: (...args: unknown[]) => getEventAttendees(...args),
   getAttendeeForEditing: (...args: unknown[]) => getAttendeeForEditing(...args),
+  getAttendeeDetails: (...args: unknown[]) => getAttendeeDetails(...args),
 }));
 vi.mock("@/modules/events/attendees/actions", () => ({
   createAttendeeAction: Object.assign((...args: unknown[]) => createAttendeeAction(...args), {
@@ -37,6 +40,7 @@ vi.mock("@/modules/events/attendees/actions", () => ({
 const { default: AttendeesPage } = await import("./page");
 const { default: AddAttendeePage } = await import("./new/page");
 const { default: EditAttendeePage } = await import("./[attendeeId]/edit/page");
+const { default: AttendeePage } = await import("./[attendeeId]/page");
 
 const ID = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
 const access = (role: "OWNER" | "COORDINATOR" | "VIEWER") =>
@@ -81,6 +85,26 @@ describe("Attendees page", () => {
     expect(summary).toHaveTextContent("Expected headcount2");
     expect(summary).toHaveTextContent("1 confirmed + 1 plus-one, from the guest list");
     expect(summary).toHaveTextContent("1 attendee, 1 person with plus-ones. Not counted yet.");
+  });
+
+  it("shows dietary needs to a Viewer when the server loaded them (B2-06, D-047)", async () => {
+    access("VIEWER");
+    getEventAttendees.mockResolvedValue({
+      ok: true,
+      showDietaryNeeds: true,
+      attendees: [{ ...guests[0], dietaryNeeds: "Vegetarian; no nuts" }, guests[1]],
+    });
+    await renderList();
+    expect(screen.getByRole("columnheader", { name: "Dietary needs" })).toBeInTheDocument();
+    expect(screen.getByText("Vegetarian; no nuts")).toBeInTheDocument();
+    expect(screen.getByText("Not recorded")).toHaveClass("sr-only");
+  });
+
+  it("has no dietary column when the server says the reader may not see it", async () => {
+    access("VIEWER");
+    getEventAttendees.mockResolvedValue({ ok: true, showDietaryNeeds: false, attendees: guests });
+    await renderList();
+    expect(screen.queryByRole("columnheader", { name: "Dietary needs" })).not.toBeInTheDocument();
   });
 
   it("shows no headcount summary for an empty guest list", async () => {
@@ -176,17 +200,17 @@ describe("Add attendee page", () => {
 });
 
 describe("guest list after editing (B2-03)", () => {
-  it.each([
-    ["OWNER", true],
-    ["COORDINATOR", true],
-    ["VIEWER", false],
-  ] as const)("links names to their edit page for a %s: %s", async (role, linked) => {
-    access(role);
-    await renderList();
-    const link = screen.queryByRole("link", { name: "Ana Reyes" });
-    if (linked) expect(link).toHaveAttribute("href", `/events/${ID}/attendees/a1/edit`);
-    else expect(link).not.toBeInTheDocument();
-  });
+  it.each(["OWNER", "COORDINATOR", "VIEWER"] as const)(
+    "links names to their details page for every member: %s (B2-07)",
+    async (role) => {
+      access(role);
+      await renderList();
+      expect(screen.getByRole("link", { name: "Ana Reyes" })).toHaveAttribute(
+        "href",
+        `/events/${ID}/attendees/a1`,
+      );
+    },
+  );
 
   it("confirms a removal by number only (B2-04)", async () => {
     access("OWNER");
@@ -271,5 +295,67 @@ describe("Edit attendee page (B2-03)", () => {
     );
     await expect(renderEdit()).rejects.toMatchObject({ notFound: true });
     expect(getAttendeeForEditing).not.toHaveBeenCalled();
+  });
+});
+
+describe("Attendee details page (B2-07, D-048)", () => {
+  const ATTENDEE = "7a1e2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b";
+  const shown = {
+    id: ATTENDEE,
+    number: 3,
+    name: "Carla Santos",
+    rsvpStatus: "PENDING",
+    plusOnes: 2,
+    category: "Family",
+    dietaryNeeds: null,
+  };
+  const renderDetails = async () =>
+    render(await AttendeePage({ params: Promise.resolve({ eventId: ID, attendeeId: ATTENDEE }) }));
+
+  it.each([
+    ["OWNER", true],
+    ["COORDINATOR", true],
+    ["VIEWER", false],
+  ] as const)("opens for a %s; Edit attendee shown: %s", async (role, editable) => {
+    access(role);
+    getAttendeeDetails.mockResolvedValue({
+      ok: true,
+      attendee: editable
+        ? { ...shown, email: null, phone: null, notes: "Bring a high chair" }
+        : shown,
+      fields: { dietaryNeeds: true, private: editable },
+    });
+    await renderDetails();
+    expect(requireEventAccess).toHaveBeenCalledWith(ID);
+    expect(getAttendeeDetails).toHaveBeenCalledWith(ID, ATTENDEE);
+    expect(screen.getByRole("heading", { level: 1, name: "Carla Santos" })).toBeVisible();
+    expect(screen.getByText("ATT-0003")).toBeVisible();
+    expect(screen.getByText("Pending")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Back to the guest list" })).toHaveAttribute(
+      "href",
+      `/events/${ID}/attendees`,
+    );
+    const edit = screen.queryByRole("link", { name: "Edit attendee" });
+    if (editable) {
+      expect(edit).toHaveAttribute("href", `/events/${ID}/attendees/${ATTENDEE}/edit`);
+      expect(screen.getByRole("region", { name: "Notes" })).toHaveTextContent("Bring a high chair");
+    } else {
+      expect(edit).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Notes" })).not.toBeInTheDocument();
+    }
+  });
+
+  it("is not found for an unknown attendee or another event's attendee", async () => {
+    access("OWNER");
+    getAttendeeDetails.mockResolvedValue({ ok: false, reason: "not-found" });
+    await expect(renderDetails()).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
+  });
+
+  it("is not found for a non-member, without loading the attendee", async () => {
+    requireEventAccess.mockRejectedValue(
+      Object.assign(new Error("NEXT_NOT_FOUND"), { notFound: true }),
+    );
+    await expect(renderDetails()).rejects.toMatchObject({ notFound: true });
+    expect(getAttendeeDetails).not.toHaveBeenCalled();
   });
 });

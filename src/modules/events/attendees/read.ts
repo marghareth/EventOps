@@ -15,8 +15,12 @@ import {
 } from "@/modules/events/public";
 import {
   getAttendee,
+  getAttendeeDetails as queryAttendeeDetails,
   listGuestList,
+  toAttendeeDetails,
   toGuestListRow,
+  type AttendeeDetails,
+  type AttendeeDetailsFields,
   type AttendeeRecord,
   type GuestListRow,
 } from "./queries";
@@ -70,4 +74,40 @@ export async function getAttendeeForEditing(
     ? sampleGetAttendee(auth.event.id, attendeeId) // Dev-only sample data (D-041).
     : await getAttendee(getDb(), auth.event.id, attendeeId);
   return attendee ? { ok: true, attendee } : { ok: false, reason: "not-found" };
+}
+
+export type AttendeeDetailsResult =
+  | { ok: true; attendee: AttendeeDetails; fields: AttendeeDetailsFields }
+  /** not-found: unknown attendee, another event's attendee or a malformed ID (indistinguishable). */
+  | { ok: false; reason: Extract<EventAuthorization, { ok: false }>["reason"] };
+
+/**
+ * One attendee for the details page (B2-07, D-048). Every member may open it (event.view); the
+ * attendee is found only inside the authorized event. Dietary needs need attendees.dietary, and
+ * contact details and notes need attendees.private: fields a role may not see are never loaded.
+ */
+export async function getAttendeeDetails(
+  eventId: string,
+  attendeeId: string,
+): Promise<AttendeeDetailsResult> {
+  const auth = await authorizeEvent(
+    eventId,
+    "event.view",
+    `/events/${encodeURIComponent(eventId)}/attendees`,
+  );
+  if (!auth.ok) return { ok: false, reason: auth.reason };
+  if (!z.uuid().safeParse(attendeeId).success) return { ok: false, reason: "not-found" };
+  const fields: AttendeeDetailsFields = {
+    dietaryNeeds: can(auth.event.role, "attendees.dietary"),
+    private: can(auth.event.role, "attendees.private"),
+  };
+  let attendee: AttendeeDetails | null;
+  if (isSampleDataMode()) {
+    // Dev-only sample data (D-041).
+    const record = sampleGetAttendee(auth.event.id, attendeeId);
+    attendee = record ? toAttendeeDetails(record, fields) : null;
+  } else {
+    attendee = await queryAttendeeDetails(getDb(), auth.event.id, attendeeId, fields);
+  }
+  return attendee ? { ok: true, attendee, fields } : { ok: false, reason: "not-found" };
 }

@@ -29,6 +29,7 @@ least one Owner (D-022).
 | `members.manage`       | Add members, change their roles and remove them         | Yes   | No          | No     |
 | `attendees.manage`     | Add, edit and remove attendees, RSVP and plus-ones      | Yes   | Yes         | No     |
 | `attendees.dietary`    | See attendees' dietary needs on the guest list          | Yes   | Yes         | Yes    |
+| `attendees.private`    | See attendees' contact details (email, phone) and notes | Yes   | Yes         | No     |
 | `attendees.export`     | Download attendees as CSV (guest personal data)         | Yes   | Yes         | No     |
 | `import.run`           | Spreadsheet or AI import, including confirming the rows | Yes   | Yes         | No     |
 | `accessibility.manage` | Accessibility requirements and resources                | Yes   | Yes         | No     |

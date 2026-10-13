@@ -171,6 +171,18 @@ Decided by the technical lead on 2026-10-13, before implementation.
   selects it only for roles with that permission.
 - **Activity** records only that it changed, never the text (AUDIT.md).
 
+## Notes (B2-07, D-048)
+
+Decided by the technical lead on 2026-10-13, before implementation.
+
+- **One entry per attendee.** `notes` is free text up to 2,000 characters; line breaks are kept.
+  Clearing it stores NULL. There is no notes history.
+- **Belongs to the attendee.** Edited on the attendee, removed with the attendee, never moved to
+  another attendee or event.
+- **Who sees it:** Owners and Coordinators (`attendees.private`, which also covers email and
+  phone). The details page's query selects these fields only for roles with that permission.
+- **Activity** records only that notes changed, never the text (AUDIT.md).
+
 ## CHECK constraints (D-010)
 
 Prisma cannot express these, so they are written by hand at the end of the migration that creates
