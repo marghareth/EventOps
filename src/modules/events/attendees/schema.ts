@@ -3,9 +3,15 @@
 // attendee. Limits match the database CHECK constraints and column sizes, so the form explains a
 // problem before Postgres rejects it. Pure: no database, no clock.
 import { z } from "zod";
-import { RSVP_STATUSES, type AttendeeChanges } from "@/modules/events/audit/public";
+// Type-only: the attendee form is a client component, so this file must not pull in the audit
+// context's server code (B2-02).
+import type { AttendeeChanges } from "@/modules/events/audit/public";
 
-export { RSVP_STATUSES };
+/**
+ * RSVP values as stored (D-042). The audit registry keeps its own copy for validating log entries;
+ * tests keep both equal to the database enum.
+ */
+export const RSVP_STATUSES = ["PENDING", "CONFIRMED", "DECLINED", "MAYBE"] as const;
 export type RsvpStatus = (typeof RSVP_STATUSES)[number];
 
 export const ATTENDEE_LIMITS = {
@@ -123,6 +129,11 @@ export function toAttendeeFormValues(attendee: AttendeeInput): Required<Attendee
     dietaryNeeds: attendee.dietaryNeeds ?? "",
     notes: attendee.notes ?? "",
   };
+}
+
+/** True for a well-formed readable attendee ID, for example from a URL. Nothing else is trusted. */
+export function isAttendeeReference(value: unknown): value is string {
+  return typeof value === "string" && /^ATT-\d{4,9}$/.test(value);
 }
 
 /** "ATT-0001": the readable attendee ID, at least four digits (D-042). */

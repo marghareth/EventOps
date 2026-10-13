@@ -1,7 +1,9 @@
 // src/modules/events/attendees/schema.test.ts
 // Attendee validation (B2-01, D-042): required fields, formats, limits and the audit diff.
 import { describe, expect, it } from "vitest";
+import { RSVP_STATUSES as AUDIT_RSVP_STATUSES } from "@/modules/events/audit/public";
 import {
+  RSVP_STATUSES,
   ATTENDEE_FIELDS,
   ATTENDEE_LIMITS,
   attendeeChanges,
@@ -206,5 +208,11 @@ describe("attendee changes for the audit log", () => {
 
   it("is empty when nothing changed", () => {
     expect(attendeeChanges(before, { ...before })).toEqual({});
+  });
+});
+
+describe("RSVP values", () => {
+  it("match the audit registry's copy (which a test keeps equal to the database enum)", () => {
+    expect([...RSVP_STATUSES]).toEqual([...AUDIT_RSVP_STATUSES]);
   });
 });

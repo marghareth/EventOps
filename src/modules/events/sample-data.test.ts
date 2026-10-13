@@ -11,13 +11,17 @@ vi.mock("server-only", () => ({}));
 const {
   SAMPLE_EVENT_IDS: IDS,
   resetSampleData,
+  sampleCreateAttendee,
   sampleCreateEvent,
   sampleDeleteEvent,
   sampleGetEventForMember,
+  sampleListAttendees,
   sampleListAuditEntries,
   sampleListEvents,
   sampleUpdateEvent,
 } = await import("./sample-data");
+const { attendeeFormSchema, formatAttendeeReference } =
+  await import("@/modules/events/attendees/public");
 
 const ME = DEMO_USER.id;
 const STRANGER = "7a1e2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b";
@@ -255,5 +259,101 @@ describe("reset", () => {
     sampleDeleteEvent({ eventId: IDS.wedding, userId: ME });
     resetSampleData();
     expect(sampleListEvents(ME)).toHaveLength(5);
+  });
+});
+
+describe("sample attendees (B2-02)", () => {
+  const now = new Date("2026-10-12T04:00:00Z");
+  const guest = {
+    name: "Rosa Aquino",
+    email: null,
+    phone: null,
+    category: "Friends",
+    rsvpStatus: "PENDING" as const,
+    plusOnes: 1,
+    dietaryNeeds: null,
+    notes: null,
+  };
+
+  it("gives the Owner, Coordinator and Viewer events guests, and leaves one event empty", () => {
+    expect(sampleListAttendees(IDS.wedding)).toHaveLength(8);
+    expect(sampleListAttendees(IDS.summit)).toHaveLength(4);
+    expect(sampleListAttendees(IDS.yearEnd)).toHaveLength(3);
+    expect(sampleListAttendees(IDS.reunion)).toEqual([]);
+  });
+
+  it("seeds only guests the attendee validation accepts, with unique valid IDs", () => {
+    const all = Object.values(IDS).flatMap((id) => sampleListAttendees(id));
+    for (const a of all) {
+      expect(a.id).toMatch(/^[0-9a-f-]{36}$/);
+      const form = {
+        name: a.name,
+        email: a.email ?? "",
+        phone: a.phone ?? "",
+        category: a.category ?? "",
+        rsvpStatus: a.rsvpStatus,
+        plusOnes: String(a.plusOnes),
+        dietaryNeeds: a.dietaryNeeds ?? "",
+        notes: a.notes ?? "",
+      };
+      expect(attendeeFormSchema.safeParse(form).success).toBe(true);
+    }
+    expect(new Set(all.map((a) => a.id)).size).toBe(all.length);
+  });
+
+  it("lists by name and returns copies", () => {
+    const list = sampleListAttendees(IDS.wedding);
+    expect(list.map((a) => a.name)).toEqual([...list.map((a) => a.name)].sort());
+    list[0].name = "Changed";
+    expect(sampleListAttendees(IDS.wedding)[0].name).not.toBe("Changed");
+  });
+
+  it("adds for an Owner or Coordinator with the next number and an attendee.created entry", () => {
+    const owner = sampleCreateAttendee({
+      eventId: IDS.wedding,
+      creatorId: ME,
+      attendee: guest,
+      now,
+    });
+    expect(owner).toEqual({
+      ok: true,
+      attendee: { id: expect.any(String), reference: "ATT-0009" },
+    });
+    const coordinator = sampleCreateAttendee({
+      eventId: IDS.summit,
+      creatorId: ME,
+      attendee: guest,
+      now,
+    });
+    expect(coordinator).toMatchObject({ ok: true, attendee: { reference: "ATT-0005" } });
+    expect(sampleListAttendees(IDS.wedding).map((a) => a.name)).toContain("Rosa Aquino");
+    expect(sampleListAuditEntries(IDS.wedding)[0]).toMatchObject({
+      action: "attendee.created",
+      details: { reference: "ATT-0009", name: "Rosa Aquino" },
+    });
+  });
+
+  it("formats IDs exactly like the attendees context", () => {
+    const result = sampleCreateAttendee({
+      eventId: IDS.reunion,
+      creatorId: ME,
+      attendee: guest,
+      now,
+    });
+    expect(result).toMatchObject({ attendee: { reference: formatAttendeeReference(1) } });
+  });
+
+  it("refuses a Viewer, a non-member and an unknown event, adding nothing", () => {
+    for (const eventId of [IDS.yearEnd, IDS.otherTeam, "5e000000-0000-4000-8000-0000000000ff"]) {
+      expect(sampleCreateAttendee({ eventId, creatorId: ME, attendee: guest, now })).toEqual({
+        ok: false,
+      });
+    }
+    expect(sampleListAttendees(IDS.yearEnd)).toHaveLength(3);
+  });
+
+  it("removes an event's guests with the event", () => {
+    sampleDeleteEvent({ eventId: IDS.wedding, userId: ME });
+    expect(sampleListAttendees(IDS.wedding)).toEqual([]);
   });
 });

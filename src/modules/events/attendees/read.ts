@@ -4,7 +4,11 @@
 import "server-only";
 import { getDb } from "@/lib/db";
 import { isSampleDataMode } from "@/lib/demo-auth";
-import { authorizeEvent, type EventAuthorization } from "@/modules/events/public";
+import {
+  authorizeEvent,
+  sampleListAttendees,
+  type EventAuthorization,
+} from "@/modules/events/public";
 import { listAttendees, type AttendeeRecord } from "./queries";
 
 export type EventAttendees =
@@ -18,7 +22,8 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendees
     `/events/${encodeURIComponent(eventId)}/attendees`,
   );
   if (!auth.ok) return { ok: false, reason: auth.reason };
-  // Dev-only sample data (D-041) has no attendees yet.
-  if (isSampleDataMode()) return { ok: true, attendees: [] };
-  return { ok: true, attendees: await listAttendees(getDb(), auth.event.id) };
+  const attendees = isSampleDataMode()
+    ? sampleListAttendees(auth.event.id) // Dev-only sample data (D-041).
+    : await listAttendees(getDb(), auth.event.id);
+  return { ok: true, attendees };
 }

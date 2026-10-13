@@ -13,6 +13,13 @@ export { ROLE_SUMMARY, can, rolesAllowed, type Permission } from "./permissions"
 export { toEventFormValues } from "./schema";
 export { MEMBER_ROLE_LABEL, groupEvents, type EventDetails, type EventListItem } from "./list";
 export { getMyEvents } from "./queries";
+// Dev-only sample data (D-041), for the attendees context's stand-ins.
+export {
+  sampleCreateAttendee,
+  sampleListAttendees,
+  type SampleAttendee,
+  type SampleAttendeeInput,
+} from "./sample-data";
 export { isEventReference } from "./reference";
 export { CreateEventForm } from "./ui/CreateEventForm";
 export { DeleteEventSection } from "./ui/DeleteEventSection";
