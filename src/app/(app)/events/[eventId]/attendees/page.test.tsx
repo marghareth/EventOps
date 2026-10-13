@@ -427,3 +427,48 @@ describe("RSVP filter on the guest list (B2-08, D-049)", () => {
     expect(screen.getByRole("heading", { name: "No attendees yet" })).toBeInTheDocument();
   });
 });
+
+describe("guest list acceptance (B2-09)", () => {
+  const list = [
+    { ...guests[0], dietaryNeeds: "Vegetarian" },
+    { ...guests[1], dietaryNeeds: null },
+  ];
+
+  it("gives an Owner the full list: columns, details links and Add attendee", async () => {
+    access("OWNER");
+    getEventAttendees.mockResolvedValue({ ok: true, attendees: list, showDietaryNeeds: true });
+    await renderList();
+    expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
+      "ID",
+      "Name",
+      "RSVP",
+      "Plus-ones",
+      "Category",
+      "Dietary needs",
+    ]);
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows[0]).toHaveTextContent(/ATT-0001.*Ana Reyes.*Confirmed.*1.*Vegetarian/);
+    expect(rows[1]).toHaveTextContent(/ATT-0002.*Ben Lim.*Pending.*0.*Family.*Not recorded/);
+    expect(screen.getByRole("link", { name: "Ben Lim" })).toHaveAttribute(
+      "href",
+      `/events/${ID}/attendees/a2`,
+    );
+    expect(screen.getByRole("link", { name: "Add attendee" })).toBeVisible();
+  });
+
+  it("gives a Viewer the same list to read, with details links but no Add", async () => {
+    access("VIEWER");
+    getEventAttendees.mockResolvedValue({ ok: true, attendees: list, showDietaryNeeds: true });
+    await renderList();
+    expect(screen.getAllByRole("rowheader")).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "Ana Reyes" })).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Add attendee" })).not.toBeInTheDocument();
+  });
+
+  it("asks the server only for this event's guest list", async () => {
+    access("COORDINATOR");
+    await renderList();
+    expect(getEventAttendees).toHaveBeenCalledTimes(1);
+    expect(getEventAttendees).toHaveBeenCalledWith(ID);
+  });
+});

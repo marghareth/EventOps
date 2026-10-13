@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-09 Attendee List.**
+  - The guest list and the attendee pages below it have their own loading screen ("Loading
+    attendees") and error screen ("Couldn't load attendees", with Try again and a safe reference),
+    following D-040. The event header and sidebar stay in both.
+  - Tests: the loading and error screens (no internal details, Try again refreshes server data) and
+    an acceptance pass over the guest list for an Owner and a Viewer. Checked in a browser against
+    PostgreSQL at 375, 768 and 1280 px, with the table locked (loading) and the attendees query
+    failing (error).
+
 - **B2-08 RSVP Status (D-049).**
   - The guest list can be filtered by RSVP: "All · Confirmed · Pending · Maybe · Declined", each
     with its count. The choice is kept in the address, the current one is marked for screen
