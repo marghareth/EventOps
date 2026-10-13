@@ -1,15 +1,16 @@
 // src/modules/events/attendees/ui/RsvpFilter.tsx
 // Filter the guest list by RSVP (B2-08, D-049): plain links that keep the choice in the address
 // (?rsvp=confirmed), so they work without JavaScript and can be bookmarked. Each shows its count
-// in text; the current one is marked with aria-current, not by color alone.
+// in text; the current one is marked with aria-current, not by color alone. Since B2-11 the page
+// builds each address, so the links keep the search, other filters and sort (D-050).
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { RSVP_FILTER_ORDER, rsvpFilterParam } from "../rsvp-filter";
+import { RSVP_FILTER_ORDER } from "../rsvp-filter";
 import { RSVP_LABEL, type RsvpStatus } from "../schema";
 
 type Props = {
-  /** The guest list's address, without a filter. */
-  baseHref: string;
+  /** The guest list's address with this RSVP chosen (null = All), keeping the rest of the query. */
+  hrefFor: (status: RsvpStatus | null) => string;
   current: RsvpStatus | null;
   counts: Record<RsvpStatus, number>;
   total: number;
@@ -20,14 +21,14 @@ const item =
 const idle = "border-line bg-white text-ink hover:bg-mist";
 const active = "border-ink bg-ink text-white";
 
-export function RsvpFilter({ baseHref, current, counts, total }: Props) {
+export function RsvpFilter({ hrefFor, current, counts, total }: Props) {
   const options: { key: string; label: string; count: number; href: string; on: boolean }[] = [
-    { key: "all", label: "All", count: total, href: baseHref, on: current === null },
+    { key: "all", label: "All", count: total, href: hrefFor(null), on: current === null },
     ...RSVP_FILTER_ORDER.map((status) => ({
       key: status,
       label: RSVP_LABEL[status],
       count: counts[status],
-      href: `${baseHref}?rsvp=${rsvpFilterParam(status)}`,
+      href: hrefFor(status),
       on: current === status,
     })),
   ];

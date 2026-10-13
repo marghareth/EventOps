@@ -1074,6 +1074,47 @@ that follows the filter (3b) would misstate the event's figure.
 
 ---
 
+## D-050 Guest list search, filters and sorting
+
+**Status:** Approved by the technical lead on 2026-10-13 (B2-10, B2-11 and B2-12 plan, options 0a,
+1a, 2a, 3a and 4a). Built together as one change.
+
+**Decision.**
+
+- **Where:** the guest list page applies pure functions (`attendees/guest-list-query.ts`) to the
+  guest list the server already authorized for the reader's role. Search, filters and sorting can
+  therefore never show another event's attendees or a field the role doesn't receive, and they never
+  change stored data. Sample data and the database behave the same. Moving this into the database
+  query belongs with pagination.
+- **Address:** every choice is in the address (`q`, `rsvp`, `category`, `dietary`, `plusones`,
+  `sort`, `dir`), set by a plain GET form and the RSVP links, so it works without JavaScript and can
+  be bookmarked. Unknown values are ignored. The search is cut to 100 characters.
+- **Search (B2-10):** name (partial, ignoring case and accents) and attendee ID ("ATT-0008", "att8"
+  or "8" find number 8 exactly) for every member. Email (partial) and phone (digits, at least 3)
+  only for roles with `attendees.private`: the guest-list read now loads email and phone for those
+  roles only, so a Viewer's rows don't carry them and can't match. Notes are never loaded for the
+  list. This refines D-047's "the guest list loads only the columns it shows".
+- **Filters (B2-11):** RSVP (D-049), Category (from this event's categories, ignoring case),
+  Dietary needs recorded or not (only with `attendees.dietary`; blank counts as not recorded), and
+  Plus-ones bringing or none. One value each; all combined with AND. "Clear all" resets search,
+  filters and sort. The RSVP counts and the headcount summary always cover the whole guest list.
+- **Sorting (B2-12):** Name (default), ID (order added), RSVP (Confirmed, Pending, Maybe,
+  Declined), Plus-ones and Category, ascending or descending. Ties: name, then ID, always ascending.
+  Attendees without a category come last in both directions. The sorted column header carries
+  `aria-sort` and the table caption names the sort.
+- **Empty result:** "No attendees match" lists the active search and filters and offers "Clear
+  search and filters"; an RSVP-only empty result keeps D-049's "No Maybe attendees".
+
+**Alternatives not chosen.** Three separate deliveries (0b) would rework the same files three
+times. Name and ID search only (1b). RSVP and category filters only (2b). Database-side search
+(3b) needs the `unaccent` extension and a migration. Clickable column headers (4b) are awkward in a
+table that scrolls sideways on phones.
+
+**Not in this change:** pagination, saved filters, filtering by notes or contact details, search as
+you type, and exporting a filtered list.
+
+---
+
 ## Open items needing a decision
 
 These were found during review. Each one is a conflict between sources or a product question, so

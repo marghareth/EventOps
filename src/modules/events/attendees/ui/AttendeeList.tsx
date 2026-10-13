@@ -23,7 +23,19 @@ type AttendeeListProps = {
   detailsHref?: (attendeeId: string) => string;
   /** Show the dietary needs column (attendees.dietary, D-047). */
   showDietaryNeeds?: boolean;
+  /** The current sort, marked on its column header for screen readers (B2-12, D-050). */
+  sort?: { column: SortColumn; direction: "ascending" | "descending"; label: string };
 };
+
+/** "Guest list, by name" by default; otherwise the sort in words. */
+function sortCaption(sort: AttendeeListProps["sort"]) {
+  if (!sort || (sort.column === "name" && sort.direction === "ascending")) {
+    return "Guest list, by name";
+  }
+  return `Guest list, sorted by ${sort.label}, ${sort.direction}`;
+}
+
+export type SortColumn = "id" | "name" | "rsvp" | "plusones" | "category";
 
 /** An empty cell: a dash on screen, words for screen readers. */
 function Empty({ label }: { label: string }) {
@@ -39,7 +51,9 @@ export function AttendeeList({
   attendees,
   detailsHref,
   showDietaryNeeds = false,
+  sort,
 }: AttendeeListProps) {
+  const ariaSort = (column: SortColumn) => (sort?.column === column ? sort.direction : undefined);
   return (
     <div
       role="region"
@@ -51,24 +65,24 @@ export function AttendeeList({
     >
       <table className="w-full border-collapse text-sm">
         <caption id="attendee-list-caption" className="sr-only">
-          Guest list, by name
+          {sortCaption(sort)}
           {detailsHref ? ". Select a name to see that attendee's details." : null}
         </caption>
         <thead>
           <tr>
-            <th scope="col" className={th}>
+            <th scope="col" className={th} aria-sort={ariaSort("id")}>
               ID
             </th>
-            <th scope="col" className={th}>
+            <th scope="col" className={th} aria-sort={ariaSort("name")}>
               Name
             </th>
-            <th scope="col" className={th}>
+            <th scope="col" className={th} aria-sort={ariaSort("rsvp")}>
               RSVP
             </th>
-            <th scope="col" className={`${th} text-right`}>
+            <th scope="col" className={`${th} text-right`} aria-sort={ariaSort("plusones")}>
               Plus-ones
             </th>
-            <th scope="col" className={th}>
+            <th scope="col" className={th} aria-sort={ariaSort("category")}>
               Category
             </th>
             {showDietaryNeeds ? (

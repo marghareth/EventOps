@@ -394,7 +394,7 @@ describe("getEventAttendees", () => {
       showDietaryNeeds: true,
     });
     expect(authorizeEvent).toHaveBeenCalledWith(EVENT, "event.view", `/events/${EVENT}/attendees`);
-    expect(listAttendees).toHaveBeenCalledWith("db", EVENT, { dietaryNeeds: true });
+    expect(listAttendees).toHaveBeenCalledWith("db", EVENT, { dietaryNeeds: true, contact: false });
   });
 
   it("reads nothing for a non-member", async () => {

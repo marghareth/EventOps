@@ -9,6 +9,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-10 Attendee Search, B2-11 Attendee Filtering, B2-12 Attendee Sorting (D-050).**
+  - One search, filter and sort form above the guest list, kept in the address (works without
+    JavaScript, can be bookmarked). It stacks into one column on phones.
+  - Search by name (ignoring case and accents) or attendee ID for every member; Owners and
+    Coordinators can also search by email or phone.
+  - Filters for Category, Dietary needs (recorded or not) and Plus-ones, combined with the RSVP links
+    (which now keep the other choices); "Clear all" resets everything.
+  - Sort by Name, ID, RSVP, Plus-ones or Category, ascending or descending, with stable tie-breaks.
+    The sorted column is announced to screen readers.
+  - "No attendees match" says what was searched and filtered and offers to clear it. The headcount
+    summary and RSVP counts still cover the whole guest list.
+  - The guest-list read now loads email and phone for Owners and Coordinators (for search only;
+    still not shown in the list). Viewers still don't receive them, and notes are never loaded.
+  - Tests: the query functions (matching, filters, combinations, sorting, junk values), the form, the
+    sorted column, the page per role, and against PostgreSQL: event isolation, Viewer email search,
+    and sorting that leaves every stored row and Activity unchanged.
+
 - **B2-09 Attendee List.**
   - The guest list and the attendee pages below it have their own loading screen ("Loading
     attendees") and error screen ("Couldn't load attendees", with Try again and a safe reference),

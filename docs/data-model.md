@@ -141,6 +141,24 @@ Any state may change to any other (Owners and Coordinators). Each change is reco
 The guest list can be filtered to one state (`?rsvp=<state in lower case>`); the filter only
 narrows the list the reader may already see.
 
+## Guest list search, filters and sorting (B2-10 to B2-12, D-050)
+
+Applied by the page to the guest list the server authorized for the reader; nothing is stored or
+changed. The query is read from the address:
+
+| Parameter  | Values                                                 | Notes                                               |
+| ---------- | ------------------------------------------------------ | --------------------------------------------------- |
+| `q`        | text, up to 100 characters                             | Name and ID; email and phone with attendees.private |
+| `rsvp`     | `confirmed`, `pending`, `maybe`, `declined`            | D-049                                               |
+| `category` | one of this event's categories (case ignored)          |                                                     |
+| `dietary`  | `yes` (recorded) or `no` (not recorded)                | Only with attendees.dietary                         |
+| `plusones` | `yes` (bringing plus-ones) or `no`                     |                                                     |
+| `sort`     | `name` (default), `id`, `rsvp`, `plusones`, `category` | Ties: name, then ID                                 |
+| `dir`      | `asc` (default) or `desc`                              | No category sorts last either way                   |
+
+Filters combine with AND. The `(eventId, name)` and `(eventId, rsvpStatus)` indexes serve the
+guest-list read; a database-side search would come with pagination.
+
 ## Plus-ones and headcount (B2-05, D-046)
 
 Decided by the technical lead on 2026-10-13, before implementation.
