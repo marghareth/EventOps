@@ -14,7 +14,8 @@ export type AttendeeFormState = {
 
 export const initialAttendeeFormState: AttendeeFormState = { status: "idle" };
 
-export type DeleteAttendeeFormState = { status: "idle" | "error" | "success"; message?: string };
+/** Removing an attendee (B2-04). Success redirects, so only errors come back. */
+export type DeleteAttendeeFormState = { status: "idle" | "error"; message?: string };
 
 export const initialDeleteAttendeeState: DeleteAttendeeFormState = { status: "idle" };
 
@@ -22,7 +23,6 @@ export const initialDeleteAttendeeState: DeleteAttendeeFormState = { status: "id
 export const ATTENDEE_MESSAGES = {
   saved: "Changes saved.",
   unchanged: "No changes to save.",
-  deleted: "Attendee removed.",
   forbidden: "Your role can view attendees but not change them. Ask an Owner or Coordinator.",
   eventNotFound: "This event isn't available. Go back to your events and open it again.",
   attendeeNotFound: "This attendee isn't available. They may have been removed.",
@@ -30,7 +30,4 @@ export const ATTENDEE_MESSAGES = {
     "This attendee changed since you opened them. Reload to see the latest details, then make your change again.",
   saveFailed: "We couldn't save the attendee. Try again in a moment.",
   deleteFailed: "We couldn't remove the attendee. Nothing was removed. Try again in a moment.",
-  /** Dev-only sample data (D-041) can add and edit attendees but not remove them yet. */
-  sampleData:
-    "Sample data can't remove attendees yet. Connect a database (DATABASE_URL) to try it.",
 } as const;

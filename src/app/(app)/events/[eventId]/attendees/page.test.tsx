@@ -171,6 +171,20 @@ describe("guest list after editing (B2-03)", () => {
     else expect(link).not.toBeInTheDocument();
   });
 
+  it("confirms a removal by number only (B2-04)", async () => {
+    access("OWNER");
+    await renderList({ removed: "ATT-0009" });
+    const notice = screen.getByRole("status");
+    expect(notice).toHaveTextContent("Attendee removed");
+    expect(notice).toHaveTextContent("ATT-0009 is no longer on the guest list.");
+  });
+
+  it("ignores a forged removed value", async () => {
+    access("OWNER");
+    await renderList({ removed: "Maria <script>" });
+    expect(screen.queryByText("Attendee removed")).not.toBeInTheDocument();
+  });
+
   it("confirms saved changes by name, taken from the list", async () => {
     access("OWNER");
     await renderList({ saved: "ATT-0001" });
@@ -209,7 +223,9 @@ describe("Edit attendee page (B2-03)", () => {
       expect(requireEventAccess).toHaveBeenCalledWith(ID);
       expect(getAttendeeForEditing).toHaveBeenCalledWith(ID, ATTENDEE);
       expect(screen.getByRole("heading", { level: 1, name: "Edit Carla Santos" })).toBeVisible();
-      expect(screen.getByText("ATT-0003")).toBeVisible();
+      expect(screen.getAllByText("ATT-0003")[0]).toBeVisible();
+      // B2-04: Remove attendee sits below the form, behind a confirmation.
+      expect(screen.getByRole("region", { name: "Remove attendee" })).toBeInTheDocument();
       expect(screen.getByLabelText(/^Name/)).toHaveValue("Carla Santos");
       expect(screen.getByLabelText(/^Plus-ones/)).toHaveValue(2);
       expect(screen.getByLabelText(/^Notes/)).toHaveValue("Bring a high chair");

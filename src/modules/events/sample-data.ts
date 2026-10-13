@@ -8,9 +8,9 @@
 //   - events are returned only to members (non-members get null, like an unknown event, D-027),
 //   - writes re-check the role (rolesAllowed), edits refuse stale versions (D-032),
 //   - every create and edit records an audit entry through the audit registry's schemas (D-037).
-// Since B2-02 it also holds sample attendees: adding (B2-02) and editing (B2-03) work like the
-// database (members with attendees.manage only, per-event ATT numbers, stale edits refused, audit
-// entries).
+// Since B2-02 it also holds sample attendees: adding (B2-02), editing (B2-03) and removing (B2-04)
+// work like the database (members with attendees.manage only, per-event ATT numbers that are never
+// reused, stale edits refused, audit entries).
 // Changes live in memory only and reset when `npm run dev` restarts. Never used in a build:
 // isSampleDataMode() needs NODE_ENV=development and `next build` refuses DEV_DEMO_AUTH=true.
 import "server-only";
@@ -61,6 +61,8 @@ type SampleStore = {
   members: SampleMember[];
   audit: SampleAudit[];
   attendees: StoredAttendee[];
+  /** Last attendee number issued per event, like events.lastAttendeeNumber: never reused. */
+  lastAttendeeNumber: Map<string, number>;
 };
 
 const MIKA = "5e000000-0000-4000-8000-0000000000a1";
@@ -238,6 +240,12 @@ function seed(): SampleStore {
     },
   );
 
+  const attendees = seedAttendees();
+  const lastAttendeeNumber = new Map<string, number>();
+  for (const a of attendees) {
+    lastAttendeeNumber.set(a.eventId, Math.max(lastAttendeeNumber.get(a.eventId) ?? 0, a.number));
+  }
+
   return {
     users: new Map([
       [me, DEMO_USER.displayName],
@@ -247,7 +255,8 @@ function seed(): SampleStore {
     events,
     members,
     audit,
-    attendees: seedAttendees(),
+    attendees,
+    lastAttendeeNumber,
   };
 }
 
@@ -523,6 +532,29 @@ export function sampleUpdateAttendee(args: {
   return { ok: true };
 }
 
+/** Stand-in for deleteAttendee: attendees.manage re-checked, only in its own event, an entry kept. */
+export function sampleDeleteAttendee(args: {
+  eventId: string;
+  attendeeId: string;
+  userId: string;
+  now: Date;
+}): { ok: true; reference: string } | { ok: false } {
+  const s = store();
+  const attendee = s.attendees.find((a) => a.id === args.attendeeId && a.eventId === args.eventId);
+  const role = roleOf(s, args.eventId, args.userId);
+  if (!attendee || !role || !rolesAllowed("attendees.manage").includes(role)) return { ok: false };
+  const reference = `ATT-${String(attendee.number).padStart(4, "0")}`;
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.userId,
+    action: "attendee.deleted",
+    details: { reference, name: attendee.name },
+    now: args.now,
+  });
+  s.attendees = s.attendees.filter((a) => a !== attendee);
+  return { ok: true, reference };
+}
+
 /**
  * Stand-in for createAttendee: members with attendees.manage only (re-checked here, like the
  * database), the event's next ATT number, and an attendee.created entry.
@@ -538,11 +570,9 @@ export function sampleCreateAttendee(args: {
   if (!s.events.some((e) => e.id === args.eventId) || !role) return { ok: false };
   if (!rolesAllowed("attendees.manage").includes(role)) return { ok: false };
 
-  const number =
-    s.attendees.reduce(
-      (max, a) => (a.eventId === args.eventId ? Math.max(max, a.number) : max),
-      0,
-    ) + 1;
+  // Only counts up, so a removed attendee's number is never given out again (D-042).
+  const number = (s.lastAttendeeNumber.get(args.eventId) ?? 0) + 1;
+  s.lastAttendeeNumber.set(args.eventId, number);
   const reference = `ATT-${String(number).padStart(4, "0")}`;
   const id = crypto.randomUUID();
   addAudit(s, {

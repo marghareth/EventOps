@@ -1,5 +1,5 @@
 // src/app/(app)/events/[eventId]/attendees/[attendeeId]/edit/page.tsx
-// Edit attendee (B2-03). Checks event access itself (D-027). Owners and Coordinators get the form
+// Edit attendee (B2-03), with Remove attendee below the form (B2-04). Checks event access itself (D-027). Owners and Coordinators get the form
 // with the stored values (attendees.manage, D-035); Viewers get "You don't have access". An unknown
 // attendee, a malformed ID or another event's attendee is "not found", like an unknown event. The
 // save action authorizes again, so the page is never the security check.
@@ -8,6 +8,8 @@ import { notFound } from "next/navigation";
 import { UnauthorizedState } from "@/components/shared/UnauthorizedState";
 import {
   AttendeeForm,
+  RemoveAttendeeSection,
+  deleteAttendeeAction,
   formatAttendeeReference,
   getAttendeeForEditing,
   toAttendeeFormValues,
@@ -52,6 +54,11 @@ export default async function EditAttendeePage({ params }: Props) {
           version={attendee.updatedAt.toISOString()}
         />
       </div>
+      <RemoveAttendeeSection
+        action={deleteAttendeeAction.bind(null, event.id, attendee.id)}
+        name={attendee.name}
+        reference={formatAttendeeReference(attendee.number)}
+      />
     </div>
   );
 }

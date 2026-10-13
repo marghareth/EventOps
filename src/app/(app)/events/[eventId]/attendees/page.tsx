@@ -44,17 +44,20 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
   const canManage = can(event.role, "attendees.manage");
   const addHref = `/events/${event.id}/attendees/new`;
 
-  // After adding (B2-02) or editing (B2-03). The reference is only displayed, and only if well
+  // After adding (B2-02), editing (B2-03) or removing (B2-04). The reference is only displayed, and only if well
   // formed; the name comes from the stored attendee, never from the URL.
   const query = await searchParams;
   const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
   const added = first(query.added);
   const saved = first(query.saved);
+  const removed = first(query.removed);
   const notice = isAttendeeReference(added)
     ? ({ kind: "added", reference: added } as const)
     : isAttendeeReference(saved)
       ? ({ kind: "saved", reference: saved } as const)
-      : null;
+      : isAttendeeReference(removed)
+        ? ({ kind: "removed", reference: removed } as const)
+        : null;
   const noticeName = notice
     ? attendees.find((a) => formatAttendeeReference(a.number) === notice.reference)?.name
     : undefined;

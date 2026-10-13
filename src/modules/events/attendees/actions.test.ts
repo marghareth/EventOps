@@ -13,6 +13,7 @@ const listAttendees = vi.fn();
 const sampleCreateAttendee = vi.fn();
 const sampleListAttendees = vi.fn();
 const sampleGetAttendee = vi.fn();
+const sampleDeleteAttendee = vi.fn();
 const sampleUpdateAttendee = vi.fn();
 const getAttendee = vi.fn();
 const revalidatePath = vi.fn();
@@ -26,6 +27,7 @@ vi.mock("@/modules/events/public", () => ({
   sampleCreateAttendee: (...args: unknown[]) => sampleCreateAttendee(...args),
   sampleListAttendees: (...args: unknown[]) => sampleListAttendees(...args),
   sampleGetAttendee: (...args: unknown[]) => sampleGetAttendee(...args),
+  sampleDeleteAttendee: (...args: unknown[]) => sampleDeleteAttendee(...args),
   sampleUpdateAttendee: (...args: unknown[]) => sampleUpdateAttendee(...args),
 }));
 vi.mock("next/navigation", () => ({
@@ -109,7 +111,16 @@ const stored = {
   notes: null,
   updatedAt: new Date(VERSION),
 };
-const remove = (id = ATTENDEE) => deleteAttendeeAction(EVENT, id);
+/** The remove action's answer, or where it redirected to. */
+async function remove(id = ATTENDEE) {
+  try {
+    return await deleteAttendeeAction(EVENT, id);
+  } catch (error) {
+    const url = (error as { url?: string }).url;
+    if (url) return { redirect: url };
+    throw error;
+  }
+}
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -117,7 +128,7 @@ beforeEach(() => {
   allow();
   createAttendee.mockResolvedValue({ ok: true, attendee: { id: ATTENDEE, reference: "ATT-0001" } });
   updateAttendee.mockResolvedValue({ ok: true });
-  deleteAttendee.mockResolvedValue({ ok: true });
+  deleteAttendee.mockResolvedValue({ ok: true, reference: "ATT-0003" });
   getAttendee.mockResolvedValue(stored);
 });
 
@@ -274,13 +285,14 @@ describe("updateAttendeeAction", () => {
 });
 
 describe("deleteAttendeeAction", () => {
-  it("removes the attendee as the session's user", async () => {
-    expect(await remove()).toEqual({ status: "success", message: ATTENDEE_MESSAGES.deleted });
+  it("removes the attendee as the session's user, then opens the list (B2-04)", async () => {
+    expect(await remove()).toEqual({ redirect: `/events/${EVENT}/attendees?removed=ATT-0003` });
     expect(deleteAttendee).toHaveBeenCalledWith("db", {
       eventId: EVENT,
       attendeeId: ATTENDEE,
       userId: "user-1",
     });
+    expect(revalidatePath).toHaveBeenCalledWith(`/events/${EVENT}/attendees`);
   });
 
   it("refuses a malformed ID and explains a missing attendee", async () => {
@@ -292,6 +304,16 @@ describe("deleteAttendeeAction", () => {
   it("shows a safe message when removing fails", async () => {
     deleteAttendee.mockRejectedValue(new Error("connect ECONNREFUSED"));
     expect(await remove()).toEqual({ status: "error", message: ATTENDEE_MESSAGES.deleteFailed });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("treats a second removal (already gone) as not available", async () => {
+    deleteAttendee.mockResolvedValue({ ok: false });
+    expect(await remove()).toEqual({
+      status: "error",
+      message: ATTENDEE_MESSAGES.attendeeNotFound,
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
 
@@ -337,9 +359,13 @@ describe("sample data mode (D-041)", () => {
     expect(getAttendee).not.toHaveBeenCalled();
   });
 
-  it("explains that removing isn't in the sample data yet", async () => {
+  it("removes from the sample store after the same checks (B2-04)", async () => {
     sampleData = true;
-    expect(await remove()).toMatchObject({ message: ATTENDEE_MESSAGES.sampleData });
+    sampleDeleteAttendee.mockReturnValue({ ok: true, reference: "ATT-0002" });
+    expect(await remove()).toEqual({ redirect: `/events/${EVENT}/attendees?removed=ATT-0002` });
+    expect(sampleDeleteAttendee).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: EVENT, attendeeId: ATTENDEE, userId: "user-1" }),
+    );
     expect(deleteAttendee).not.toHaveBeenCalled();
   });
 

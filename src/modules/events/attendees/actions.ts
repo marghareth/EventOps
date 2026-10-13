@@ -14,11 +14,12 @@ import { isSampleDataMode } from "@/lib/demo-auth";
 import {
   authorizeEvent,
   sampleCreateAttendee,
+  sampleDeleteAttendee,
   sampleGetAttendee,
   sampleUpdateAttendee,
 } from "@/modules/events/public";
 import { createAttendee, type CreateAttendeeResult } from "./create-attendee";
-import { deleteAttendee } from "./delete-attendee";
+import { deleteAttendee, type DeleteAttendeeResult } from "./delete-attendee";
 import {
   ATTENDEE_MESSAGES,
   type AttendeeFormState,
@@ -153,8 +154,9 @@ export async function updateAttendeeAction(
 }
 
 /**
- * Permanently removes an attendee from the event. Owners and Coordinators (attendees.manage). Works
- * with useActionState: the form state and data it passes after the bound IDs are not needed.
+ * Permanently removes an attendee from the event (D-042, B2-04), then opens the guest list with a
+ * "removed" notice. Owners and Coordinators (attendees.manage). Works with useActionState: the form
+ * state and data it passes after the bound IDs are not needed.
  */
 export async function deleteAttendeeAction(
   eventId: string,
@@ -165,18 +167,20 @@ export async function deleteAttendeeAction(
   if (!idSchema.safeParse(attendeeId).success) {
     return { status: "error", message: ATTENDEE_MESSAGES.attendeeNotFound };
   }
-  if (isSampleDataMode()) return { status: "error", message: ATTENDEE_MESSAGES.sampleData };
 
+  let result: DeleteAttendeeResult;
   try {
-    const result = await deleteAttendee(getDb(), {
-      eventId: auth.event.id,
-      attendeeId,
-      userId: auth.user.id,
-    });
-    if (!result.ok) return { status: "error", message: ATTENDEE_MESSAGES.attendeeNotFound };
+    const args = { eventId: auth.event.id, attendeeId, userId: auth.user.id };
+    result = isSampleDataMode()
+      ? sampleDeleteAttendee({ ...args, now: new Date() }) // Dev-only sample data (D-041).
+      : await deleteAttendee(getDb(), args);
   } catch {
     return { status: "error", message: ATTENDEE_MESSAGES.deleteFailed };
   }
+  // Already removed, another event's attendee, or the role changed after the check above.
+  if (!result.ok) return { status: "error", message: ATTENDEE_MESSAGES.attendeeNotFound };
+
   revalidatePath(attendeesPath(auth.event.id));
-  return { status: "success", message: ATTENDEE_MESSAGES.deleted };
+  // redirect() works by throwing, so it stays outside the try block.
+  redirect(`${attendeesPath(auth.event.id)}?removed=${encodeURIComponent(result.reference)}`);
 }

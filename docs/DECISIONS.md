@@ -55,6 +55,7 @@ Status values:
 | D-042 | Attendee data model                                        | Approved | 2026-10-12 |
 | D-043 | Adding attendees: page, guest list and sample guests       | Approved | 2026-10-12 |
 | D-044 | Editing attendees                                          | Approved | 2026-10-12 |
+| D-045 | Removing attendees                                         | Approved | 2026-10-12 |
 
 ---
 
@@ -920,6 +921,36 @@ event ID, invalid data and signed-out all refused); a browser check with sample 
 save all fields, list, Activity wording without personal values, Viewer, non-member, another
 event's attendee, invalid data, no-change and stale saves); a browser check with two tabs (stale)
 and at 375 and 1280 px.
+
+---
+
+## D-045 Removing attendees
+
+**Status:** Approved by the technical lead on 2026-10-12 (B2-04 plan).
+
+**Decision.**
+
+- **Permanent delete**, as D-042 set out: the attendee row and its personal data are removed. Only
+  the `attendee.deleted` audit entry keeps the number and name. Numbers are never reused.
+- **Where:** a "Remove attendee" section below the edit form (Owners and Coordinators only).
+  Viewers never see it, and the server refuses them anyway (`attendees.manage`).
+- **Confirmation:** the shared confirmation dialog, starting on Cancel: "Maria Santos (ATT-0003)
+  will be removed from the guest list. You can't undo this." One click confirms; no typed
+  confirmation (unlike deleting a whole event, D-033). Cancel and Escape remove nothing. The shared
+  dialog does not close on a click outside it, and its busy label is "Working…".
+- **After removing:** the guest list confirms "Attendee removed: ATT-0003 is no longer on the guest
+  list". Only the well-formed number is read from the URL; the name is not shown, because the record
+  is gone and a name in the URL can't be trusted.
+- **Related records:** none link to attendees yet. When accessibility requirements arrive, their
+  delete behaviour is decided with them (D-002).
+- **Sample data (D-041):** removing works in memory with the same rules; sample numbers are never
+  reused either.
+
+**Evidence.** Dialog component tests (no removal without confirming, Cancel, Escape, working state,
+error inside the dialog); action and page tests; `attendees/delete-flow.db.test.ts` (Owner and
+Coordinator remove; gone from the list and the edit page; Activity; Viewer, non-member, signed-out,
+lowered role and another event's attendee refused; second removal; numbers not reused); a browser
+check at 375 and 1280 px.
 
 ---
 

@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-04 Attendee Deletion (D-045).**
+  - "Remove attendee" on the edit page (Owners and Coordinators), behind a confirmation that starts
+    on Cancel. Cancel or Escape removes nothing. The guest list confirms "Attendee removed".
+  - The attendee is permanently removed; Activity records "Removed the attendee <name> (ATT-…)".
+    Numbers are never reused.
+  - Removing works with sample data, so adding, editing and removing attendees all work without a
+    database.
+  - Tests: confirmation dialog, actions, pages, sample data, and removal end to end against
+    PostgreSQL, including refused roles and another event's attendee.
+
 - **B2-03 Attendee Editing (D-044).**
   - Edit attendee page, opened from the attendee's name in the guest list (Owners and
     Coordinators): every field loaded and editable, field errors, a "Saving changes…" state, and a
