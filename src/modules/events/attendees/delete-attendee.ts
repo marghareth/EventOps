@@ -10,7 +10,8 @@ import { rolesAllowed } from "@/modules/events/public";
 import { formatAttendeeReference } from "./schema";
 
 export type DeleteAttendeeResult =
-  | { ok: true }
+  /** Removed. `reference` is the removed attendee's readable ID, for the confirmation. */
+  | { ok: true; reference: string }
   /** No such attendee in this event, or the user may not remove it: nothing was removed. */
   | { ok: false };
 
@@ -32,13 +33,14 @@ export async function deleteAttendee(
     const attendee = await tx.attendee.findFirst({ where, select: { number: true, name: true } });
     const { count } = attendee ? await tx.attendee.deleteMany({ where }) : { count: 0 };
     if (!attendee || count !== 1) return { ok: false } as const;
+    const reference = formatAttendeeReference(attendee.number);
     await writeAudit(tx, {
       eventId: args.eventId,
       actorId: args.userId,
       action: "attendee.deleted",
       entityId: args.attendeeId,
-      details: { reference: formatAttendeeReference(attendee.number), name: attendee.name },
+      details: { reference, name: attendee.name },
     });
-    return { ok: true } as const;
+    return { ok: true, reference } as const;
   });
 }

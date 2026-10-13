@@ -12,6 +12,7 @@ const {
   SAMPLE_EVENT_IDS: IDS,
   resetSampleData,
   sampleCreateAttendee,
+  sampleDeleteAttendee,
   sampleCreateEvent,
   sampleGetAttendee,
   sampleUpdateAttendee,
@@ -421,5 +422,62 @@ describe("editing sample attendees (B2-03)", () => {
 
   it("refuses audit changes the registry doesn't allow (no personal values)", () => {
     expect(() => edit({ changes: { notes: { from: "a", to: "b" } } })).toThrow();
+  });
+});
+
+describe("removing sample attendees (B2-04)", () => {
+  const now = new Date("2026-10-12T06:00:00Z");
+  const guest = {
+    name: "Tess Lim",
+    email: null,
+    phone: null,
+    category: null,
+    rsvpStatus: "PENDING" as const,
+    plusOnes: 0,
+    dietaryNeeds: null,
+    notes: null,
+  };
+
+  it("lets the Owner or Coordinator remove a guest; it is gone and Activity keeps who it was", () => {
+    const [first] = sampleListAttendees(IDS.wedding);
+    expect(
+      sampleDeleteAttendee({ eventId: IDS.wedding, attendeeId: first.id, userId: ME, now }),
+    ).toEqual({ ok: true, reference: "ATT-0001" });
+    expect(sampleGetAttendee(IDS.wedding, first.id)).toBeNull();
+    expect(sampleListAttendees(IDS.wedding)).toHaveLength(7);
+    expect(sampleListAuditEntries(IDS.wedding)[0]).toMatchObject({
+      action: "attendee.deleted",
+      details: { reference: "ATT-0001", name: first.name },
+    });
+    const [summitGuest] = sampleListAttendees(IDS.summit);
+    expect(
+      sampleDeleteAttendee({ eventId: IDS.summit, attendeeId: summitGuest.id, userId: ME, now }),
+    ).toMatchObject({ ok: true });
+  });
+
+  it("refuses a Viewer, another event's attendee and a second removal", () => {
+    const [viewerGuest] = sampleListAttendees(IDS.yearEnd);
+    expect(
+      sampleDeleteAttendee({ eventId: IDS.yearEnd, attendeeId: viewerGuest.id, userId: ME, now }),
+    ).toEqual({ ok: false });
+    const [summitGuest] = sampleListAttendees(IDS.summit);
+    expect(
+      sampleDeleteAttendee({ eventId: IDS.wedding, attendeeId: summitGuest.id, userId: ME, now }),
+    ).toEqual({ ok: false });
+    const [first] = sampleListAttendees(IDS.wedding);
+    sampleDeleteAttendee({ eventId: IDS.wedding, attendeeId: first.id, userId: ME, now });
+    expect(
+      sampleDeleteAttendee({ eventId: IDS.wedding, attendeeId: first.id, userId: ME, now }),
+    ).toEqual({ ok: false });
+    expect(sampleListAttendees(IDS.yearEnd)).toHaveLength(3);
+    expect(sampleListAttendees(IDS.summit)).toHaveLength(4);
+  });
+
+  it("never gives a removed attendee's number to a new one", () => {
+    const last = sampleListAttendees(IDS.wedding).find((a) => a.number === 8)!;
+    sampleDeleteAttendee({ eventId: IDS.wedding, attendeeId: last.id, userId: ME, now });
+    expect(
+      sampleCreateAttendee({ eventId: IDS.wedding, creatorId: ME, attendee: guest, now }),
+    ).toMatchObject({ ok: true, attendee: { reference: "ATT-0009" } });
   });
 });

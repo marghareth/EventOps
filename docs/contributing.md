@@ -30,20 +30,26 @@ npm run dev                 # http://localhost:3000
 
 Never commit `.env.local` or any real secret.
 
-### View the app without Supabase (dev only)
+### View the app without Supabase or a database (dev only)
 
-To look at the signed-in pages before a Supabase project is connected, put this in `.env.local` and
-run `npm run dev`:
+To click through the signed-in pages before Supabase and a database are connected, put this in
+`.env.local` and restart `npm run dev`:
 
 ```bash
 DEV_DEMO_AUTH=true
+# Leave DATABASE_URL and DIRECT_URL out (or comment them out) to use sample data.
 ```
 
-You are signed in as a demo user, and a "Demo sign-in is on" banner shows on every page. Open any
-page directly, for example `http://localhost:3000/events` or
-`http://localhost:3000/events/00000000-0000-4000-8000-0000000000e1/attendees`. The sign-in and
-sign-up pages still work: any valid email and password continue. It needs no Supabase or database
-settings for the pages that exist today, but pages that read event data will need a database.
+- You are signed in as "Demo Coordinator". No sign-in page, no Supabase.
+- With no `DATABASE_URL`, the events are **sample data** kept in memory (D-041): six events in
+  which you are Owner, Coordinator or Viewer, with sample activity, plus one event you are not a
+  member of (`/events/5e000000-0000-4000-8000-000000000006` shows "not found"). Most events
+  have sample guests on their Attendees page. Creating, editing and deleting events and
+  attendees works, but everything resets when the dev server restarts.
+- With a `DATABASE_URL`, the same demo user works against that real database instead.
+- A yellow banner on every page says which of the two is on.
+- The sign-in and sign-up pages can still be opened; any valid email and password continue.
+
 `npm run build` refuses to run while the flag is set; remove it when you are done. See D-024.
 
 Sign-up and sign-in need the Supabase dashboard settings listed in

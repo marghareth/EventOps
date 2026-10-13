@@ -128,7 +128,7 @@ describe("the attendees table", () => {
     ["an empty email", { email: "''" }, /attendees_optional_text_not_blank/],
     ["an RSVP status outside the list", { rsvpStatus: "'ATTENDING'" }, /rsvp_status/],
     ["a missing RSVP status", { rsvpStatus: "NULL" }, /null value in column "rsvpStatus"/],
-  ])("refuses %s", async (_label: string, overrides: Record<string, string>, error: RegExp) => {
+  ])("refuses %s", async (_label, overrides, error) => {
     const { eventId } = await setup();
     await expect(rawInsert(eventId, overrides)).rejects.toThrow(error);
   });
@@ -237,7 +237,7 @@ describe("createAttendee", () => {
 
   it.each(["viewer", "stranger", "unknown event"] as const)(
     "refuses a %s at the database level and saves nothing",
-    async (who: "viewer" | "stranger" | "unknown event") => {
+    async (who) => {
       const { eventId, viewer } = await setup();
       const creatorId = who === "viewer" ? viewer : await newUser();
       const target = who === "unknown event" ? randomUUID() : eventId;
@@ -371,6 +371,7 @@ describe("deleteAttendee", () => {
     const { id } = await add(eventId, owner);
     expect(await deleteAttendee(db, { eventId, attendeeId: id, userId: coordinator })).toEqual({
       ok: true,
+      reference: "ATT-0001",
     });
     expect(await db.attendee.count({ where: { id } })).toBe(0);
     const [entry] = await auditFor(eventId, "attendee.deleted");
