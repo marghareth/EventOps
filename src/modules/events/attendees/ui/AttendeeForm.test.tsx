@@ -58,6 +58,10 @@ describe("AttendeeForm", () => {
     );
     expect(screen.getByLabelText(/^Notes/)).toHaveAttribute("maxLength", "2000");
     expect(screen.getByLabelText(/^Dietary needs/)).toHaveAttribute("maxLength", "500");
+    // B2-06, D-047: several needs in one entry; clearing the field removes them.
+    expect(screen.getByLabelText(/^Dietary needs/)).toHaveAccessibleDescription(
+      "Separate several needs with semicolons, for example: Vegetarian; no nuts. Leave empty to remove. Up to 500 characters.",
+    );
     expect(screen.getByLabelText(/^Name/)).toHaveAttribute("maxLength", "120");
   });
 

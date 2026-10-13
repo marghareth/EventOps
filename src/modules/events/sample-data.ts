@@ -282,7 +282,7 @@ function seedAttendees(): StoredAttendee[] {
       ["Lea Bautista", "MAYBE", 1, { category: "Attendees", dietaryNeeds: "Halal" }],
     ],
     [ids.yearEnd]: [
-      ["Mon Garcia", "CONFIRMED", 1, { category: "Finance" }],
+      ["Mon Garcia", "CONFIRMED", 1, { category: "Finance", dietaryNeeds: "No pork; low sugar" }],
       ["Nina Ocampo", "PENDING", 0, { category: "Operations" }],
       ["Oscar Dizon", "DECLINED", 0, { category: "Operations" }],
     ],

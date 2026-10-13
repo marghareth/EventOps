@@ -28,6 +28,7 @@ least one Owner (D-022).
 | `event.delete`         | Permanently delete the event and everything in it       | Yes   | No          | No     |
 | `members.manage`       | Add members, change their roles and remove them         | Yes   | No          | No     |
 | `attendees.manage`     | Add, edit and remove attendees, RSVP and plus-ones      | Yes   | Yes         | No     |
+| `attendees.dietary`    | See attendees' dietary needs on the guest list          | Yes   | Yes         | Yes    |
 | `attendees.export`     | Download attendees as CSV (guest personal data)         | Yes   | Yes         | No     |
 | `import.run`           | Spreadsheet or AI import, including confirming the rows | Yes   | Yes         | No     |
 | `accessibility.manage` | Accessibility requirements and resources                | Yes   | Yes         | No     |
@@ -55,12 +56,14 @@ least one Owner (D-022).
 
 Each row's action and database tests are written when its feature is built.
 
-| Permission     | Built in | Action tests (every role)                    | Database tests (every role)     |
-| -------------- | -------- | -------------------------------------------- | ------------------------------- |
-| `event.view`   | B1-04    | `access.test.ts`, `access-coverage.test.tsx` | `members/membership.db.test.ts` |
-| `event.edit`   | B1-05    | `actions.test.ts` (updateEventAction)        | `update-event.db.test.ts`       |
-| `event.delete` | B1-06    | `actions.test.ts` (deleteEventAction)        | `delete-event.db.test.ts`       |
-| `audit.view`   | B1-11    | `activity.test.ts`, activity `page.test.tsx` | `authorization.db.test.ts`      |
+| Permission          | Built in | Action tests (every role)                    | Database tests (every role)      |
+| ------------------- | -------- | -------------------------------------------- | -------------------------------- |
+| `event.view`        | B1-04    | `access.test.ts`, `access-coverage.test.tsx` | `members/membership.db.test.ts`  |
+| `event.edit`        | B1-05    | `actions.test.ts` (updateEventAction)        | `update-event.db.test.ts`        |
+| `event.delete`      | B1-06    | `actions.test.ts` (deleteEventAction)        | `delete-event.db.test.ts`        |
+| `audit.view`        | B1-11    | `activity.test.ts`, activity `page.test.tsx` | `authorization.db.test.ts`       |
+| `attendees.manage`  | B2-01    | `attendees/actions.test.ts`                  | `attendees/attendees.db.test.ts` |
+| `attendees.dietary` | B2-06    | `attendees/read.test.ts`                     | `attendees/dietary.db.test.ts`   |
 
 End to end, through the real server actions, API route and database: `authorization.db.test.ts`
 (B1-09) covers the required security matrix, cross-event access and role escalation attempts.

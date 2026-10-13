@@ -189,7 +189,7 @@ export function AttendeeForm({
       <FormField
         label="Dietary needs (optional)"
         id={fieldId("dietaryNeeds")}
-        hint={`For example vegetarian, no nuts or halal. ${limit(ATTENDEE_LIMITS.dietaryNeeds)}`}
+        hint={`Separate several needs with semicolons, for example: Vegetarian; no nuts. Leave empty to remove. ${limit(ATTENDEE_LIMITS.dietaryNeeds)}`}
         error={error("dietaryNeeds")}
       >
         {(control) => (

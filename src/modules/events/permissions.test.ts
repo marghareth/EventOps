@@ -37,8 +37,11 @@ describe("permission matrix", () => {
     expect(Object.keys(ROLE_SUMMARY).sort()).toEqual(["COORDINATOR", "OWNER", "VIEWER"]);
   });
 
-  it("Viewer can only view", () => {
-    expect(PERMISSIONS.filter((permission) => can("VIEWER", permission))).toEqual(["event.view"]);
+  it("Viewer can only view: the event, and attendees' dietary needs (D-047)", () => {
+    expect(PERMISSIONS.filter((permission) => can("VIEWER", permission))).toEqual([
+      "event.view",
+      "attendees.dietary",
+    ]);
   });
 
   it("Owner can do everything", () => {

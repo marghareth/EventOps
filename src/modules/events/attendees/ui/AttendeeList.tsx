@@ -1,6 +1,7 @@
 // src/modules/events/attendees/ui/AttendeeList.tsx
 // The guest list (B2-02): a table, by name. For roles that may manage attendees each name links to
-// its edit page (B2-03). Search, filters, sorting and row actions
+// its edit page (B2-03). Dietary needs appear as a column for roles that may see them (B2-06,
+// D-047); the page decides, from what the server loaded. Search, filters, sorting and row actions
 // arrive with their own tasks. On narrow screens the table scrolls sideways inside its own
 // keyboard-focusable region, never the whole page.
 import Link from "next/link";
@@ -10,7 +11,7 @@ import { RsvpBadge } from "./RsvpBadge";
 export type AttendeeListItem = Pick<
   AttendeeInput,
   "name" | "rsvpStatus" | "plusOnes" | "category"
-> & { id: string; number: number };
+> & { id: string; number: number; dietaryNeeds?: string | null };
 
 const th =
   "bg-mist px-4 py-3.5 text-left font-display text-xs font-bold tracking-wider whitespace-nowrap text-ink-2 uppercase";
@@ -20,9 +21,21 @@ type AttendeeListProps = {
   attendees: readonly AttendeeListItem[];
   /** Given only to roles that may edit: the edit page for an attendee ID. */
   editHref?: (attendeeId: string) => string;
+  /** Show the dietary needs column (attendees.dietary, D-047). */
+  showDietaryNeeds?: boolean;
 };
 
-export function AttendeeList({ attendees, editHref }: AttendeeListProps) {
+/** An empty cell: a dash on screen, words for screen readers. */
+function Empty({ label }: { label: string }) {
+  return (
+    <>
+      <span className="sr-only">{label}</span>
+      <span aria-hidden="true">—</span>
+    </>
+  );
+}
+
+export function AttendeeList({ attendees, editHref, showDietaryNeeds = false }: AttendeeListProps) {
   return (
     <div
       role="region"
@@ -53,6 +66,11 @@ export function AttendeeList({ attendees, editHref }: AttendeeListProps) {
             <th scope="col" className={th}>
               Category
             </th>
+            {showDietaryNeeds ? (
+              <th scope="col" className={th}>
+                Dietary needs
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -78,9 +96,16 @@ export function AttendeeList({ attendees, editHref }: AttendeeListProps) {
               </td>
               <td className={`${td} text-right tabular-nums`}>{attendee.plusOnes}</td>
               <td className={`${td} break-words text-ink-2`}>
-                {attendee.category ?? <span className="sr-only">None</span>}
-                {attendee.category ? null : <span aria-hidden="true">—</span>}
+                {attendee.category ?? <Empty label="None" />}
               </td>
+              {showDietaryNeeds ? (
+                <td
+                  className={`${td} max-w-72 min-w-48 break-words whitespace-pre-line text-ink-2`}
+                >
+                  {/* Empty means nothing was recorded, not "no restrictions". */}
+                  {attendee.dietaryNeeds ?? <Empty label="Not recorded" />}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

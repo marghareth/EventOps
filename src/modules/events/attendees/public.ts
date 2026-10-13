@@ -9,7 +9,7 @@ export {
   type DeleteAttendeeFormState,
 } from "./form-state";
 export { expectedHeadcount, type ExpectedHeadcount, type HeadcountInput } from "./headcount";
-export type { AttendeeRecord } from "./queries";
+export type { AttendeeRecord, GuestListRow } from "./queries";
 export {
   getAttendeeForEditing,
   getEventAttendees,

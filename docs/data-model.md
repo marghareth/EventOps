@@ -111,7 +111,7 @@ A guest of exactly one event. It cannot exist without its event and is deleted w
 | `category`     | varchar(60), optional   | Free text, for example "Family"                                       |
 | `rsvpStatus`   | enum `rsvp_status`      | `PENDING`, `CONFIRMED`, `DECLINED`, `MAYBE`. New attendees: `PENDING` |
 | `plusOnes`     | integer                 | Guests coming with the attendee, 0 to 10                              |
-| `dietaryNeeds` | varchar(500), optional  | Free text                                                             |
+| `dietaryNeeds` | varchar(500), optional  | Free text; several needs separated by semicolons (D-047)              |
 | `notes`        | varchar(2000), optional | Free text                                                             |
 | `createdAt`    | timestamp               | Set automatically                                                     |
 | `updatedAt`    | timestamp               | Set on every change; edits refuse stale saves with it (D-032, D-042)  |
@@ -156,6 +156,20 @@ Comparing them belongs to Impact and Event Health.
 **Not live attendance.** This is the expected headcount before the event. How plus-ones are counted
 when guests arrive (live attendance) is decided with the Live Attendance Count task (DECISIONS.md
 open item 4).
+
+## Dietary needs (B2-06, D-047)
+
+Decided by the technical lead on 2026-10-13, before implementation.
+
+- **One entry per attendee.** `dietaryNeeds` is free text. Several needs share the entry, separated
+  by semicolons: "Vegetarian; no nuts; halal". There is no fixed list of needs.
+- **Removing** means clearing the field: it is stored as NULL. NULL means "nothing recorded", not
+  "no restrictions"; the guest list shows it as a dash ("Not recorded" for screen readers).
+- **Belongs to the attendee.** It is edited on the attendee, and goes when the attendee is removed.
+  Plus-ones have no dietary needs of their own (D-046); note theirs in the attendee's entry.
+- **Who sees it:** every event member (`attendees.dietary`, PERMISSIONS.md). The guest-list query
+  selects it only for roles with that permission.
+- **Activity** records only that it changed, never the text (AUDIT.md).
 
 ## CHECK constraints (D-010)
 

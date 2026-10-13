@@ -9,6 +9,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-06 Dietary Needs (D-047).**
+  - The guest list has a Dietary needs column for every member, Viewers included (new permission
+    row `attendees.dietary`). An empty entry shows a dash, read as "Not recorded".
+  - Several needs go in one entry, separated by semicolons; clearing the field removes them. The
+    form hint says both. Activity still records only "Dietary needs changed".
+  - The guest list now loads only the columns it shows. Email, phone and notes are loaded only by
+    the edit form (Owners and Coordinators).
+  - Tests: recording, editing and removing against PostgreSQL, the right attendee and event,
+    Activity without the text, every role and non-members, the read with and without the permission,
+    the list column, the page and the form hint.
+
 - **B2-05 Plus-One Management (D-046).**
   - Plus-ones are a count on each attendee (0 for none, up to 10), recorded in `DATA_MODEL.md`
     before building. The form hint now says "Guests coming with them: 0 for none, up to 10."
