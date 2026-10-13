@@ -159,6 +159,17 @@ changed. The query is read from the address:
 Filters combine with AND. The `(eventId, name)` and `(eventId, rsvpStatus)` indexes serve the
 guest-list read; a database-side search would come with pagination.
 
+## CSV import (B2-14 to B2-18, D-052)
+
+No new tables. An import adds ordinary attendees (same columns, same rules as the add form) in one
+transaction, takes the next ATT numbers in file order, and writes one `attendees.imported` audit
+entry. Nothing is stored before the user confirms, and the uploaded file is never kept.
+
+## CSV export (B2-19, D-053)
+
+No new tables. The export reads the event's attendees in ID order (every field) and writes one
+`attendees.exported` audit entry in the same transaction.
+
 ## Plus-ones and headcount (B2-05, D-046)
 
 Decided by the technical lead on 2026-10-13, before implementation.

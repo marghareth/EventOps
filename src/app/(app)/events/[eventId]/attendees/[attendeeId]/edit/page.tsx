@@ -1,5 +1,5 @@
 // src/app/(app)/events/[eventId]/attendees/[attendeeId]/page.tsx
-// Attendee details (B2-07, D-048), opened from a name on the guest list. Every member can open it
+// Attendee details (B2-07, D-048; B2-13), opened from a name on the guest list. Every member can open it
 // (event.view); the read loads only the fields the member's role may see, so the page never
 // decides that. Owners and Coordinators also get "Edit attendee" (attendees.manage). An unknown
 // attendee, a malformed ID or another event's attendee is "not found", like an unknown event.
@@ -9,7 +9,8 @@ import { notFound } from "next/navigation";
 import { UnauthorizedState } from "@/components/shared/UnauthorizedState";
 import { Button } from "@/components/ui/button";
 import {
-  AttendeeDetailsView,
+  AttendeeDetailsSection,
+  AttendeeNotesSection,
   RsvpBadge,
   formatAttendeeReference,
   getAttendeeDetails,
@@ -61,8 +62,15 @@ export default async function AttendeePage({ params }: Props) {
           </Button>
         ) : null}
       </div>
-      <div className="mt-6">
-        <AttendeeDetailsView attendee={attendee} fields={fields} />
+      {/*
+        The page is a list of independent sections (B2-13). Each section gets its data from its own
+        module's read and decides for itself what the role may see. Batch 3 adds the attendee's
+        accessibility section here, from modules/accessibility (its own read, authorized the same
+        way); no accessibility data or rules go into the attendees module.
+      */}
+      <div className="mt-6 flex flex-col gap-6">
+        <AttendeeDetailsSection attendee={attendee} fields={fields} />
+        <AttendeeNotesSection attendee={attendee} fields={fields} />
       </div>
     </div>
   );

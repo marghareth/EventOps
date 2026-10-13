@@ -305,4 +305,14 @@ describe("who sees notes (attendees.private, D-048)", () => {
     });
     expect((await stored(eventB)).notes).toBe("Seat near the stage");
   });
+
+  it("a removed attendee is not found (B2-13)", async () => {
+    const owner = await newUser();
+    const eventId = await newEvent(owner.id);
+    signedIn = owner;
+    await submit(eventId, maria);
+    const id = (await stored(eventId)).id;
+    await db.attendee.delete({ where: { id } });
+    expect(await details(eventId, id)).toEqual({ ok: false, reason: "not-found" });
+  });
 });

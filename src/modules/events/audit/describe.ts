@@ -100,5 +100,19 @@ export function describeAuditEntry(entry: Pick<AuditEntryView, "action" | "detai
     const { reference, name } = entry.details as AuditDetails<"attendee.deleted">;
     return { summary: `Removed the attendee ${name} (${reference})`, lines: [] };
   }
+  if (entry.action === "attendees.exported") {
+    const { count } = entry.details as AuditDetails<"attendees.exported">;
+    return {
+      summary: `Exported the guest list as CSV (${count === 1 ? "1 attendee" : `${count} attendees`})`,
+      lines: [],
+    };
+  }
+  if (entry.action === "attendees.imported") {
+    const { count, first, last, skipped } = entry.details as AuditDetails<"attendees.imported">;
+    const people = count === 1 ? "1 attendee" : `${count} attendees`;
+    const range = count === 1 ? first : `${first} to ${last}`;
+    const lines = skipped ? [`${skipped === 1 ? "1 row" : `${skipped} rows`} not imported`] : [];
+    return { summary: `Imported ${people} from a CSV file (${range})`, lines };
+  }
   return { summary: "Made a change (details unavailable)", lines: [] };
 }

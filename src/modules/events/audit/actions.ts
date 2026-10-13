@@ -76,6 +76,26 @@ export const AUDIT_ACTIONS = {
   },
   /** An attendee was removed (B2-01). The entry keeps who it was; the record is gone. */
   "attendee.deleted": { entityType: "attendee", details: attendeeIdentity },
+  /**
+   * Attendees were imported from a CSV file (B2-18, D-052). One entry per import, about the event:
+   * counts and the range of new IDs only, never names or file contents.
+   */
+  /** The guest list was downloaded as CSV (B2-19, D-053). How many attendees, nothing else. */
+  "attendees.exported": {
+    entityType: "event",
+    details: z.object({ count: z.number().int().min(0) }).strict(),
+  },
+  "attendees.imported": {
+    entityType: "event",
+    details: z
+      .object({
+        count: z.number().int().min(1),
+        first: attendeeReference,
+        last: attendeeReference,
+        skipped: z.number().int().min(0),
+      })
+      .strict(),
+  },
 } as const;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;

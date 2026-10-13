@@ -586,6 +586,74 @@ export function sampleCreateAttendee(args: {
   return { ok: true, attendee: { id, reference } };
 }
 
+/**
+ * Stand-in for importAttendees (B2-18, D-052): members with import.run only, the next N numbers,
+ * every attendee added, and one attendees.imported entry. All or nothing.
+ */
+export function sampleImportAttendees(args: {
+  eventId: string;
+  importerId: string;
+  attendees: SampleAttendeeInput[];
+  skipped: number;
+  now: Date;
+}): { ok: true; count: number; first: string; last: string } | { ok: false } {
+  const s = store();
+  const role = roleOf(s, args.eventId, args.importerId);
+  const count = args.attendees.length;
+  if (!s.events.some((e) => e.id === args.eventId) || !role || count === 0) return { ok: false };
+  if (!rolesAllowed("import.run").includes(role)) return { ok: false };
+
+  const start = (s.lastAttendeeNumber.get(args.eventId) ?? 0) + 1;
+  const ref = (n: number) => `ATT-${String(n).padStart(4, "0")}`;
+  const first = ref(start);
+  const last = ref(start + count - 1);
+  // The entry is checked before anything changes, so a refused entry leaves the store untouched.
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.importerId,
+    action: "attendees.imported",
+    details: { count, first, last, skipped: args.skipped },
+    now: args.now,
+  });
+  args.attendees.forEach((attendee, i) => {
+    s.attendees.push({
+      ...attendee,
+      id: crypto.randomUUID(),
+      eventId: args.eventId,
+      number: start + i,
+      updatedAt: args.now,
+    });
+  });
+  s.lastAttendeeNumber.set(args.eventId, start + count - 1);
+  return { ok: true, count, first, last };
+}
+
+/**
+ * Stand-in for exportAttendees (B2-19, D-053): members with attendees.export only (re-checked
+ * here), the event's attendees in ID order, and an attendees.exported entry.
+ */
+export function sampleExportAttendees(args: {
+  eventId: string;
+  userId: string;
+  now: Date;
+}): SampleAttendee[] | null {
+  const s = store();
+  const role = roleOf(s, args.eventId, args.userId);
+  if (!role || !rolesAllowed("attendees.export").includes(role)) return null;
+  const attendees = s.attendees
+    .filter((a) => a.eventId === args.eventId)
+    .sort((a, b) => a.number - b.number)
+    .map((a) => ({ ...a }));
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.userId,
+    action: "attendees.exported",
+    details: { count: attendees.length },
+    now: args.now,
+  });
+  return attendees;
+}
+
 /** Stand-in for listAuditEntries. Not an access check: callers authorize first. */
 export function sampleListAuditEntries(eventId: string, limit = 100): AuditEntryView[] {
   const s = store();

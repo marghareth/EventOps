@@ -17,7 +17,9 @@ export { getMyEvents } from "./queries";
 export {
   sampleCreateAttendee,
   sampleDeleteAttendee,
+  sampleExportAttendees,
   sampleGetAttendee,
+  sampleImportAttendees,
   sampleListAttendees,
   sampleUpdateAttendee,
   type SampleAttendee,

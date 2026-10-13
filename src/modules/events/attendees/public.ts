@@ -53,11 +53,20 @@ export {
   type AttendeeField,
   type RsvpStatus,
 } from "./schema";
-export { AttendeeDetailsView } from "./ui/AttendeeDetailsView";
+export {
+  AttendeeDetailsSection,
+  AttendeeDetailsView,
+  AttendeeNotesSection,
+} from "./ui/AttendeeDetailsView";
 export { AttendeeNotice } from "./ui/AttendeeNotice";
 export { AttendeeForm } from "./ui/AttendeeForm";
 export { AttendeeList, type AttendeeListItem } from "./ui/AttendeeList";
 export { GuestListControls } from "./ui/GuestListControls";
+export { exportAttendees, exportEventAttendees } from "./export-attendees";
+export { EXPORT_HEADERS, attendeesCsv, exportFileName } from "./export-csv";
+export { importStepAction } from "./import-actions";
+export { initialImportState, type ImportState } from "./import-state";
+export { ImportWizard } from "./ui/ImportWizard";
 export { HeadcountSummary } from "./ui/HeadcountSummary";
 export { RemoveAttendeeSection } from "./ui/RemoveAttendeeSection";
 export { RsvpBadge } from "./ui/RsvpBadge";
