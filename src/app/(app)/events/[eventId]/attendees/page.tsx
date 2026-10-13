@@ -14,6 +14,7 @@ import {
   HeadcountSummary,
   AttendeeList,
   RSVP_LABEL,
+  ExportButton,
   GuestListControls,
   RsvpFilter,
   SORT_LABEL,
@@ -61,6 +62,8 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
   // Email and phone search only for roles that receive them (attendees.private, D-048, D-050).
   const canSearchContact = can(event.role, "attendees.private");
   const canManage = can(event.role, "attendees.manage");
+  const canImport = can(event.role, "import.run");
+  const canExport = can(event.role, "attendees.export");
   const addHref = `/events/${event.id}/attendees/new`;
 
   // After adding (B2-02), editing (B2-03) or removing (B2-04). The reference is only displayed, and only if well
@@ -110,10 +113,23 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
           <h1 className="text-h2 font-extrabold">Attendees</h1>
           <p className="mt-1 text-sm text-ink-2">{countText}</p>
         </div>
-        {canManage ? (
-          <Button asChild>
-            <Link href={addHref}>Add attendee</Link>
-          </Button>
+        {canManage || canImport || canExport ? (
+          <div className="flex flex-wrap gap-3">
+            {canExport ? (
+              // A link that works without JavaScript, with download feedback (B2-19, B2-22).
+              <ExportButton href={`/api/events/${event.id}/attendees/export`} />
+            ) : null}
+            {canImport ? (
+              <Button asChild variant="secondary">
+                <Link href={`/events/${event.id}/import`}>Import CSV</Link>
+              </Button>
+            ) : null}
+            {canManage ? (
+              <Button asChild>
+                <Link href={addHref}>Add attendee</Link>
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 

@@ -41,6 +41,19 @@ Not recorded:
 
 Add an action only when the feature that needs it is built, in the registry and in this table.
 
+### Attendee actions (B2-21)
+
+| Action            | Entry                | What is kept                           | What is never kept                                 |
+| ----------------- | -------------------- | -------------------------------------- | -------------------------------------------------- |
+| Add               | `attendee.created`   | ID and name                            | Contact details, dietary needs, notes              |
+| Edit, RSVP change | `attendee.updated`   | Name, RSVP, plus-ones, category        | Email, phone, dietary needs, notes: "changed" only |
+| Remove            | `attendee.deleted`   | ID and name                            | Everything else                                    |
+| Import            | `attendees.imported` | Count, first and last ID, rows skipped | Names, file name, file contents                    |
+| Export            | `attendees.exported` | Count                                  | Who or what was in the file                        |
+
+Refused actions and saves that change nothing record nothing. Proved by
+`attendees/activity.db.test.ts`, which scans every stored entry for the personal data it used.
+
 ## What must not be stored
 
 - Only what the action needs. Prefer IDs, names of fields and short business values.

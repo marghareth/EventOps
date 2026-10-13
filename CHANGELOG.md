@@ -9,6 +9,40 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-25 Attendee Documentation.**
+  - New `docs/USER_FLOWS.md` (guest list, add, view and edit, remove, import pipeline, export, with
+    roles and error states) and `docs/ACCEPTANCE_CRITERIA.md` (every Batch 2 criterion → where it is
+    met → the test that proves it).
+  - DATA_MODEL.md: an attendees overview and the import validation rules. SECURITY.md: the attendee
+    permission table and how it is proven. TESTING.md: the security matrix, Activity test, coverage
+    matrix and end-to-end flow (added in B2-20 to B2-24).
+
+- **B2-24 Attendee E2E Flow (D-055).**
+  - A browser test of the whole attendee flow: create with a plus-one, dietary needs and RSVP, edit,
+    import a CSV (match, preview, confirm), search, filter and sort, export and read the file, and
+    check Activity, with a second event proving nothing crosses over.
+  - CI gets an `e2e` job running the browser lifecycle suite against a fresh PostgreSQL, keeping
+    the Playwright report when something fails.
+
+- **B2-22 Attendee UX Polish.**
+  - "Export CSV" now confirms the download ("Downloaded EVT-2026-0001-attendees-2026-10-13.csv (8
+    attendees).") and shows a clear message if the export fails, instead of raw JSON. It still works
+    without JavaScript.
+  - Every attendee screen and state was swept at 375, 768 and 1280 px with axe, a scroll check and a
+    keyboard focus walk: no violations, no sideways scroll, visible focus everywhere. Results in
+    QUALITY.md.
+
+- **B2-20 Attendee Authorization Tests, B2-21 Attendee Activity, B2-23 Attendee Tests.**
+  - A security checkpoint test: six callers (Owner, Coordinator, Viewer, a user on another event,
+    a cross-event attendee ID, signed out) × nine attendee operations through the real actions and
+    API route, with every denial checked to change nothing and leak nothing.
+  - An Activity test running create, edit, RSVP change, import, export and delete, checking the
+    feed in order and that no entry stores contact details, dietary needs or notes.
+  - A coverage matrix in TESTING.md mapping every listed attendee behaviour to its tests, and the
+    attendee audit policy in AUDIT.md.
+  - CI's check job is green again (D-054): the seven empty scaffold test files are to-dos, knip
+    checks built code only, and unused public exports were removed.
+
 - **B2-19 CSV Export (D-053).**
   - "Export CSV" on the guest list (Owners and Coordinators) downloads every attendee of this event
     as a CSV file named like `EVT-2026-0001-attendees-2026-10-13.csv`: ID, name, RSVP, plus-ones,
@@ -338,6 +372,20 @@ build` fails if it is set.
 
 ### Fixed
 
+- **Batch 2 repository repair.** The checks were red on the Batch 2 snapshot:
+  - Restored the Edit attendee page (`/events/<id>/attendees/<attendeeId>/edit`, B2-03, D-044).
+    The details page linked to it, but the file was missing; the page test imported the wrong path.
+  - The Import page now shows the CSV import steps for Owners and Coordinators (B2-14 to B2-18,
+    D-052) instead of the placeholder, with its own page test (`import/page.test.tsx`).
+  - Documentation files use the upper-case names from D-006 (`docs/PERMISSIONS.md`,
+    `docs/SECURITY.md`, `docs/TESTING.md`, `docs/DATA_MODEL.md`, `docs/AUDIT.md` and the rest;
+    `BUILD_BACKLOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` and `THIRD-PARTY-LICENSES.md` at the
+    root, as their headers say). The permission matrix test reads `docs/PERMISSIONS.md` again.
+  - Typecheck: test tables in the event, settings and attendee schema tests are `as const`.
+  - knip: removed the unused `AttendeeAddedNotice` (replaced by `AttendeeNotice` in B2-03) and the
+    duplicate `playwright/playwright.lifecycle.config.ts`.
+  - The database test of expected tables now includes `attendees` (B2-01).
+  - Renamed `xportButton.test.tsx` to `ExportButton.test.tsx`.
 - "Try again" on every error screen now fetches fresh server data before resetting; before, a page
   that failed on the server stayed broken after the cause was gone (B1-15).
 - The desktop sidebar's EventOps link was outside any landmark; the sidebar is now an `<aside>`

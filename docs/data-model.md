@@ -128,6 +128,25 @@ D-002), `(eventId, name)` for the guest list, `(eventId, rsvpStatus)` for RSVP f
   not by column defaults.
 - **Plus-ones** are a count, not named records. See "Plus-ones and headcount" below (D-046).
 
+## Attendees at a glance (Batch 2)
+
+One row per guest in `attendees` (table above), always inside one event. The sections below define
+each part; user-facing steps are in [USER_FLOWS.md](USER_FLOWS.md).
+
+| Topic                | Rule                                                                         | Section                 |
+| -------------------- | ---------------------------------------------------------------------------- | ----------------------- |
+| Identity             | Readable ID `ATT-0001` per event, never reused                               | `attendees` table       |
+| RSVP                 | Pending, Confirmed, Maybe, Declined; any to any                              | RSVP states             |
+| Plus-ones            | A count 0 to 10 on the attendee, not guest records                           | Plus-ones and headcount |
+| Expected headcount   | Confirmed attendees × (1 + plus-ones); computed, never stored                | Plus-ones and headcount |
+| Dietary needs        | One free-text entry; several separated by semicolons; every member sees it   | Dietary needs           |
+| Notes, email, phone  | Owners and Coordinators only (`attendees.private`)                           | Notes                   |
+| Search, filter, sort | On the authorized list; nothing stored                                       | Guest list search…      |
+| CSV import           | Validated server-side at every step; one transaction; nothing before confirm | CSV import              |
+| CSV export           | Every field, this event only, formula-safe, recorded                         | CSV export              |
+| Activity             | Changes recorded without contact details, dietary needs or notes             | [AUDIT.md](AUDIT.md)    |
+| Who may do what      | [PERMISSIONS.md](PERMISSIONS.md); tested in `authorization.db.test.ts`       |                         |
+
 ## RSVP states (B2-08, D-049)
 
 | State       | Meaning                    | Counts toward the expected headcount |
@@ -164,6 +183,18 @@ guest-list read; a database-side search would come with pagination.
 No new tables. An import adds ordinary attendees (same columns, same rules as the add form) in one
 transaction, takes the next ATT numbers in file order, and writes one `attendees.imported` audit
 entry. Nothing is stored before the user confirms, and the uploaded file is never kept.
+
+Import validation rules, all on the server at every step:
+
+| Check      | Rule                                                                                                                                     |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| File       | `.csv` name and CSV media type; at most 500 KB; UTF-8; no NUL bytes                                                                      |
+| Shape      | A header row, then 1 to 2,000 rows; at most 50 columns; values up to 5,000 characters; no extra values beyond the headers; quotes closed |
+| Mapping    | Each column to one known field or "Don't import"; each field once; Name required                                                         |
+| Row values | The add form's schema (D-042): name required, email and phone formats, plus-ones 0 to 10, lengths                                        |
+| RSVP words | The four states, or yes / attending / going, no / not attending / regrets, tentative / unsure, empty                                     |
+| Duplicates | Same name (ignoring case and accents) and same email when both have one, against the list and the file                                   |
+| Confirm    | The number to import must equal what the user saw, or nothing is imported                                                                |
 
 ## CSV export (B2-19, D-053)
 

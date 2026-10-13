@@ -77,7 +77,7 @@ export function AttendeeNotesSection({ attendee, fields }: Props) {
   return (
     <DetailSection id="attendee-notes" title="Notes">
       {attendee.notes ? (
-        <p className="mt-3 break-words whitespace-pre-wrap text-ink">{attendee.notes}</p>
+        <p className="mt-3 wrap-break-words whitespace-pre-wrap text-ink">{attendee.notes}</p>
       ) : (
         <p className="mt-3 text-ink-2">No notes.</p>
       )}

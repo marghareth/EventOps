@@ -63,3 +63,49 @@ jobs:
       - run: npm run db:deploy
       - run: npm run db:status
       - run: npm run test:db
+
+  # B2-24 (D-055): the browser lifecycle suite (event lifecycle and the attendee flow) in Chromium,
+  # with dev-only demo sign-in (D-024) against a throwaway database that each run resets. The
+  # Supabase values are placeholders: demo sign-in never calls Supabase.
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: eventops_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      HUSKY: "0"
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/eventops_e2e
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eventops_e2e
+      E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eventops_e2e
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:deploy
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:lifecycle
+      - name: Keep the Playwright report when a test fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

@@ -1,5 +1,30 @@
 {
   "entry": ["vitest.server-only-stub.ts", "src/**/*.db.test.ts", "e2e/lifecycle/*.ts"],
-  "ignore": ["src/generated/**"],
-  "ignoreDependencies": ["@prisma/client", "pg", "@testing-library/dom", "tailwindcss"]
+  "ignoreExportsUsedInFile": true,
+  "ignore": [
+    "src/generated/**",
+    "prisma/migrations/seed.ts",
+    "scripts/make-messy-sample.ts",
+    "src/components/shared/DataTable.tsx",
+    "src/components/shared/IdText.tsx",
+    "src/components/shared/KonamiListener.tsx",
+    "src/components/shared/SeverityBadge.tsx",
+    "src/lib/storage.ts",
+    "src/lib/supabase/browser.ts",
+    "src/modules/events/accessibility/**",
+    "src/modules/events/budget/**",
+    "src/modules/events/checkin/**",
+    "src/modules/events/health/**",
+    "src/modules/events/impact/**",
+    "src/modules/events/import/**",
+    "src/modules/events/members/actions.ts",
+    "src/modules/events/members/queries.ts",
+    "src/modules/events/members/schema.ts",
+    "src/modules/events/suppliers/**",
+    "src/modules/events/tasks/**",
+    "src/modules/events/timeline/**",
+    "src/modules/events/volunteers/**",
+    "src/shared/kernel/**"
+  ],
+  "ignoreDependencies": ["@prisma/client", "pg", "@testing-library/dom", "tailwindcss", "vite"]
 }

@@ -3,13 +3,14 @@
 export {
   AUDIT_ACTIONS,
   RSVP_STATUSES,
-  attendeeChangesSchema,
-  eventChangesSchema,
   type AttendeeChanges,
   type AuditAction,
-  type AuditDetails,
   type EventChanges,
 } from "./actions";
+/** @public Part of the audit contract for other contexts. */
+export type { AuditDetails } from "./actions";
 export { describeAuditEntry, formatAuditTime } from "./describe";
 export { listAuditEntries, type AuditEntryView } from "./queries";
-export { writeAudit, type AuditEntry } from "./write";
+export { writeAudit } from "./write";
+/** @public Part of the audit contract for other contexts. */
+export type { AuditEntry } from "./write";

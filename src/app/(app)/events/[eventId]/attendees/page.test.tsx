@@ -53,6 +53,13 @@ const guests = [
   { id: "a2", number: 2, name: "Ben Lim", rsvpStatus: "PENDING", plusOnes: 0, category: "Family" },
 ];
 
+/** The page's notice: the status region with text (the export button keeps an empty one ready). */
+const shownNotice = () => {
+  const filled = screen.getAllByRole("status").filter((el) => el.textContent?.trim());
+  expect(filled).toHaveLength(1);
+  return filled[0];
+};
+
 const renderList = async (search: Record<string, string> = {}) =>
   render(
     await AttendeesPage({
@@ -118,6 +125,32 @@ describe("Attendees page", () => {
     ["OWNER", true],
     ["COORDINATOR", true],
     ["VIEWER", false],
+  ] as const)("shows Export CSV to a %s: %s (B2-19)", async (role, shown) => {
+    access(role);
+    await renderList();
+    const link = screen.queryByRole("link", { name: "Export CSV" });
+    if (shown) {
+      expect(link).toHaveAttribute("href", `/api/events/${ID}/attendees/export`);
+      expect(link).toHaveAttribute("download");
+    } else expect(link).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["OWNER", true],
+    ["COORDINATOR", true],
+    ["VIEWER", false],
+  ] as const)("shows Import CSV to a %s: %s (B2-14)", async (role, shown) => {
+    access(role);
+    await renderList();
+    const link = screen.queryByRole("link", { name: "Import CSV" });
+    if (shown) expect(link).toHaveAttribute("href", `/events/${ID}/import`);
+    else expect(link).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["OWNER", true],
+    ["COORDINATOR", true],
+    ["VIEWER", false],
   ] as const)("shows Add attendee to a %s: %s", async (role, shown) => {
     access(role);
     await renderList();
@@ -149,7 +182,7 @@ describe("Attendees page", () => {
   it("confirms an added attendee by name, taken from the list, not the URL", async () => {
     access("OWNER");
     await renderList({ added: "ATT-0002" });
-    const notice = screen.getByRole("status");
+    const notice = shownNotice();
     expect(notice).toHaveTextContent("Attendee added");
     expect(notice).toHaveTextContent("Ben Lim is on the guest list as ATT-0002.");
   });
@@ -215,7 +248,7 @@ describe("guest list after editing (B2-03)", () => {
   it("confirms a removal by number only (B2-04)", async () => {
     access("OWNER");
     await renderList({ removed: "ATT-0009" });
-    const notice = screen.getByRole("status");
+    const notice = shownNotice();
     expect(notice).toHaveTextContent("Attendee removed");
     expect(notice).toHaveTextContent("ATT-0009 is no longer on the guest list.");
   });
@@ -229,7 +262,7 @@ describe("guest list after editing (B2-03)", () => {
   it("confirms saved changes by name, taken from the list", async () => {
     access("OWNER");
     await renderList({ saved: "ATT-0001" });
-    const notice = screen.getByRole("status");
+    const notice = shownNotice();
     expect(notice).toHaveTextContent("Changes saved");
     expect(notice).toHaveTextContent("Ana Reyes (ATT-0001) is up to date.");
   });

@@ -178,6 +178,27 @@ Where each membership criterion is enforced and tested:
 | Checked server-side                     | `requireEventAccess` / `getEventAccess` on every event page, action, route  | `access.test.ts`, `events/[eventId]/access-coverage.test.tsx` |
 | Knowing an event ID is not enough       | Non-members get the same 404 as unknown IDs (D-027)                         | `members/membership.db.test.ts`, API and page tests           |
 
+## Attendees (Batch 2)
+
+Every attendee operation authorizes on the server with `authorizeEvent` (actions, reads) or
+`authorizeEventRequest` (the export route), from the stored role, then finds attendees only inside
+the authorized event. A malformed ID, an unknown attendee and another event's attendee all look
+the same: not found.
+
+| Operation                               | Permission          | Owner | Coordinator | Viewer |
+| --------------------------------------- | ------------------- | ----- | ----------- | ------ |
+| Guest list, details, search, filter     | `event.view`        | Yes   | Yes         | Yes    |
+| Dietary needs                           | `attendees.dietary` | Yes   | Yes         | Yes    |
+| Email, phone, notes (shown or searched) | `attendees.private` | Yes   | Yes         | No     |
+| Add, edit, RSVP, remove                 | `attendees.manage`  | Yes   | Yes         | No     |
+| Import                                  | `import.run`        | Yes   | Yes         | No     |
+| Export                                  | `attendees.export`  | Yes   | Yes         | No     |
+
+- **Fields a role may not see are never loaded** for it, so they can't reach the browser.
+- **Proof:** `attendees/authorization.db.test.ts` calls every operation directly, as each kind of
+  caller, and checks that denials change nothing and leak nothing; it runs in CI (D-054).
+- **Activity** never stores contact details, dietary needs or notes (`activity.db.test.ts`).
+
 ## CSV import (B2-14 to B2-18, D-052)
 
 - **Who:** `import.run` (Owner, Coordinator), checked by the page and again by the server action at

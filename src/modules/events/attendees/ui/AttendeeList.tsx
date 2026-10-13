@@ -98,7 +98,7 @@ export function AttendeeList({
               <td className={`${td} font-mono text-[13px] whitespace-nowrap text-ink-2`}>
                 {formatAttendeeReference(attendee.number)}
               </td>
-              <th scope="row" className={`${td} min-w-40 text-left font-semibold break-words`}>
+              <th scope="row" className={`${td} min-w-40 text-left font-semibold wrapbreak-word`}>
                 {detailsHref ? (
                   <Link
                     href={detailsHref(attendee.id)}
@@ -114,12 +114,12 @@ export function AttendeeList({
                 <RsvpBadge status={attendee.rsvpStatus} />
               </td>
               <td className={`${td} text-right tabular-nums`}>{attendee.plusOnes}</td>
-              <td className={`${td} break-words text-ink-2`}>
+              <td className={`${td} wrap-break-word text-ink-2`}>
                 {attendee.category ?? <Empty label="None" />}
               </td>
               {showDietaryNeeds ? (
                 <td
-                  className={`${td} max-w-72 min-w-48 break-words whitespace-pre-line text-ink-2`}
+                  className={`${td} max-w-72 min-w-48 wrap-break-word whitespace-pre-line text-ink-2`}
                 >
                   {/* Empty means nothing was recorded, not "no restrictions". */}
                   {attendee.dietaryNeeds ?? <Empty label="Not recorded" />}
