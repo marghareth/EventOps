@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-08 RSVP Status (D-049).**
+  - The guest list can be filtered by RSVP: "All · Confirmed · Pending · Maybe · Declined", each
+    with its count. The choice is kept in the address, the current one is marked for screen
+    readers, and "No Maybe attendees" offers "Show everyone". The count reads "2 of 8 attendees,
+    Confirmed"; the headcount summary still covers the whole list.
+  - The four RSVP states and their meaning are documented; any state can change to any other.
+  - Tests: the filter functions and links, the page with each filter for every role, and every one
+    of the 12 RSVP changes against PostgreSQL (saved, in Activity, headcount), plus unchanged saves,
+    invalid states, Viewers, non-members and another event's attendee.
+
 - **B2-07 Attendee Notes (D-048).**
   - New attendee details page, opened from any name on the guest list by every member: ID, name,
     RSVP, plus-ones, category and dietary needs, with "Edit attendee" for Owners and Coordinators.

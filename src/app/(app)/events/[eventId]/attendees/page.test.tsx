@@ -359,3 +359,71 @@ describe("Attendee details page (B2-07, D-048)", () => {
     expect(getAttendeeDetails).not.toHaveBeenCalled();
   });
 });
+
+describe("RSVP filter on the guest list (B2-08, D-049)", () => {
+  const four = [
+    ...guests,
+    {
+      id: "a3",
+      number: 3,
+      name: "Carla Santos",
+      rsvpStatus: "CONFIRMED",
+      plusOnes: 2,
+      category: null,
+    },
+    { id: "a4", number: 4, name: "Diego Tan", rsvpStatus: "DECLINED", plusOnes: 0, category: null },
+  ];
+  const names = () => screen.getAllByRole("rowheader").map((th) => th.textContent);
+
+  beforeEach(() => {
+    getEventAttendees.mockResolvedValue({ ok: true, attendees: four });
+  });
+
+  it.each(["OWNER", "COORDINATOR", "VIEWER"] as const)(
+    "filters the table for a %s, keeping the headcount for the whole list",
+    async (role) => {
+      access(role);
+      await renderList({ rsvp: "confirmed" });
+      expect(names()).toEqual(["Ana Reyes", "Carla Santos"]);
+      expect(screen.getByText("2 of 4 attendees, Confirmed")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Confirmed (2)" })).toHaveAttribute(
+        "aria-current",
+        "true",
+      );
+      // Ana 1+1, Carla 1+2: the summary is the event's, not the filter's.
+      const summary = screen.getByRole("region", { name: "Headcount from the guest list" });
+      expect(summary).toHaveTextContent("Expected headcount5");
+    },
+  );
+
+  it("shows everyone without a filter, or with an unknown value", async () => {
+    access("OWNER");
+    for (const rsvp of [undefined, "ATTENDING", "<script>"]) {
+      await renderList(rsvp ? { rsvp } : {});
+      expect(names()).toHaveLength(4);
+      expect(screen.getByText("4 attendees")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "All (4)" })).toHaveAttribute("aria-current", "true");
+      document.body.innerHTML = "";
+    }
+  });
+
+  it("says when nobody has that RSVP and offers to show everyone", async () => {
+    access("VIEWER");
+    await renderList({ rsvp: "maybe" });
+    expect(screen.getByRole("heading", { name: "No Maybe attendees" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Show everyone" })).toHaveAttribute(
+      "href",
+      `/events/${ID}/attendees`,
+    );
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByText("0 of 4 attendees, Maybe")).toBeInTheDocument();
+  });
+
+  it("has no filter on an empty guest list", async () => {
+    access("OWNER");
+    getEventAttendees.mockResolvedValue({ ok: true, attendees: [] });
+    await renderList({ rsvp: "confirmed" });
+    expect(screen.queryByRole("navigation", { name: "Filter by RSVP" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No attendees yet" })).toBeInTheDocument();
+  });
+});

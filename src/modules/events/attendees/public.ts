@@ -8,6 +8,13 @@ export {
   type AttendeeFormState,
   type DeleteAttendeeFormState,
 } from "./form-state";
+export {
+  RSVP_FILTER_ORDER,
+  filterByRsvp,
+  parseRsvpFilter,
+  rsvpCounts,
+  rsvpFilterParam,
+} from "./rsvp-filter";
 export { expectedHeadcount, type ExpectedHeadcount, type HeadcountInput } from "./headcount";
 export type { AttendeeDetails, AttendeeRecord, GuestListRow } from "./queries";
 export {
@@ -36,3 +43,4 @@ export { AttendeeList, type AttendeeListItem } from "./ui/AttendeeList";
 export { HeadcountSummary } from "./ui/HeadcountSummary";
 export { RemoveAttendeeSection } from "./ui/RemoveAttendeeSection";
 export { RsvpBadge } from "./ui/RsvpBadge";
+export { RsvpFilter } from "./ui/RsvpFilter";

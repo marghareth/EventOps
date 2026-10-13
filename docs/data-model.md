@@ -128,6 +128,19 @@ D-002), `(eventId, name)` for the guest list, `(eventId, rsvpStatus)` for RSVP f
   not by column defaults.
 - **Plus-ones** are a count, not named records. See "Plus-ones and headcount" below (D-046).
 
+## RSVP states (B2-08, D-049)
+
+| State       | Meaning                    | Counts toward the expected headcount |
+| ----------- | -------------------------- | ------------------------------------ |
+| `PENDING`   | No reply yet (the default) | No (shown as not yet confirmed)      |
+| `CONFIRMED` | Coming                     | Yes, as 1 + plus-ones (D-046)        |
+| `MAYBE`     | Replied, unsure            | No (shown as not yet confirmed)      |
+| `DECLINED`  | Not coming                 | No                                   |
+
+Any state may change to any other (Owners and Coordinators). Each change is recorded in Activity.
+The guest list can be filtered to one state (`?rsvp=<state in lower case>`); the filter only
+narrows the list the reader may already see.
+
 ## Plus-ones and headcount (B2-05, D-046)
 
 Decided by the technical lead on 2026-10-13, before implementation.
