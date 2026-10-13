@@ -50,7 +50,7 @@ export default async function AttendeePage({ params }: Props) {
           <p className="font-mono text-[13px] text-ink-2">
             {formatAttendeeReference(attendee.number)}
           </p>
-          <h1 className="text-h2 font-extrabold break-words">{attendee.name}</h1>
+          <h1 className="text-h2 font-extrabold wrap-break-word">{attendee.name}</h1>
           <p className="mt-2">
             <span className="sr-only">RSVP: </span>
             <RsvpBadge status={attendee.rsvpStatus} />

@@ -372,6 +372,20 @@ build` fails if it is set.
 
 ### Fixed
 
+- **Batch 2 repository repair.** The checks were red on the Batch 2 snapshot:
+  - Restored the Edit attendee page (`/events/<id>/attendees/<attendeeId>/edit`, B2-03, D-044).
+    The details page linked to it, but the file was missing; the page test imported the wrong path.
+  - The Import page now shows the CSV import steps for Owners and Coordinators (B2-14 to B2-18,
+    D-052) instead of the placeholder, with its own page test (`import/page.test.tsx`).
+  - Documentation files use the upper-case names from D-006 (`docs/PERMISSIONS.md`,
+    `docs/SECURITY.md`, `docs/TESTING.md`, `docs/DATA_MODEL.md`, `docs/AUDIT.md` and the rest;
+    `BUILD_BACKLOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` and `THIRD-PARTY-LICENSES.md` at the
+    root, as their headers say). The permission matrix test reads `docs/PERMISSIONS.md` again.
+  - Typecheck: test tables in the event, settings and attendee schema tests are `as const`.
+  - knip: removed the unused `AttendeeAddedNotice` (replaced by `AttendeeNotice` in B2-03) and the
+    duplicate `playwright/playwright.lifecycle.config.ts`.
+  - The database test of expected tables now includes `attendees` (B2-01).
+  - Renamed `xportButton.test.tsx` to `ExportButton.test.tsx`.
 - "Try again" on every error screen now fetches fresh server data before resetting; before, a page
   that failed on the server stayed broken after the cause was gone (B1-15).
 - The desktop sidebar's EventOps link was outside any landmark; the sidebar is now an `<aside>`

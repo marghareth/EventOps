@@ -95,7 +95,7 @@ describe("event overview", () => {
     ["OWNER", true],
     ["COORDINATOR", true],
     ["VIEWER", false],
-  ])("shows %s an Edit event link: %s", async (role: MemberRole, shown: boolean) => {
+  ] as const)("shows %s an Edit event link: %s", async (role: MemberRole, shown: boolean) => {
     requireEventAccess.mockResolvedValue({
       user: {},
       access: { kind: "ok", event: { ...event, role } },

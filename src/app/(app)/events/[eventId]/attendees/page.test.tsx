@@ -39,7 +39,7 @@ vi.mock("@/modules/events/attendees/actions", () => ({
 
 const { default: AttendeesPage } = await import("./page");
 const { default: AddAttendeePage } = await import("./new/page");
-const { default: EditAttendeePage } = await import("./[attendeeId]/page");
+const { default: EditAttendeePage } = await import("./[attendeeId]/edit/page");
 const { default: AttendeePage } = await import("./[attendeeId]/page");
 
 const ID = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";

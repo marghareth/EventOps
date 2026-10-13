@@ -55,7 +55,7 @@ beforeEach(() => {
 });
 
 describe("Settings page", () => {
-  it.each(["OWNER", "COORDINATOR"])(
+  it.each(["OWNER", "COORDINATOR"] as const)(
     "gives %s the edit form with the saved values",
     async (role: MemberRole) => {
       await renderAs(role);
@@ -71,7 +71,7 @@ describe("Settings page", () => {
     ["OWNER", true],
     ["COORDINATOR", false],
     ["VIEWER", false],
-  ])("shows %s the Delete event section: %s", async (role: MemberRole, shown: boolean) => {
+  ] as const)("shows %s the Delete event section: %s", async (role: MemberRole, shown: boolean) => {
     await renderAs(role);
     const section = screen.queryByRole("region", { name: "Delete event" });
     if (shown) expect(section).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe("Settings page", () => {
     ["OWNER", "Your role: Owner. Full event management"],
     ["COORDINATOR", "Your role: Coordinator. Day-to-day operations"],
     ["VIEWER", "Your role: Viewer. Read-only access"],
-  ])("tells a %s what their role allows", async (role: MemberRole, text: string) => {
+  ] as const)("tells a %s what their role allows", async (role: MemberRole, text: string) => {
     await renderAs(role);
     expect(screen.getByText(/^Your role:/).closest("p")).toHaveTextContent(text);
   });

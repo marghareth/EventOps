@@ -79,7 +79,7 @@ describe("attendee form", () => {
     expect(parse({ name: "🎉".repeat(120) }).success).toBe(true);
   });
 
-  it.each(["PENDING", "CONFIRMED", "DECLINED", "MAYBE"])(
+  it.each(["PENDING", "CONFIRMED", "DECLINED", "MAYBE"] as const)(
     "accepts the RSVP status %s",
     (rsvp: RsvpStatus) => {
       expect(parse({ rsvpStatus: rsvp }).data?.rsvpStatus).toBe(rsvp);
