@@ -9,6 +9,40 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-25 Attendee Documentation.**
+  - New `docs/USER_FLOWS.md` (guest list, add, view and edit, remove, import pipeline, export, with
+    roles and error states) and `docs/ACCEPTANCE_CRITERIA.md` (every Batch 2 criterion → where it is
+    met → the test that proves it).
+  - DATA_MODEL.md: an attendees overview and the import validation rules. SECURITY.md: the attendee
+    permission table and how it is proven. TESTING.md: the security matrix, Activity test, coverage
+    matrix and end-to-end flow (added in B2-20 to B2-24).
+
+- **B2-24 Attendee E2E Flow (D-055).**
+  - A browser test of the whole attendee flow: create with a plus-one, dietary needs and RSVP, edit,
+    import a CSV (match, preview, confirm), search, filter and sort, export and read the file, and
+    check Activity, with a second event proving nothing crosses over.
+  - CI gets an `e2e` job running the browser lifecycle suite against a fresh PostgreSQL, keeping
+    the Playwright report when something fails.
+
+- **B2-22 Attendee UX Polish.**
+  - "Export CSV" now confirms the download ("Downloaded EVT-2026-0001-attendees-2026-10-13.csv (8
+    attendees).") and shows a clear message if the export fails, instead of raw JSON. It still works
+    without JavaScript.
+  - Every attendee screen and state was swept at 375, 768 and 1280 px with axe, a scroll check and a
+    keyboard focus walk: no violations, no sideways scroll, visible focus everywhere. Results in
+    QUALITY.md.
+
+- **B2-20 Attendee Authorization Tests, B2-21 Attendee Activity, B2-23 Attendee Tests.**
+  - A security checkpoint test: six callers (Owner, Coordinator, Viewer, a user on another event,
+    a cross-event attendee ID, signed out) × nine attendee operations through the real actions and
+    API route, with every denial checked to change nothing and leak nothing.
+  - An Activity test running create, edit, RSVP change, import, export and delete, checking the
+    feed in order and that no entry stores contact details, dietary needs or notes.
+  - A coverage matrix in TESTING.md mapping every listed attendee behaviour to its tests, and the
+    attendee audit policy in AUDIT.md.
+  - CI's check job is green again (D-054): the seven empty scaffold test files are to-dos, knip
+    checks built code only, and unused public exports were removed.
+
 - **B2-19 CSV Export (D-053).**
   - "Export CSV" on the guest list (Owners and Coordinators) downloads every attendee of this event
     as a CSV file named like `EVT-2026-0001-attendees-2026-10-13.csv`: ID, name, RSVP, plus-ones,

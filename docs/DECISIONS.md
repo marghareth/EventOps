@@ -64,6 +64,8 @@ Status values:
 | D-051 | Attendee details page as independent sections               | Approved | 2026-10-13 |
 | D-052 | CSV import: steps, validation, duplicates and policy        | Approved | 2026-10-13 |
 | D-053 | CSV export of the guest list                                | Approved | 2026-10-13 |
+| D-054 | CI green: placeholder tests and knip scope                  | Approved | 2026-10-13 |
+| D-055 | Browser lifecycle tests run in CI                           | Approved | 2026-10-13 |
 
 ---
 
@@ -1205,7 +1207,9 @@ existing attendees from a file, and import history beyond Activity.
   gives the header row only.
 - **Download:** `Content-Disposition: attachment` with a file name like
   `EVT-2026-0001-attendees-2026-10-13.csv` (Manila date), `Cache-Control: no-store`,
-  `X-Content-Type-Options: nosniff`. The guest list shows "Export CSV" to roles that may export.
+  `X-Content-Type-Options: nosniff`. The guest list shows "Export CSV" to roles that may export:
+  a real link, which with JavaScript downloads in the background and then confirms the file and
+  count, or shows the server's message if the export fails (B2-22).
   It exports the whole guest list, not the current search or filter.
 - **Activity:** each successful export is recorded in the same transaction as the read:
   `attendees.exported` with the count only, shown as "Exported the guest list as CSV (12
@@ -1217,6 +1221,42 @@ that already see notes, and break the import round trip.
 **Note.** The export is a GET with a side effect (the Activity entry). A cross-site page could
 start a download in a signed-in browser (SameSite=Lax cookies allow top-level GETs), but it can't
 read the file; the only effect is an extra Activity entry.
+
+---
+
+## D-054 CI green: placeholder tests and knip scope
+
+**Status:** Approved by the technical lead on 2026-10-13 (B2-20 plan, option 1a).
+
+**Decision.**
+
+- The seven empty test files from the scaffold (D-019) each hold one `it.todo` naming the feature
+  whose task writes the real tests. Vitest reports them as to-do; `npm test` passes. No test was
+  deleted.
+- `knip.json` ignores the scaffold folders and files of features not built yet (listed one by one,
+  so built code stays checked), allows `vite` (the `vite/client` type reference used by
+  `access-coverage.test.tsx`, installed with Vitest), and ignores exports used in their own file.
+  When a feature is built, its entry is removed from the list.
+- Public interfaces export only what is used: unused re-exports were removed from the attendees
+  and audit `public.ts` files. The events context's shared types are kept and marked `@public`.
+
+**Why.** CI's check job was red on these scaffold files, so it couldn't show whether new work
+broke anything.
+
+---
+
+## D-055 Browser lifecycle tests run in CI
+
+**Status:** Approved by the technical lead on 2026-10-13 (B2-24 plan, option 2a).
+
+**Decision.** CI has a third job, `e2e`: a PostgreSQL 17 service, `prisma migrate deploy` into a
+database named `eventops_e2e`, `npx playwright install --with-deps chromium`, then
+`npm run test:e2e:lifecycle` (the event lifecycle and the attendee flow). The app runs with
+dev-only demo sign-in (D-024) and placeholder Supabase values, which demo sign-in never uses. On a
+failure the Playwright report and traces are kept for 7 days. No new package: Playwright is already
+a dev dependency; the job only downloads its Chromium.
+
+**Why.** B2-24 requires the end-to-end flow to run in CI, and the lifecycle tests were local only.
 
 ---
 

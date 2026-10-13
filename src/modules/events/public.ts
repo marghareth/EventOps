@@ -1,7 +1,7 @@
 // src/modules/events/public.ts
 // The events context's public interface. Pages and other contexts import from here only (D-001).
-export { getEventAccess, requireEventAccess, type EventAccess } from "./access";
-export { getEventActivity, type EventActivity } from "./activity";
+export { getEventAccess, requireEventAccess } from "./access";
+export { getEventActivity } from "./activity";
 export {
   authorizeEvent,
   authorizeEventRequest,
@@ -9,9 +9,9 @@ export {
   type EventAuthorization,
 } from "./authorize";
 export { createEventAction, deleteEventAction, updateEventAction } from "./actions";
-export { ROLE_SUMMARY, can, rolesAllowed, type Permission } from "./permissions";
+export { ROLE_SUMMARY, can, rolesAllowed } from "./permissions";
 export { toEventFormValues } from "./schema";
-export { MEMBER_ROLE_LABEL, groupEvents, type EventDetails, type EventListItem } from "./list";
+export { MEMBER_ROLE_LABEL, groupEvents } from "./list";
 export { getMyEvents } from "./queries";
 // Dev-only sample data (D-041), for the attendees context's stand-ins.
 export {
@@ -22,8 +22,6 @@ export {
   sampleImportAttendees,
   sampleListAttendees,
   sampleUpdateAttendee,
-  type SampleAttendee,
-  type SampleAttendeeInput,
 } from "./sample-data";
 export { isEventReference } from "./reference";
 export { CreateEventForm } from "./ui/CreateEventForm";
@@ -33,4 +31,19 @@ export { EventCreatedNotice } from "./ui/EventCreatedNotice";
 export { EventDeletedNotice } from "./ui/EventDeletedNotice";
 export { EventHeader } from "./ui/EventHeader";
 export { EventList } from "./ui/EventList";
-export { EventDetailsCard, SectionTiles, type SectionTile } from "./ui/EventOverview";
+export { EventDetailsCard, SectionTiles } from "./ui/EventOverview";
+
+// The context's public types (D-001). Not every one is imported yet; they are the contract other
+// contexts build on, so knip is told they are intentional.
+/** @public */
+export type { EventAccess } from "./access";
+/** @public */
+export type { EventActivity } from "./activity";
+/** @public */
+export type { Permission } from "./permissions";
+/** @public */
+export type { EventDetails, EventListItem } from "./list";
+/** @public */
+export type { SampleAttendee, SampleAttendeeInput } from "./sample-data";
+/** @public */
+export type { SectionTile } from "./ui/EventOverview";

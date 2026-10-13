@@ -12,14 +12,93 @@ How EventOps is tested, how to run each layer, and what each one proves. Contrib
 | Unit and component   | `npm test`                   | `src/**/*.test.ts(x)`     | Yes   | Nothing             |
 | Database integration | `npm run test:db`            | `src/**/*.db.test.ts`     | Yes   | `TEST_DATABASE_URL` |
 | Browser (basic)      | `npm run test:e2e`           | `e2e/*.spec.ts`           | No    | Nothing             |
-| Browser lifecycle    | `npm run test:e2e:lifecycle` | `e2e/lifecycle/*.spec.ts` | No    | `E2E_DATABASE_URL`  |
+| Browser lifecycle    | `npm run test:e2e:lifecycle` | `e2e/lifecycle/*.spec.ts` | Yes   | `E2E_DATABASE_URL`  |
 
 - **Unit and component tests** cover rules, validation, components and pages with their
   dependencies mocked.
 - **Database tests** run the real server code against PostgreSQL: constraints, triggers,
   isolation between events, roles, the audit log, and the end-to-end security and lifecycle tests.
   Only "who is signed in" is mocked, because there is no real Supabase account in tests.
+- **Sample data (D-041).** `sample-data.test.ts` checks that the dev-only sample store keeps the
+  database's rules (members only, role re-checks, stale saves refused, valid audit entries). The
+  sample store never replaces the database tests: features are tested against PostgreSQL.
 - **Browser tests** drive the real app in Chromium.
+
+## Attendee tests (B2-20, B2-21, B2-23)
+
+### Security checkpoint (B2-20)
+
+`src/modules/events/attendees/authorization.db.test.ts` is one matrix: six callers × nine attendee
+operations, through the real server actions, reads and export route (as a crafted request would
+reach them), against PostgreSQL. Every denied call is checked to change nothing in either event and
+to add nothing to Activity. It runs in CI's database job.
+
+| Caller                                     | Read list | Read details | Edit form | Create | Edit | RSVP | Delete | Import | Export |
+| ------------------------------------------ | --------- | ------------ | --------- | ------ | ---- | ---- | ------ | ------ | ------ |
+| User A on Event A (Owner)                  | Yes       | Yes          | Yes       | Yes    | Yes  | Yes  | Yes    | Yes    | Yes    |
+| Coordinator of Event A                     | Yes       | Yes          | Yes       | Yes    | Yes  | Yes  | Yes    | Yes    | Yes    |
+| Viewer of Event A                          | Yes       | Yes          | No        | No     | No   | No   | No     | No     | No     |
+| User A on Event B (not a member)           | No        | No           | No        | No     | No   | No   | No     | No     | No     |
+| User A, Event A, Attendee B in the request | Yes       | No           | No        | Yes    | No   | No   | No     | Yes    | Yes    |
+| Signed out                                 | No        | No           | No        | No     | No   | No   | No     | No     | No     |
+
+The same file checks that no response to a refused or cross-event call contains another event's
+attendee data, and that a Viewer's reads never contain contact details or notes. A deliberately
+wrong expectation (a Viewer allowed to create) was confirmed to fail the matrix.
+
+### Activity (B2-21)
+
+`attendees/activity.db.test.ts` runs create → edit → RSVP change → import → export → delete and
+checks the Activity feed, in order and in words, then scans every stored audit row for the email,
+phone, dietary needs and notes used, which must not appear. A second test checks that refused
+actions and saves that change nothing record nothing.
+
+### Coverage (B2-23)
+
+| Item                        | Tests                                                                                               |
+| --------------------------- | --------------------------------------------------------------------------------------------------- |
+| Create attendee             | `attendees/create-flow.db.test.ts`, `actions.test.ts`, `ui/AttendeeForm.test.tsx`, `schema.test.ts` |
+| Edit attendee               | `attendees/edit-flow.db.test.ts` (incl. stale saves), `actions.test.ts`                             |
+| Delete attendee             | `attendees/delete-flow.db.test.ts`, `ui/RemoveAttendeeSection.test.tsx`                             |
+| RSVP changes                | `attendees/rsvp.db.test.ts` (all 12 changes, invalid states), `rsvp-filter.test.ts`                 |
+| Plus-ones                   | `attendees/headcount.test.ts`, `edit-flow.db.test.ts`, `schema.test.ts` (0 to 10)                   |
+| Dietary needs               | `attendees/dietary.db.test.ts`, `ui/AttendeeList.test.tsx`                                          |
+| Notes and details page      | `attendees/notes.db.test.ts`, `ui/AttendeeDetailsView.test.tsx`, attendees `page.test.tsx`          |
+| Search, filtering, sorting  | `attendees/guest-list-query.test.ts`, `guest-list.db.test.ts`, `ui/GuestListControls.test.tsx`      |
+| Valid CSV, mapping, preview | `attendees/import-rules.test.ts`, `import.db.test.ts`, `ui/ImportWizard.test.tsx`                   |
+| Malformed CSV, limits       | `attendees/csv.test.ts`, `import.db.test.ts` (type, size, UTF-8, unclosed quote)                    |
+| Missing required column     | `import-rules.test.ts` (`readMapping`), `import.db.test.ts` (back to mapping with reasons)          |
+| Invalid values              | `import-rules.test.ts` (email, RSVP words, plus-ones, lengths)                                      |
+| Confirmation                | `import.db.test.ts` (numbering, changed preview, tampered file, duplicates on a second import)      |
+| Import failure behaviour    | `import.db.test.ts` (a database failure saves no attendee, number or Activity entry)                |
+| Export: valid CSV           | `attendees/export-csv.test.ts` (quoting, formula safety, BOM, round trip)                           |
+| Export: correct event data  | `attendees/export.db.test.ts`                                                                       |
+| Export: no cross-event data | `export.db.test.ts`, `authorization.db.test.ts`                                                     |
+| Authorization               | `attendees/authorization.db.test.ts`, the role rows in [PERMISSIONS.md](PERMISSIONS.md)             |
+| Activity                    | `attendees/activity.db.test.ts`, `audit/describe.test.ts`                                           |
+
+### Placeholder tests
+
+Seven test files from the scaffold (D-019) belong to features not built yet. Each holds one
+`it.todo` naming its feature, so `npm test` passes and reports them as to-do (D-054).
+
+### End-to-end attendee flow (B2-24)
+
+`e2e/lifecycle/attendee-flow.spec.ts` runs the whole attendee flow in Chromium as the demo user,
+against a reset test database:
+
+1. Open a fresh event (a second event with its own guest is created first).
+2. Create an attendee with a plus-one, dietary needs, a category and an RSVP; check the headcount.
+3. Open the details page and edit the name, plus-ones and notes.
+4. Import a CSV: suggested column matching, preview with a row needing correction, confirm, and
+   check the guest list.
+5. Search (accent-insensitive), search for the other event's guest (no match), filter by category,
+   sort by plus-ones descending, then filter by RSVP; the sorted column is announced.
+6. Export, read the downloaded file and check its rows, and that the other event's guest is absent.
+7. Check Activity for every step, and that no screen refused a legitimate action.
+
+It resets the demo data before and after, so it can run before or after the event lifecycle spec.
+Both run with `npm run test:e2e:lifecycle` and in CI's `e2e` job (D-055).
 
 ## Event lifecycle tests (B1-14, D-039)
 
