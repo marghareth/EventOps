@@ -1,6 +1,6 @@
 // src/modules/events/attendees/ui/AttendeeForm.tsx
-// Add attendee form (B2-02). The bound server action is passed in by the page; this component
-// collects input and shows the server's answer. The server validates every value (attendeeFormSchema)
+// The attendee form: adding (B2-02) and editing (B2-03). The bound server action is passed in by the
+// page; this component collects input and shows the server's answer. The server validates every value (attendeeFormSchema)
 // and is the real check; length limits here only stop typing past what the server accepts.
 "use client";
 
@@ -24,23 +24,37 @@ type AttendeeFormProps = {
   action: (state: AttendeeFormState, formData: FormData) => Promise<AttendeeFormState>;
   /** Where Cancel goes: the event's guest list. */
   cancelHref: string;
+  /** "edit" needs `saved` (the stored values) and `version` (its updatedAt, D-032). */
+  mode?: "add" | "edit";
+  saved?: Record<AttendeeField, string>;
+  version?: string;
 };
 
-const fieldId = (field: AttendeeField) => `add-attendee-${field}`;
-
-function summary(state: AttendeeFormState): FormErrorItem[] {
-  return ATTENDEE_FIELDS.flatMap((field) => {
-    const message = state.fieldErrors?.[field];
-    return message ? [{ fieldId: fieldId(field), message }] : [];
-  });
-}
+const TEXT = {
+  add: { submit: "Add attendee", busy: "Adding attendee…", failed: "Couldn't add the attendee" },
+  edit: { submit: "Save changes", busy: "Saving changes…", failed: "Couldn't save the changes" },
+} as const;
 
 const limit = (max: number) => `Up to ${max.toLocaleString("en-US")} characters.`;
 
-export function AttendeeForm({ action, cancelHref }: AttendeeFormProps) {
+export function AttendeeForm({
+  action,
+  cancelHref,
+  mode = "add",
+  saved,
+  version,
+}: AttendeeFormProps) {
   const [state, formAction, pending] = useActionState(action, initialAttendeeFormState);
+  const text = TEXT[mode];
+  const fieldId = (field: AttendeeField) => `${mode}-attendee-${field}`;
+  const summary: FormErrorItem[] = ATTENDEE_FIELDS.flatMap((field) => {
+    const message = state.fieldErrors?.[field];
+    return message ? [{ fieldId: fieldId(field), message }] : [];
+  });
   const error = (field: AttendeeField) => state.fieldErrors?.[field];
-  const value = (field: AttendeeField, fallback = "") => state.values?.[field] ?? fallback;
+  // What the user typed after a failed save, else the stored values (edit), else the defaults.
+  const value = (field: AttendeeField, fallback = "") =>
+    state.values?.[field] ?? saved?.[field] ?? fallback;
   // Re-mount fields after each server answer so defaultValue shows what the user typed.
   const formKey = JSON.stringify(state.values ?? {});
 
@@ -52,12 +66,16 @@ export function AttendeeForm({ action, cancelHref }: AttendeeFormProps) {
       aria-busy={pending}
       className="flex flex-col gap-6"
     >
-      <FormErrorSummary errors={summary(state)} />
-      {state.message ? (
-        <Banner severity="critical" title="Couldn't add the attendee">
+      <FormErrorSummary errors={summary} />
+      {state.status === "error" && state.message ? (
+        <Banner severity="critical" title={text.failed}>
           {state.message}
         </Banner>
       ) : null}
+      {state.status === "success" && state.message ? (
+        <Banner severity="info" title={state.message} />
+      ) : null}
+      {version ? <input type="hidden" name="version" value={version} /> : null}
 
       <FormField label="Name" id={fieldId("name")} error={error("name")} required>
         {(control) => (
@@ -206,7 +224,7 @@ export function AttendeeForm({ action, cancelHref }: AttendeeFormProps) {
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending} aria-disabled={pending}>
-          {pending ? "Adding attendee…" : "Add attendee"}
+          {pending ? text.busy : text.submit}
         </Button>
         <Button asChild variant="ghost">
           <Link href={cancelHref}>Cancel</Link>

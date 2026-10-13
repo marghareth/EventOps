@@ -8,8 +8,9 @@
 //   - events are returned only to members (non-members get null, like an unknown event, D-027),
 //   - writes re-check the role (rolesAllowed), edits refuse stale versions (D-032),
 //   - every create and edit records an audit entry through the audit registry's schemas (D-037).
-// Since B2-02 it also holds sample attendees: adding one works like the database (members with
-// attendees.manage only, per-event ATT numbers, an attendee.created entry).
+// Since B2-02 it also holds sample attendees: adding (B2-02) and editing (B2-03) work like the
+// database (members with attendees.manage only, per-event ATT numbers, stale edits refused, audit
+// entries).
 // Changes live in memory only and reset when `npm run dev` restarts. Never used in a build:
 // isSampleDataMode() needs NODE_ENV=development and `next build` refuses DEV_DEMO_AUTH=true.
 import "server-only";
@@ -475,6 +476,51 @@ export function sampleListAttendees(eventId: string): SampleAttendee[] {
       notes: a.notes,
       updatedAt: new Date(a.updatedAt),
     }));
+}
+
+/** Stand-in for getAttendee: only if it belongs to this event. Null otherwise. A copy. */
+export function sampleGetAttendee(eventId: string, attendeeId: string): SampleAttendee | null {
+  return sampleListAttendees(eventId).find((a) => a.id === attendeeId) ?? null;
+}
+
+/**
+ * Stand-in for updateAttendee: attendees.manage re-checked here, stale versions refused (D-032),
+ * and an attendee.updated entry. `changes` is the audit diff the caller computed with the attendees
+ * context's rules; it is validated by the audit registry like every entry.
+ */
+export function sampleUpdateAttendee(args: {
+  eventId: string;
+  attendeeId: string;
+  editorId: string;
+  version: Date;
+  details: SampleAttendeeInput;
+  changes: Record<string, unknown>;
+  now: Date;
+}): { ok: true } | { ok: false; reason: "stale" | "not-found" } {
+  const s = store();
+  const attendee = s.attendees.find((a) => a.id === args.attendeeId && a.eventId === args.eventId);
+  const role = roleOf(s, args.eventId, args.editorId);
+  if (!attendee || !role || !rolesAllowed("attendees.manage").includes(role)) {
+    return { ok: false, reason: "not-found" };
+  }
+  if (attendee.updatedAt.getTime() !== args.version.getTime())
+    return { ok: false, reason: "stale" };
+  // Never the same millisecond as the version the form holds, so the next save is not "stale".
+  const now = new Date(Math.max(args.now.getTime(), attendee.updatedAt.getTime() + 1));
+  if (Object.keys(args.changes).length > 0) {
+    addAudit(s, {
+      eventId: args.eventId,
+      actorId: args.editorId,
+      action: "attendee.updated",
+      details: {
+        reference: `ATT-${String(attendee.number).padStart(4, "0")}`,
+        changes: args.changes,
+      },
+      now,
+    });
+  }
+  Object.assign(attendee, args.details, { updatedAt: now });
+  return { ok: true };
 }
 
 /**

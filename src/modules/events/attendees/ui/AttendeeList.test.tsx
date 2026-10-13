@@ -42,3 +42,18 @@ describe("AttendeeList", () => {
     expect(within(rows[1]).getByText("None")).toHaveClass("sr-only");
   });
 });
+
+describe("AttendeeList links (B2-03)", () => {
+  it("links each name to its edit page when editing is allowed", () => {
+    render(<AttendeeList attendees={attendees} editHref={(id) => `/edit/${id}`} />);
+    expect(screen.getByRole("link", { name: "Ana Reyes" })).toHaveAttribute("href", "/edit/a1");
+    expect(screen.getByRole("table")).toHaveAccessibleName(
+      "Guest list, by name. Select a name to edit that attendee.",
+    );
+  });
+
+  it("shows plain names without editing", () => {
+    render(<AttendeeList attendees={attendees} />);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+});

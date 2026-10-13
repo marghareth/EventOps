@@ -9,6 +9,46 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-03 Attendee Editing (D-044).**
+  - Edit attendee page, opened from the attendee's name in the guest list (Owners and
+    Coordinators): every field loaded and editable, field errors, a "Saving changes…" state, and a
+    clear message if someone else saved first. "Changes saved" on the guest list afterwards; "No
+    changes to save" when nothing changed.
+  - Viewers see plain names and can't open the form; another event's attendee is not found.
+  - Each save records the changed fields in Activity (contact details, dietary needs and notes only
+    as "changed").
+  - Editing works with sample data.
+  - Tests: form, pages, actions, sample data, and the full edit flow against PostgreSQL.
+
+- **B2-02 Attendee Creation (D-043).**
+  - Add attendee page for Owners and Coordinators: name (required), email, phone, RSVP, plus-ones,
+    category, dietary needs and notes, with errors next to each field and in a summary, kept input,
+    a "Adding attendee…" state that blocks double submits, and a safe message on server errors.
+  - Guest list page for every member: ID, name, RSVP, plus-ones and category, an empty state, and an
+    "Attendee added" confirmation after saving. Viewers see no Add button and are refused the form.
+  - Sample data includes guests, and adding an attendee works with sample data.
+  - Tests: form, list and page components, actions, sample guests, and the full add flow against
+    PostgreSQL including Activity.
+
+- **B2-01 Attendee Data Model (D-042).**
+  - Table `attendees` (migration `20261012120000_attendees`): name, optional email, phone and
+    category, RSVP status (Pending, Confirmed, Declined, Maybe), plus-ones (0 to 10), dietary needs,
+    notes and timestamps. Belongs to one event and is deleted with it; readable IDs `ATT-0001` per
+    event; CHECK constraints and indexes for the guest list and RSVP counts.
+  - Validation with clear messages, and create, edit and delete server actions for Owners and
+    Coordinators, with the role re-checked in the database, stale edits refused and every change
+    recorded in the audit log without copying contact details, dietary needs or notes.
+  - `getEventAttendees` for pages: every member can read the guest list.
+  - Activity shows added, edited and removed attendees.
+  - Tests: validation, actions, audit registry and 33 database tests.
+
+- **Sample data for demo sign-in (D-041).** With `DEV_DEMO_AUTH=true` and no `DATABASE_URL`,
+  `npm run dev` now shows six sample events (Owner, Coordinator and Viewer roles, plus one event
+  the demo user can't open) with sample activity, instead of "No database connected". Create, edit
+  and delete work in memory and reset when the dev server restarts. Only the data source changes:
+  sign-in, access checks, permissions, validation and the audit registry are the real code.
+  `src/modules/events/sample-data.ts`, with tests.
+
 - **B1-15 Event Foundation Polish.** Every screen checked in a browser at 375, 768 and 1280 px for
   each role: automated accessibility scan, console, keyboard, layout, form, loading and error
   states. Results in `docs/QUALITY.md` (D-040).
@@ -190,6 +230,9 @@ build` fails if it is set.
 
 ### Changed
 
+- Demo sign-in without a database no longer shows "No database connected"; the `no-database`
+  result was removed from the access check, authorization and the event list (D-041). The demo
+  banner says when sample data is on.
 - The schema covers only the B0-08 tables. The earlier 20-table draft and its draft migration
   `20261009141000_init` were replaced; other tables are added by their own batch tasks (D-008).
 - The Supabase user mirror is now `User` / `users` instead of `Profile` / `profiles` (D-009).
