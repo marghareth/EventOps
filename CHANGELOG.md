@@ -9,6 +9,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-05 Plus-One Management (D-046).**
+  - Plus-ones are a count on each attendee (0 for none, up to 10), recorded in `DATA_MODEL.md`
+    before building. The form hint now says "Guests coming with them: 0 for none, up to 10."
+  - The guest list shows the expected headcount above the table: confirmed attendees plus their
+    plus-ones, how many are not yet confirmed (with the people they would bring), and how many
+    declined. Pending, Maybe and Declined are not counted.
+  - The headcount is calculated from the guest list every time; it is not the event's planning
+    number and not live attendance.
+  - Tests: the headcount rule (none, one, ten, mixed statuses, removing a plus-one), the summary, the
+    guest list page, and editing plus-ones against PostgreSQL.
+
 - **B2-04 Attendee Deletion (D-045).**
   - "Remove attendee" on the edit page (Owners and Coordinators), behind a confirmation that starts
     on Cancel. Cancel or Escape removes nothing. The guest list confirms "Attendee removed".

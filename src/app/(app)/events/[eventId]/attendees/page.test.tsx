@@ -73,6 +73,23 @@ describe("Attendees page", () => {
     expect(screen.getByRole("rowheader", { name: "Ana Reyes" })).toBeInTheDocument();
   });
 
+  it("shows the expected headcount from the guest list to every member (B2-05, D-046)", async () => {
+    access("VIEWER");
+    await renderList();
+    const summary = screen.getByRole("region", { name: "Headcount from the guest list" });
+    // Ana: Confirmed +1 → 2. Ben: Pending → not yet confirmed.
+    expect(summary).toHaveTextContent("Expected headcount2");
+    expect(summary).toHaveTextContent("1 confirmed + 1 plus-one, from the guest list");
+    expect(summary).toHaveTextContent("1 attendee, 1 person with plus-ones. Not counted yet.");
+  });
+
+  it("shows no headcount summary for an empty guest list", async () => {
+    access("OWNER");
+    getEventAttendees.mockResolvedValue({ ok: true, attendees: [] });
+    await renderList();
+    expect(screen.queryByRole("region", { name: "Headcount from the guest list" })).toBeNull();
+  });
+
   it.each([
     ["OWNER", true],
     ["COORDINATOR", true],

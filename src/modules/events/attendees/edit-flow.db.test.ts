@@ -47,6 +47,7 @@ const { getEventActivity } = await import("../activity");
 const { describeAuditEntry } = await import("@/modules/events/audit/public");
 const { createAttendeeAction, updateAttendeeAction } = await import("./actions");
 const { getAttendeeForEditing, getEventAttendees } = await import("./read");
+const { expectedHeadcount } = await import("./headcount");
 const { ATTENDEE_MESSAGES, initialAttendeeFormState } = await import("./form-state");
 
 const YEAR = 2091;
@@ -283,5 +284,35 @@ describe("editing an attendee", () => {
     expect((await db.attendee.findUniqueOrThrow({ where: { id: stored.id } })).name).toBe(
       "Maria Santos",
     );
+  });
+
+  it("editing or removing plus-ones changes the expected headcount (B2-05, D-046)", async () => {
+    const owner = await newUser();
+    const eventId = await newEvent(owner.id);
+    signedIn = owner;
+    const stored = await addMaria(eventId); // Confirmed with 2 plus-ones
+    const headcount = async () => {
+      const list = await getEventAttendees(eventId);
+      if (!list.ok) throw new Error("list refused");
+      return expectedHeadcount(list.attendees).total;
+    };
+    expect(await headcount()).toBe(3);
+
+    let version = stored.updatedAt.toISOString();
+    await save(eventId, stored.id, { ...maria, plusOnes: "5", version });
+    expect(await headcount()).toBe(6);
+
+    version = (
+      await db.attendee.findUniqueOrThrow({ where: { id: stored.id } })
+    ).updatedAt.toISOString();
+    await save(eventId, stored.id, { ...maria, plusOnes: "0", version });
+    expect(await headcount()).toBe(1);
+    expect((await db.attendee.findUniqueOrThrow({ where: { id: stored.id } })).plusOnes).toBe(0);
+
+    version = (
+      await db.attendee.findUniqueOrThrow({ where: { id: stored.id } })
+    ).updatedAt.toISOString();
+    await save(eventId, stored.id, { ...maria, plusOnes: "3", rsvpStatus: "DECLINED", version });
+    expect(await headcount()).toBe(0);
   });
 });

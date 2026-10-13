@@ -56,6 +56,7 @@ Status values:
 | D-043 | Adding attendees: page, guest list and sample guests       | Approved | 2026-10-12 |
 | D-044 | Editing attendees                                          | Approved | 2026-10-12 |
 | D-045 | Removing attendees                                         | Approved | 2026-10-12 |
+| D-046 | Plus-ones: a count, and the expected headcount rule        | Approved | 2026-10-13 |
 
 ---
 
@@ -954,6 +955,30 @@ check at 375 and 1280 px.
 
 ---
 
+## D-046 Plus-ones: a count, and the expected headcount rule
+
+**Status:** Approved by the technical lead on 2026-10-13 (B2-05 plan). Recorded in DATA_MODEL.md
+before implementation.
+
+**Decision.**
+
+- **Representation (confirms D-042):** plus-ones are a count from 0 to 10 on the attendee, not a
+  yes/no flag and not separate guest records. 0 means no plus-one; setting it to 0 removes them.
+- **Expected headcount from the guest list:** each `CONFIRMED` attendee counts as 1 + their
+  plus-ones. `PENDING` and `MAYBE` attendees are shown separately as "not yet confirmed" (1 +
+  plus-ones each) and do not count. `DECLINED` attendees count 0, plus-ones included. Calculated on
+  demand by one pure function, never stored.
+- **Separate from the planning number:** `events.expectedAttendees` is not changed by the guest
+  list. Comparing the two belongs to Impact and Event Health.
+- **Live attendance is not decided here:** how plus-ones count when guests arrive is decided with
+  the Live Attendance Count task (open item 4 stays open for that part only).
+
+**Alternatives not chosen.** A yes/no flag can't record a family of four. Separate guest records
+need a new table and linking rules for little gain now. Counting Pending and Maybe, or counting
+Maybe as half, would overstate or invent attendance.
+
+---
+
 ## Open items needing a decision
 
 These were found during review. Each one is a conflict between sources or a product question, so
@@ -969,8 +994,9 @@ PROJECT_RULES says to stop and ask rather than choose.
    and modules already exist in the repository.
 4. **Plus-ones in the live attendance count.** The earlier draft modelled check-in as a single
    `Attendee.checkedInAt` timestamp, so how plus-ones count is not defined. PROJECT_RULES section 6.2 requires this before implementation.
-   Since D-042, plus-ones are stored as a count (0 to 10) on each attendee; the counting rule is
-   still open.
+   Since D-042, plus-ones are stored as a count (0 to 10) on each attendee, and D-046 set the
+   expected headcount rule. Still open: how plus-ones count in the live attendance count on event
+   day (decide with that task).
 5. **Commit type for security work.** PROJECT_RULES section 17 suggests `security(B4-19): ...`, but
    `commitlint.config.mjs` follows the hackathon convention and rejects the `security` type.
 6. **Payment status rule.** See D-003, "Not decided yet".

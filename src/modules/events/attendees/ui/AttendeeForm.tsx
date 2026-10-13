@@ -150,7 +150,7 @@ export function AttendeeForm({
         <FormField
           label="Plus-ones"
           id={fieldId("plusOnes")}
-          hint={`Guests coming with them, 0 to ${ATTENDEE_LIMITS.plusOnes}.`}
+          hint={`Guests coming with them: 0 for none, up to ${ATTENDEE_LIMITS.plusOnes}.`}
           error={error("plusOnes")}
         >
           {(control) => (
