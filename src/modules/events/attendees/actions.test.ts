@@ -10,6 +10,8 @@ const createAttendee = vi.fn();
 const updateAttendee = vi.fn();
 const deleteAttendee = vi.fn();
 const listAttendees = vi.fn();
+const sampleCreateAttendee = vi.fn();
+const sampleListAttendees = vi.fn();
 const revalidatePath = vi.fn();
 let sampleData = false;
 
@@ -18,6 +20,13 @@ vi.mock("@/lib/db", () => ({ getDb: () => "db" }));
 vi.mock("@/lib/demo-auth", () => ({ isSampleDataMode: () => sampleData }));
 vi.mock("@/modules/events/public", () => ({
   authorizeEvent: (...args: unknown[]) => authorizeEvent(...args),
+  sampleCreateAttendee: (...args: unknown[]) => sampleCreateAttendee(...args),
+  sampleListAttendees: (...args: unknown[]) => sampleListAttendees(...args),
+}));
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    throw Object.assign(new Error("NEXT_REDIRECT"), { url });
+  },
 }));
 vi.mock("./create-attendee", () => ({
   createAttendee: (...args: unknown[]) => createAttendee(...args),
@@ -54,8 +63,16 @@ const allow = () =>
 const refuse = (reason: "forbidden" | "not-found") =>
   authorizeEvent.mockResolvedValue({ ok: false, reason });
 
-const create = (fields: Record<string, string> = valid) =>
-  createAttendeeAction(EVENT, initialAttendeeFormState, form(fields));
+/** The action's answer, or where it redirected to (redirect() throws in Next.js). */
+async function create(fields: Record<string, string> = valid) {
+  try {
+    return await createAttendeeAction(EVENT, initialAttendeeFormState, form(fields));
+  } catch (error) {
+    const url = (error as { url?: string }).url;
+    if (url) return { redirect: url };
+    throw error;
+  }
+}
 const update = (fields: Record<string, string> = { ...valid, version: VERSION }, id = ATTENDEE) =>
   updateAttendeeAction(EVENT, id, initialAttendeeFormState, form(fields));
 const remove = (id = ATTENDEE) => deleteAttendeeAction(EVENT, id);
@@ -101,12 +118,8 @@ describe("every attendee action authorizes with attendees.manage first", () => {
 });
 
 describe("createAttendeeAction", () => {
-  it("saves the validated attendee with the session's user, then refreshes the list", async () => {
-    expect(await create()).toEqual({
-      status: "success",
-      message: ATTENDEE_MESSAGES.created,
-      reference: "ATT-0001",
-    });
+  it("saves the validated attendee with the session's user, then opens the list (B2-02)", async () => {
+    expect(await create()).toEqual({ redirect: `/events/${EVENT}/attendees?added=ATT-0001` });
     expect(createAttendee).toHaveBeenCalledWith("db", {
       eventId: EVENT,
       creatorId: "user-1",
@@ -221,13 +234,40 @@ describe("deleteAttendeeAction", () => {
 });
 
 describe("sample data mode (D-041)", () => {
-  it("explains that attendees aren't in the sample data, after the same checks", async () => {
+  it("adds to the sample store after the same checks, not to the database (B2-02)", async () => {
     sampleData = true;
-    expect(await create()).toMatchObject({ message: ATTENDEE_MESSAGES.sampleData });
+    sampleCreateAttendee.mockReturnValue({
+      ok: true,
+      attendee: { id: ATTENDEE, reference: "ATT-0009" },
+    });
+    expect(await create()).toEqual({ redirect: `/events/${EVENT}/attendees?added=ATT-0009` });
+    expect(sampleCreateAttendee).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: EVENT, creatorId: "user-1", now: expect.any(Date) }),
+    );
+    expect(createAttendee).not.toHaveBeenCalled();
+  });
+
+  it("with sample data, a refused role still adds nothing", async () => {
+    sampleData = true;
+    refuse("forbidden");
+    expect(await create()).toMatchObject({ message: ATTENDEE_MESSAGES.forbidden });
+    expect(sampleCreateAttendee).not.toHaveBeenCalled();
+  });
+
+  it("explains that editing and removing aren't in the sample data yet", async () => {
+    sampleData = true;
     expect(await update()).toMatchObject({ message: ATTENDEE_MESSAGES.sampleData });
     expect(await remove()).toMatchObject({ message: ATTENDEE_MESSAGES.sampleData });
-    expect(authorizeEvent).toHaveBeenCalledTimes(3);
-    expect(createAttendee).not.toHaveBeenCalled();
+    expect(updateAttendee).not.toHaveBeenCalled();
+    expect(deleteAttendee).not.toHaveBeenCalled();
+  });
+
+  it("reads the sample guest list", async () => {
+    sampleData = true;
+    sampleListAttendees.mockReturnValue([{ id: "s1" }]);
+    expect(await getEventAttendees(EVENT)).toEqual({ ok: true, attendees: [{ id: "s1" }] });
+    expect(sampleListAttendees).toHaveBeenCalledWith(EVENT);
+    expect(listAttendees).not.toHaveBeenCalled();
   });
 });
 

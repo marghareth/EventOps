@@ -10,8 +10,6 @@ export type AttendeeFormState = {
   fieldErrors?: Partial<Record<AttendeeField, string>>;
   /** What the user typed, so a failed submit keeps it. */
   values?: Partial<Record<AttendeeField, string>>;
-  /** After adding: the new attendee's readable ID, for example ATT-0001. */
-  reference?: string;
 };
 
 export const initialAttendeeFormState: AttendeeFormState = { status: "idle" };
@@ -22,7 +20,6 @@ export const initialDeleteAttendeeState: DeleteAttendeeFormState = { status: "id
 
 /** Messages for attendee actions. Never include internal error details. */
 export const ATTENDEE_MESSAGES = {
-  created: "Attendee added.",
   saved: "Changes saved.",
   unchanged: "No changes to save.",
   deleted: "Attendee removed.",
@@ -33,7 +30,7 @@ export const ATTENDEE_MESSAGES = {
     "This attendee changed since you opened them. Reload to see the latest details, then make your change again.",
   saveFailed: "We couldn't save the attendee. Try again in a moment.",
   deleteFailed: "We couldn't remove the attendee. Nothing was removed. Try again in a moment.",
-  /** Dev-only sample data (D-041) has no attendees yet. */
+  /** Dev-only sample data (D-041) can add attendees but not edit or remove them yet. */
   sampleData:
-    "Attendees aren't part of the sample data yet. Connect a database (DATABASE_URL) to try them.",
+    "Sample data can't edit or remove attendees yet. Connect a database (DATABASE_URL) to try it.",
 } as const;

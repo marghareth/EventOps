@@ -12,11 +12,16 @@ export type { AttendeeRecord } from "./queries";
 export { getEventAttendees, type EventAttendees } from "./read";
 export {
   ATTENDEE_LIMITS,
+  isAttendeeReference,
   RSVP_LABEL,
   RSVP_STATUSES,
+  attendeeFormSchema,
   formatAttendeeReference,
   toAttendeeFormValues,
   type AttendeeField,
-  type AttendeeForm,
   type RsvpStatus,
 } from "./schema";
+export { AttendeeAddedNotice } from "./ui/AttendeeAddedNotice";
+export { AttendeeForm } from "./ui/AttendeeForm";
+export { AttendeeList, type AttendeeListItem } from "./ui/AttendeeList";
+export { RsvpBadge } from "./ui/RsvpBadge";

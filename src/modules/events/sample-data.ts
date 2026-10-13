@@ -8,6 +8,8 @@
 //   - events are returned only to members (non-members get null, like an unknown event, D-027),
 //   - writes re-check the role (rolesAllowed), edits refuse stale versions (D-032),
 //   - every create and edit records an audit entry through the audit registry's schemas (D-037).
+// Since B2-02 it also holds sample attendees: adding one works like the database (members with
+// attendees.manage only, per-event ATT numbers, an attendee.created entry).
 // Changes live in memory only and reset when `npm run dev` restarts. Never used in a build:
 // isSampleDataMode() needs NODE_ENV=development and `next build` refuses DEV_DEMO_AUTH=true.
 import "server-only";
@@ -15,6 +17,7 @@ import type { EventStatus, MemberRole } from "@/generated/prisma/client";
 import { DEMO_USER } from "@/lib/demo-auth";
 import {
   AUDIT_ACTIONS,
+  RSVP_STATUSES,
   type AuditAction,
   type AuditEntryView,
 } from "@/modules/events/audit/public";
@@ -36,11 +39,27 @@ type SampleAudit = {
   details: unknown;
   createdAt: Date;
 };
+/** An attendee's editable fields, as the attendees context validates them (D-042). */
+export type SampleAttendeeInput = {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  category: string | null;
+  rsvpStatus: (typeof RSVP_STATUSES)[number];
+  plusOnes: number;
+  dietaryNeeds: string | null;
+  notes: string | null;
+};
+/** One attendee as the guest list reads it (same shape as the attendees context's records). */
+export type SampleAttendee = SampleAttendeeInput & { id: string; number: number; updatedAt: Date };
+type StoredAttendee = SampleAttendee & { eventId: string };
+
 type SampleStore = {
   users: Map<string, string>;
   events: SampleEvent[];
   members: SampleMember[];
   audit: SampleAudit[];
+  attendees: StoredAttendee[];
 };
 
 const MIKA = "5e000000-0000-4000-8000-0000000000a1";
@@ -227,21 +246,74 @@ function seed(): SampleStore {
     events,
     members,
     audit,
+    attendees: seedAttendees(),
   };
+}
+
+/** Sample guests. The Reyes Family Reunion has none, so the empty guest list can be seen too. */
+function seedAttendees(): StoredAttendee[] {
+  const ids = SAMPLE_EVENT_IDS;
+  type Row = [string, (typeof RSVP_STATUSES)[number], number, Partial<SampleAttendeeInput>?];
+  const guests: Record<string, Row[]> = {
+    [ids.wedding]: [
+      ["Ana Reyes", "CONFIRMED", 1, { category: "Family", dietaryNeeds: "Vegetarian" }],
+      ["Ben Lim", "CONFIRMED", 0, { category: "Family", email: "ben.lim@example.com" }],
+      ["Carla Santos", "PENDING", 2, { category: "Family", phone: "0917 555 0101" }],
+      ["Diego Tan", "MAYBE", 0, { category: "Friends", notes: "Confirming after his flight" }],
+      ["Elena Cruz", "CONFIRMED", 1, { category: "Friends", dietaryNeeds: "No shellfish" }],
+      ["Felix Uy", "DECLINED", 0, { category: "Colleagues" }],
+      ["Grace Villanueva", "PENDING", 0, { category: "Colleagues" }],
+      ["Hector Ramos", "CONFIRMED", 3, { category: "Family", notes: "Bringing his three kids" }],
+    ],
+    [ids.summit]: [
+      ["Ivy Navarro", "CONFIRMED", 0, { category: "Speakers" }],
+      ["Jun Mercado", "CONFIRMED", 0, { category: "Sponsors", email: "jun@sponsor.example" }],
+      ["Kai Domingo", "PENDING", 0, { category: "Attendees" }],
+      ["Lea Bautista", "MAYBE", 1, { category: "Attendees", dietaryNeeds: "Halal" }],
+    ],
+    [ids.yearEnd]: [
+      ["Mon Garcia", "CONFIRMED", 1, { category: "Finance" }],
+      ["Nina Ocampo", "PENDING", 0, { category: "Operations" }],
+      ["Oscar Dizon", "DECLINED", 0, { category: "Operations" }],
+    ],
+    [ids.debut]: [
+      ["Pia Dela Cruz", "CONFIRMED", 0, { category: "Family" }],
+      ["Quin Salazar", "CONFIRMED", 1, { category: "Friends" }],
+    ],
+  };
+  return Object.entries(guests).flatMap(([eventId, rows]) =>
+    rows.map(([name, rsvpStatus, plusOnes, extra], index) => ({
+      id: `5e000000-0000-4000-8000-${eventId.slice(-3)}${String(index + 1).padStart(9, "0")}`,
+      eventId,
+      number: index + 1,
+      name,
+      email: null,
+      phone: null,
+      category: null,
+      rsvpStatus,
+      plusOnes,
+      dietaryNeeds: null,
+      notes: null,
+      ...extra,
+      updatedAt: at("2026-10-09T02:00:00Z"),
+    })),
+  );
 }
 
 // Kept on globalThis so every part of the dev server (pages, actions, route handlers) and hot
 // reloads share one store.
-const globalStore = globalThis as typeof globalThis & { __eventopsSampleData?: SampleStore };
+// The key has a version: a dev server still holding an older store shape after a code update
+// starts a fresh one instead of failing.
+const globalStore = globalThis as typeof globalThis & { __eventopsSampleDataV2?: SampleStore };
 
 function store(): SampleStore {
-  globalStore.__eventopsSampleData ??= seed();
-  return globalStore.__eventopsSampleData;
+  globalStore.__eventopsSampleDataV2 ??= seed();
+  return globalStore.__eventopsSampleDataV2;
 }
 
 /** Back to the seeded samples. For tests. */
 export function resetSampleData(): void {
-  globalStore.__eventopsSampleData = seed();
+  globalStore.__eventopsSampleDataV2 = seed();
 }
 
 function roleOf(s: SampleStore, eventId: string, userId: string): MemberRole | null {
@@ -381,7 +453,61 @@ export function sampleDeleteEvent(args: { eventId: string; userId: string }): De
   s.events = s.events.filter((e) => e.id !== args.eventId);
   s.members = s.members.filter((m) => m.eventId !== args.eventId);
   s.audit = s.audit.filter((a) => a.eventId !== args.eventId);
+  s.attendees = s.attendees.filter((a) => a.eventId !== args.eventId);
   return { ok: true };
+}
+
+/** Stand-in for listAttendees: this event's attendees, by name, then number. Copies. */
+export function sampleListAttendees(eventId: string): SampleAttendee[] {
+  return store()
+    .attendees.filter((a) => a.eventId === eventId)
+    .sort((a, b) => a.name.localeCompare(b.name) || a.number - b.number)
+    .map((a) => ({
+      id: a.id,
+      number: a.number,
+      name: a.name,
+      email: a.email,
+      phone: a.phone,
+      category: a.category,
+      rsvpStatus: a.rsvpStatus,
+      plusOnes: a.plusOnes,
+      dietaryNeeds: a.dietaryNeeds,
+      notes: a.notes,
+      updatedAt: new Date(a.updatedAt),
+    }));
+}
+
+/**
+ * Stand-in for createAttendee: members with attendees.manage only (re-checked here, like the
+ * database), the event's next ATT number, and an attendee.created entry.
+ */
+export function sampleCreateAttendee(args: {
+  eventId: string;
+  creatorId: string;
+  attendee: SampleAttendeeInput;
+  now: Date;
+}): { ok: true; attendee: { id: string; reference: string } } | { ok: false } {
+  const s = store();
+  const role = roleOf(s, args.eventId, args.creatorId);
+  if (!s.events.some((e) => e.id === args.eventId) || !role) return { ok: false };
+  if (!rolesAllowed("attendees.manage").includes(role)) return { ok: false };
+
+  const number =
+    s.attendees.reduce(
+      (max, a) => (a.eventId === args.eventId ? Math.max(max, a.number) : max),
+      0,
+    ) + 1;
+  const reference = `ATT-${String(number).padStart(4, "0")}`;
+  const id = crypto.randomUUID();
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.creatorId,
+    action: "attendee.created",
+    details: { reference, name: args.attendee.name },
+    now: args.now,
+  });
+  s.attendees.push({ ...args.attendee, id, eventId: args.eventId, number, updatedAt: args.now });
+  return { ok: true, attendee: { id, reference } };
 }
 
 /** Stand-in for listAuditEntries. Not an access check: callers authorize first. */

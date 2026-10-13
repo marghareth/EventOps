@@ -6,12 +6,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { fieldErrorsFrom } from "@/lib/auth-rules";
 import { getDb } from "@/lib/db";
 import { isSampleDataMode } from "@/lib/demo-auth";
-import { authorizeEvent } from "@/modules/events/public";
-import { createAttendee } from "./create-attendee";
+import { authorizeEvent, sampleCreateAttendee } from "@/modules/events/public";
+import { createAttendee, type CreateAttendeeResult } from "./create-attendee";
 import { deleteAttendee } from "./delete-attendee";
 import {
   ATTENDEE_MESSAGES,
@@ -40,7 +41,10 @@ const REFUSED = {
   forbidden: ATTENDEE_MESSAGES.forbidden,
 } as const;
 
-/** Adds an attendee to the event. Owners and Coordinators (attendees.manage). */
+/**
+ * Adds an attendee to the event, then opens the guest list with an "added" notice (B2-02).
+ * Owners and Coordinators (attendees.manage).
+ */
 export async function createAttendeeAction(
   eventId: string,
   _previous: AttendeeFormState,
@@ -54,25 +58,25 @@ export async function createAttendeeAction(
   if (!parsed.success) {
     return { status: "error", fieldErrors: fieldErrorsFrom(parsed.error), values };
   }
-  if (isSampleDataMode()) return { status: "error", message: ATTENDEE_MESSAGES.sampleData, values };
-
+  let result: CreateAttendeeResult;
   try {
-    const result = await createAttendee(getDb(), {
-      eventId: auth.event.id,
-      creatorId: auth.user.id,
-      attendee: parsed.data,
-    });
-    if (!result.ok) return { status: "error", message: ATTENDEE_MESSAGES.forbidden, values };
-    revalidatePath(attendeesPath(auth.event.id));
-    return {
-      status: "success",
-      message: ATTENDEE_MESSAGES.created,
-      reference: result.attendee.reference,
-    };
+    const args = { eventId: auth.event.id, creatorId: auth.user.id, attendee: parsed.data };
+    // Dev-only sample data (D-041): kept in memory until the dev server restarts.
+    result = isSampleDataMode()
+      ? sampleCreateAttendee({ ...args, now: new Date() })
+      : await createAttendee(getDb(), args);
   } catch {
     // Database unreachable or a constraint failed: nothing was saved (one transaction).
     return { status: "error", message: ATTENDEE_MESSAGES.saveFailed, values };
   }
+  // Refused in the database: the role changed after the check above.
+  if (!result.ok) return { status: "error", message: ATTENDEE_MESSAGES.forbidden, values };
+
+  revalidatePath(attendeesPath(auth.event.id));
+  // redirect() works by throwing, so it stays outside the try block.
+  redirect(
+    `${attendeesPath(auth.event.id)}?added=${encodeURIComponent(result.attendee.reference)}`,
+  );
 }
 
 /** Saves an attendee's details, unless someone else saved them first (D-032). */

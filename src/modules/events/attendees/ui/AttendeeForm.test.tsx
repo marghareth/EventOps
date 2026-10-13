@@ -1,0 +1,119 @@
+// src/modules/events/attendees/ui/AttendeeForm.test.tsx
+// Add attendee form (B2-02) with the server action mocked: labels, defaults, accessible errors,
+// kept input, the loading state and the save-failure banner.
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import type { AttendeeFormState } from "../form-state";
+import { AttendeeForm } from "./AttendeeForm";
+
+type Action = (s: AttendeeFormState, f: FormData) => Promise<AttendeeFormState>;
+const LIST = "/events/e1/attendees";
+
+describe("AttendeeForm", () => {
+  it("labels every field, marks the name required, and sends what was entered", async () => {
+    const action = vi.fn<Action>().mockResolvedValue({ status: "idle" });
+    render(<AttendeeForm action={action} cancelHref={LIST} />);
+
+    expect(screen.getByLabelText(/^Name/)).toHaveAttribute("aria-required", "true");
+    await userEvent.type(screen.getByLabelText(/^Name/), "Maria Santos");
+    await userEvent.type(screen.getByLabelText(/^Email/), "maria@example.com");
+    await userEvent.type(screen.getByLabelText(/^Phone/), "0917 123 4567");
+    await userEvent.selectOptions(screen.getByLabelText(/^RSVP/), "Confirmed");
+    await userEvent.clear(screen.getByLabelText(/^Plus-ones/));
+    await userEvent.type(screen.getByLabelText(/^Plus-ones/), "2");
+    await userEvent.type(screen.getByLabelText(/^Category/), "Family");
+    await userEvent.type(screen.getByLabelText(/^Dietary needs/), "Vegetarian");
+    await userEvent.type(screen.getByLabelText(/^Notes/), "Seat near the stage");
+    await userEvent.click(screen.getByRole("button", { name: "Add attendee" }));
+
+    expect(Object.fromEntries(action.mock.calls[0][1])).toEqual({
+      name: "Maria Santos",
+      email: "maria@example.com",
+      phone: "0917 123 4567",
+      rsvpStatus: "CONFIRMED",
+      plusOnes: "2",
+      category: "Family",
+      dietaryNeeds: "Vegetarian",
+      notes: "Seat near the stage",
+    });
+  });
+
+  it("starts with RSVP Pending and no plus-ones, and offers exactly the four RSVP values", () => {
+    render(<AttendeeForm action={vi.fn<Action>()} cancelHref={LIST} />);
+    expect(screen.getByLabelText(/^RSVP/)).toHaveValue("PENDING");
+    expect(screen.getByLabelText(/^Plus-ones/)).toHaveValue(0);
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Pending",
+      "Confirmed",
+      "Declined",
+      "Maybe",
+    ]);
+  });
+
+  it("explains the limits next to the fields and stops typing past them", () => {
+    render(<AttendeeForm action={vi.fn<Action>()} cancelHref={LIST} />);
+    expect(screen.getByLabelText(/^Plus-ones/)).toHaveAccessibleDescription(
+      "Guests coming with them, 0 to 10.",
+    );
+    expect(screen.getByLabelText(/^Notes/)).toHaveAttribute("maxLength", "2000");
+    expect(screen.getByLabelText(/^Dietary needs/)).toHaveAttribute("maxLength", "500");
+    expect(screen.getByLabelText(/^Name/)).toHaveAttribute("maxLength", "120");
+  });
+
+  it("shows field errors on the controls and in a summary, keeping the input", async () => {
+    const action = vi.fn<Action>().mockResolvedValue({
+      status: "error",
+      fieldErrors: {
+        name: "Enter the attendee's name.",
+        plusOnes: "Plus-ones must be a whole number from 0 to 10.",
+      },
+      values: { name: "", email: "maria@example.com", plusOnes: "12" },
+    });
+    render(<AttendeeForm action={action} cancelHref={LIST} />);
+    await userEvent.click(screen.getByRole("button", { name: "Add attendee" }));
+
+    expect(await screen.findByRole("link", { name: "Enter the attendee's name." })).toHaveAttribute(
+      "href",
+      "#add-attendee-name",
+    );
+    const plusOnes = screen.getByLabelText(/^Plus-ones/);
+    expect(plusOnes).toHaveAttribute("aria-invalid", "true");
+    expect(plusOnes).toHaveAccessibleDescription(/whole number from 0 to 10/);
+    expect(plusOnes).toHaveValue(12);
+    expect(screen.getByLabelText(/^Email/)).toHaveValue("maria@example.com");
+  });
+
+  it("disables the button and says it is working while saving, so it can't be sent twice", async () => {
+    let finish: (state: AttendeeFormState) => void = () => {};
+    const action = vi.fn<Action>(() => new Promise((resolve) => (finish = resolve)));
+    render(<AttendeeForm action={action} cancelHref={LIST} />);
+    await userEvent.type(screen.getByLabelText(/^Name/), "Maria");
+    await userEvent.click(screen.getByRole("button", { name: "Add attendee" }));
+
+    const busy = await screen.findByRole("button", { name: "Adding attendee…" });
+    expect(busy).toBeDisabled();
+    await userEvent.click(busy);
+    expect(action).toHaveBeenCalledOnce();
+    finish({ status: "idle" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add attendee" })).toBeEnabled());
+  });
+
+  it("shows a server failure as an alert and keeps the input", async () => {
+    const action = vi.fn<Action>().mockResolvedValue({
+      status: "error",
+      message: "We couldn't save the attendee. Try again in a moment.",
+      values: { name: "Maria Santos" },
+    });
+    render(<AttendeeForm action={action} cancelHref={LIST} />);
+    await userEvent.click(screen.getByRole("button", { name: "Add attendee" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't add the attendee");
+    expect(screen.getByLabelText(/^Name/)).toHaveValue("Maria Santos");
+  });
+
+  it("cancels back to the guest list", () => {
+    render(<AttendeeForm action={vi.fn<Action>()} cancelHref={LIST} />);
+    expect(screen.getByRole("link", { name: "Cancel" })).toHaveAttribute("href", LIST);
+  });
+});
