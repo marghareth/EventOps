@@ -37,6 +37,41 @@ describe("describeAuditEntry", () => {
     });
   });
 
+  it("describes added and removed attendees by name and readable ID", () => {
+    const who = { reference: "ATT-0001", name: "Maria Santos" };
+    expect(describeAuditEntry({ action: "attendee.created", details: who }).summary).toBe(
+      "Added the attendee Maria Santos (ATT-0001)",
+    );
+    expect(describeAuditEntry({ action: "attendee.deleted", details: who }).summary).toBe(
+      "Removed the attendee Maria Santos (ATT-0001)",
+    );
+  });
+
+  it("lists attendee changes, personal ones without values", () => {
+    expect(
+      describeAuditEntry({
+        action: "attendee.updated",
+        details: {
+          reference: "ATT-0002",
+          changes: {
+            notes: { changed: true },
+            rsvpStatus: { from: "PENDING", to: "CONFIRMED" },
+            plusOnes: { from: 0, to: 2 },
+            category: { from: null, to: "Family" },
+          },
+        },
+      }),
+    ).toEqual({
+      summary: "Edited the attendee ATT-0002",
+      lines: [
+        "RSVP: Pending → Confirmed",
+        "Plus-ones: 0 → 2",
+        "Category: none → “Family”",
+        "Notes changed",
+      ],
+    });
+  });
+
   it("falls back safely for an entry it cannot read", () => {
     expect(describeAuditEntry({ action: null, details: null })).toEqual({
       summary: "Made a change (details unavailable)",
