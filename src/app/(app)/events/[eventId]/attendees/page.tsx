@@ -1,7 +1,7 @@
 // src/app/(app)/events/[eventId]/attendees/page.tsx
 // The event's guest list (B2-02). Every member can read it (event.view); Owners and Coordinators
 // also get "Add attendee" (attendees.manage, D-035). Every name opens the attendee's details (B2-07),
-// where editing starts. Dietary
+// where editing starts. The table can be filtered by RSVP (B2-08, D-049). Dietary
 // needs show for roles with attendees.dietary (B2-06, D-047). Checks access itself (D-027); the add
 // action checks again. Search, filters and row actions arrive with their own tasks.
 import type { Metadata } from "next";
@@ -13,10 +13,15 @@ import {
   AttendeeNotice,
   HeadcountSummary,
   AttendeeList,
+  RSVP_LABEL,
+  RsvpFilter,
   expectedHeadcount,
+  filterByRsvp,
   formatAttendeeReference,
   getEventAttendees,
   isAttendeeReference,
+  parseRsvpFilter,
+  rsvpCounts,
 } from "@/modules/events/attendees/public";
 import { can, requireEventAccess } from "@/modules/events/public";
 
@@ -62,6 +67,12 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
       : isAttendeeReference(removed)
         ? ({ kind: "removed", reference: removed } as const)
         : null;
+  // B2-08, D-049: one RSVP state at a time, from the address. Unknown values mean no filter. The
+  // headcount summary always covers the whole guest list; only the table is filtered.
+  const rsvpFilter = parseRsvpFilter(query.rsvp);
+  const shown = filterByRsvp(attendees, rsvpFilter);
+  const listHref = `/events/${event.id}/attendees`;
+  const total = attendees.length === 1 ? "1 attendee" : `${attendees.length} attendees`;
   const noticeName = notice
     ? attendees.find((a) => formatAttendeeReference(a.number) === notice.reference)?.name
     : undefined;
@@ -75,7 +86,7 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
         <div>
           <h1 className="text-h2 font-extrabold">Attendees</h1>
           <p className="mt-1 text-sm text-ink-2">
-            {attendees.length === 1 ? "1 attendee" : `${attendees.length} attendees`}
+            {rsvpFilter ? `${shown.length} of ${total}, ${RSVP_LABEL[rsvpFilter]}` : total}
           </p>
         </div>
         {canManage ? (
@@ -108,11 +119,32 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
         <>
           {/* B2-05, D-046: the plus-one rule lives in expectedHeadcount, nowhere else. */}
           <HeadcountSummary headcount={expectedHeadcount(attendees)} />
-          <AttendeeList
-            attendees={attendees}
-            showDietaryNeeds={showDietaryNeeds}
-            detailsHref={(id) => `/events/${event.id}/attendees/${id}`}
+          <RsvpFilter
+            baseHref={listHref}
+            current={rsvpFilter}
+            counts={rsvpCounts(attendees)}
+            total={attendees.length}
           />
+          {shown.length === 0 && rsvpFilter ? (
+            <div className="rounded-xl bg-white shadow-xs">
+              <EmptyState
+                headingLevel={2}
+                title={`No ${RSVP_LABEL[rsvpFilter]} attendees`}
+                description="Choose another RSVP above, or show everyone."
+                action={
+                  <Button asChild variant="secondary">
+                    <Link href={listHref}>Show everyone</Link>
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <AttendeeList
+              attendees={shown}
+              showDietaryNeeds={showDietaryNeeds}
+              detailsHref={(id) => `/events/${event.id}/attendees/${id}`}
+            />
+          )}
         </>
       )}
     </div>

@@ -59,6 +59,7 @@ Status values:
 | D-046 | Plus-ones: a count, and the expected headcount rule         | Approved | 2026-10-13 |
 | D-047 | Dietary needs: one free-text entry, visible to every member | Approved | 2026-10-13 |
 | D-048 | Attendee notes and the attendee details page                | Approved | 2026-10-13 |
+| D-049 | RSVP states, changes and the guest-list RSVP filter         | Approved | 2026-10-13 |
 
 ---
 
@@ -1043,6 +1044,33 @@ security) to read-only users such as clients or suppliers.
 
 **Not decided here.** Notes in CSV export (must follow `attendees.private`), searching notes, and
 notes on plus-ones (they belong to the attendee, D-046).
+
+---
+
+## D-049 RSVP states, changes and the guest-list RSVP filter
+
+**Status:** Approved by the technical lead on 2026-10-13 (B2-08 plan, options 1a, 2a and 3a).
+
+**Decision.**
+
+- **States (confirms D-042):** `PENDING` (no reply yet, the default), `CONFIRMED` (coming), `MAYBE`
+  (replied, unsure) and `DECLINED` (not coming). The database enum, the form schema and the audit
+  registry hold the same list; a test keeps them equal.
+- **Changes:** any state may change to any other, by roles with `attendees.manage`, through the
+  attendee form. A save that doesn't change the state records nothing. Each change is recorded in
+  Activity as "RSVP: <from> → <to>".
+- **Counting:** the expected headcount rule is D-046 (only Confirmed counts, as 1 + plus-ones).
+- **Filter:** the guest list can be filtered to one state at a time with links above the table
+  ("All (8) · Confirmed (4) · Pending (2) · Maybe (1) · Declined (1)"). The choice lives in the
+  address (`?rsvp=confirmed`); an unknown value means no filter and never reaches the database. The
+  page filters the guest list it has already authorized, so the filter can't show more than the
+  role may see. The headcount summary always covers the whole guest list.
+- **Scope:** name search, other filters and sorting stay with the backlog item "Search, filter,
+  sort guest list", which may move filtering into the database query.
+
+**Alternatives not chosen.** Restricting changes (1b) adds friction without a business rule behind
+it. Choosing several states at once (2b) belongs with the full search and filter task. A headcount
+that follows the filter (3b) would misstate the event's figure.
 
 ---
 
