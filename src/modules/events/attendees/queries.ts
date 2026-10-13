@@ -38,13 +38,18 @@ export async function listAttendees(db: PrismaClient, eventId: string): Promise<
 }
 
 /**
- * One guest-list row (B2-06, D-047): only what the list shows. Contact details and notes are never
- * loaded for it. dietaryNeeds is present only when the reader may see it.
+ * One guest-list row (B2-06, D-047; B2-10, D-050): what the list shows and searches. dietaryNeeds is
+ * present only for roles with attendees.dietary; email and phone only for roles with
+ * attendees.private, which may search by them (they are not shown in the list). Notes are never
+ * loaded for the list.
  */
 export type GuestListRow = Pick<
   AttendeeRecord,
   "id" | "number" | "name" | "rsvpStatus" | "plusOnes" | "category"
-> & { dietaryNeeds?: string | null };
+> & { dietaryNeeds?: string | null; email?: string | null; phone?: string | null };
+
+/** Which optional fields the reader may receive. */
+export type GuestListFields = { dietaryNeeds: boolean; contact: boolean };
 
 const GUEST_LIST_SELECT = {
   id: true,
@@ -55,27 +60,32 @@ const GUEST_LIST_SELECT = {
   category: true,
 } as const;
 
-/** The guest list, in the same order as listAttendees. */
+/** The guest list, by name then number. Search, filters and sorting run on it afterwards (D-050). */
 export async function listGuestList(
   db: PrismaClient,
   eventId: string,
-  options: { dietaryNeeds: boolean },
+  fields: GuestListFields,
 ): Promise<GuestListRow[]> {
-  const order = [{ name: "asc" as const }, { number: "asc" as const }];
-  return options.dietaryNeeds
-    ? db.attendee.findMany({
-        where: { eventId },
-        select: { ...GUEST_LIST_SELECT, dietaryNeeds: true },
-        orderBy: order,
-      })
-    : db.attendee.findMany({ where: { eventId }, select: GUEST_LIST_SELECT, orderBy: order });
+  return db.attendee.findMany({
+    where: { eventId },
+    select: {
+      ...GUEST_LIST_SELECT,
+      ...(fields.dietaryNeeds ? { dietaryNeeds: true } : {}),
+      ...(fields.contact ? { email: true, phone: true } : {}),
+    },
+    orderBy: [{ name: "asc" }, { number: "asc" }],
+  }) as Promise<GuestListRow[]>;
 }
 
 /** A full record cut down to a guest-list row, for sample data (D-041). */
-export function toGuestListRow(record: AttendeeRecord, dietaryNeeds: boolean): GuestListRow {
+export function toGuestListRow(record: AttendeeRecord, fields: GuestListFields): GuestListRow {
   const { id, number, name, rsvpStatus, plusOnes, category } = record;
   const row: GuestListRow = { id, number, name, rsvpStatus, plusOnes, category };
-  if (dietaryNeeds) row.dietaryNeeds = record.dietaryNeeds;
+  if (fields.dietaryNeeds) row.dietaryNeeds = record.dietaryNeeds;
+  if (fields.contact) {
+    row.email = record.email;
+    row.phone = record.phone;
+  }
   return row;
 }
 
@@ -117,7 +127,10 @@ export function toAttendeeDetails(
   record: AttendeeRecord,
   fields: AttendeeDetailsFields,
 ): AttendeeDetails {
-  const details: AttendeeDetails = toGuestListRow(record, fields.dietaryNeeds);
+  const details: AttendeeDetails = toGuestListRow(record, {
+    dietaryNeeds: fields.dietaryNeeds,
+    contact: false,
+  });
   if (fields.private) {
     details.email = record.email;
     details.phone = record.phone;

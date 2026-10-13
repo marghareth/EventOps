@@ -79,16 +79,28 @@ describe("getEventAttendees", () => {
       showDietaryNeeds: true,
     });
     expect(can).toHaveBeenCalledWith("VIEWER", "attendees.dietary");
-    expect(listGuestList).toHaveBeenCalledWith("db", EVENT, { dietaryNeeds: true });
+    expect(listGuestList).toHaveBeenCalledWith("db", EVENT, { dietaryNeeds: true, contact: true });
+    expect(can).toHaveBeenCalledWith("VIEWER", "attendees.private");
   });
 
   it("does not load dietary needs for a role without attendees.dietary", async () => {
     can.mockReturnValue(false);
     expect(await getEventAttendees(EVENT)).toMatchObject({ ok: true, showDietaryNeeds: false });
-    expect(listGuestList).toHaveBeenCalledWith("db", EVENT, { dietaryNeeds: false });
+    expect(listGuestList).toHaveBeenCalledWith("db", EVENT, {
+      dietaryNeeds: false,
+      contact: false,
+    });
   });
 
-  it("cuts sample data down to guest-list rows, with dietary needs only when allowed", async () => {
+  it("loads email and phone for searching only with attendees.private (B2-10, D-050)", async () => {
+    can.mockImplementation(
+      (_role: string, permission: string) => permission !== "attendees.private",
+    );
+    await getEventAttendees(EVENT);
+    expect(listGuestList).toHaveBeenCalledWith("db", EVENT, { dietaryNeeds: true, contact: false });
+  });
+
+  it("cuts sample data down to guest-list rows, with optional fields only when allowed", async () => {
     sampleMode = true;
     can.mockReturnValue(true);
     expect(await getEventAttendees(EVENT)).toEqual({
@@ -103,9 +115,12 @@ describe("getEventAttendees", () => {
           rsvpStatus: "CONFIRMED",
           plusOnes: 1,
           dietaryNeeds: "Vegetarian",
+          email: "ana@example.com",
+          phone: "0917 123 4567",
         },
       ],
     });
+    expect(JSON.stringify(await getEventAttendees(EVENT))).not.toMatch(/Private note/);
     expect(sampleListAttendees).toHaveBeenCalledWith(EVENT);
 
     can.mockReturnValue(false);

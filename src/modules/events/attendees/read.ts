@@ -22,6 +22,7 @@ import {
   type AttendeeDetails,
   type AttendeeDetailsFields,
   type AttendeeRecord,
+  type GuestListFields,
   type GuestListRow,
 } from "./queries";
 
@@ -41,12 +42,16 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendees
     `/events/${encodeURIComponent(eventId)}/attendees`,
   );
   if (!auth.ok) return { ok: false, reason: auth.reason };
-  // B2-06, D-047: dietary needs are loaded only for roles that may see them, so they never reach a
-  // page that must not show them. Contact details and notes are not loaded for the list at all.
-  const showDietaryNeeds = can(auth.event.role, "attendees.dietary");
+  // B2-06, D-047: dietary needs only for roles that may see them. B2-10, D-050: email and phone only
+  // for roles with attendees.private, so only they can search by them. Notes are never loaded here.
+  const fields: GuestListFields = {
+    dietaryNeeds: can(auth.event.role, "attendees.dietary"),
+    contact: can(auth.event.role, "attendees.private"),
+  };
+  const showDietaryNeeds = fields.dietaryNeeds;
   const attendees = isSampleDataMode()
-    ? sampleListAttendees(auth.event.id).map((a) => toGuestListRow(a, showDietaryNeeds)) // D-041
-    : await listGuestList(getDb(), auth.event.id, { dietaryNeeds: showDietaryNeeds });
+    ? sampleListAttendees(auth.event.id).map((a) => toGuestListRow(a, fields)) // D-041
+    : await listGuestList(getDb(), auth.event.id, fields);
   return { ok: true, attendees, showDietaryNeeds };
 }
 

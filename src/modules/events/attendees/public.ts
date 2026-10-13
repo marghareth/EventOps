@@ -15,6 +15,23 @@ export {
   rsvpCounts,
   rsvpFilterParam,
 } from "./rsvp-filter";
+export {
+  DEFAULT_QUERY,
+  SORT_KEYS,
+  SORT_LABEL,
+  applyGuestListQuery,
+  categoriesOf,
+  describeCriteria,
+  filterGuestList,
+  guestListQueryString,
+  hasCriteriaBeyondRsvp,
+  isNarrowed,
+  matchesSearch,
+  parseGuestListQuery,
+  sortGuestList,
+  type GuestListQuery,
+  type SortKey,
+} from "./guest-list-query";
 export { expectedHeadcount, type ExpectedHeadcount, type HeadcountInput } from "./headcount";
 export type { AttendeeDetails, AttendeeRecord, GuestListRow } from "./queries";
 export {
@@ -40,6 +57,7 @@ export { AttendeeDetailsView } from "./ui/AttendeeDetailsView";
 export { AttendeeNotice } from "./ui/AttendeeNotice";
 export { AttendeeForm } from "./ui/AttendeeForm";
 export { AttendeeList, type AttendeeListItem } from "./ui/AttendeeList";
+export { GuestListControls } from "./ui/GuestListControls";
 export { HeadcountSummary } from "./ui/HeadcountSummary";
 export { RemoveAttendeeSection } from "./ui/RemoveAttendeeSection";
 export { RsvpBadge } from "./ui/RsvpBadge";

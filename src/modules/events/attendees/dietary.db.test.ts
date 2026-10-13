@@ -244,16 +244,25 @@ describe("who sees dietary needs (attendees.dietary, D-047)", () => {
     }
   });
 
-  it("the guest list never loads contact details or notes, for any role", async () => {
+  it("the guest list never loads notes; contact details only for attendees.private (D-050)", async () => {
     const owner = await newUser();
+    const viewer = await newUser();
     const eventId = await newEvent(owner.id);
+    await join(eventId, viewer.id, "VIEWER");
     signedIn = owner;
     await submit(eventId, maria);
-    const result = await getEventAttendees(eventId);
-    if (!result.ok) throw new Error("refused");
-    expect(Object.keys(result.attendees[0]).sort()).toEqual(
-      ["category", "dietaryNeeds", "id", "name", "number", "plusOnes", "rsvpStatus"].sort(),
-    );
+    const base = ["category", "dietaryNeeds", "id", "name", "number", "plusOnes", "rsvpStatus"];
+
+    const asOwner = await getEventAttendees(eventId);
+    if (!asOwner.ok) throw new Error("refused");
+    // Email and phone are loaded so Owners and Coordinators can search by them (B2-10).
+    expect(Object.keys(asOwner.attendees[0]).sort()).toEqual([...base, "email", "phone"].sort());
+
+    signedIn = viewer;
+    const asViewer = await getEventAttendees(eventId);
+    if (!asViewer.ok) throw new Error("refused");
+    expect(Object.keys(asViewer.attendees[0]).sort()).toEqual(base.sort());
+    expect(JSON.stringify(asViewer)).not.toMatch(/example\.com|0917|stage/);
   });
 
   it("the query leaves dietary needs out entirely when the reader may not see them", async () => {
@@ -261,7 +270,7 @@ describe("who sees dietary needs (attendees.dietary, D-047)", () => {
     const eventId = await newEvent(owner.id);
     signedIn = owner;
     await submit(eventId, maria);
-    const [row] = await listGuestList(db, eventId, { dietaryNeeds: false });
+    const [row] = await listGuestList(db, eventId, { dietaryNeeds: false, contact: false });
     expect(row).not.toHaveProperty("dietaryNeeds");
     expect(JSON.stringify(row)).not.toMatch(/Vegetarian/);
   });

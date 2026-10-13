@@ -3,7 +3,19 @@
 // and the current choice marked for screen readers.
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { RsvpFilter } from "./RsvpFilter";
+import { RsvpFilter as Filter } from "./RsvpFilter";
+
+/** As the page builds them: the RSVP in the address, other choices kept (here: none). */
+const RsvpFilter = (
+  props: Omit<Parameters<typeof Filter>[0], "hrefFor"> & { baseHref: string },
+) => (
+  <Filter
+    {...props}
+    hrefFor={(status) =>
+      status ? `${props.baseHref}?rsvp=${status.toLowerCase()}` : props.baseHref
+    }
+  />
+);
 
 const counts = { PENDING: 2, CONFIRMED: 4, DECLINED: 1, MAYBE: 1 };
 const BASE = "/events/e1/attendees";

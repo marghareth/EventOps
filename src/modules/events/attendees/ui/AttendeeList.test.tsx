@@ -84,3 +84,45 @@ describe("AttendeeList dietary needs (B2-06, D-047)", () => {
     expect(screen.queryByText(/Vegetarian/)).not.toBeInTheDocument();
   });
 });
+
+describe("AttendeeList sorting (B2-12, D-050)", () => {
+  it("marks only the sorted column and says the sort in the caption", () => {
+    render(
+      <AttendeeList
+        attendees={attendees}
+        sort={{ column: "plusones", direction: "descending", label: "Plus-ones" }}
+      />,
+    );
+    const headers = screen.getAllByRole("columnheader");
+    expect(
+      headers
+        .filter((th) => th.hasAttribute("aria-sort"))
+        .map((th) => [th.textContent, th.getAttribute("aria-sort")]),
+    ).toEqual([["Plus-ones", "descending"]]);
+    expect(screen.getByRole("table")).toHaveAccessibleName(
+      "Guest list, sorted by Plus-ones, descending",
+    );
+  });
+
+  it("keeps the plain caption for the default sort", () => {
+    render(
+      <AttendeeList
+        attendees={attendees}
+        sort={{ column: "name", direction: "ascending", label: "Name" }}
+      />,
+    );
+    expect(screen.getByRole("columnheader", { name: "Name" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    expect(screen.getByRole("table")).toHaveAccessibleName("Guest list, by name");
+  });
+
+  it("shows rows in the order given; it never sorts by itself", () => {
+    render(<AttendeeList attendees={[attendees[1], attendees[0]]} />);
+    expect(screen.getAllByRole("rowheader").map((th) => th.textContent)).toEqual([
+      "Ben Lim",
+      "Ana Reyes",
+    ]);
+  });
+});
