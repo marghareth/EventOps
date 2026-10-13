@@ -176,22 +176,25 @@ describe("audit records cannot be modified", () => {
   it.each([
     ["an action in the wrong format", { action: "Event Updated" }],
     ["an entity type without an ID", { entityType: "event", entityId: null }],
-  ])("the database refuses %s", async (_label, data) => {
-    const owner = await newUser();
-    const { id } = await newEvent(owner);
-    await expect(
-      db.auditLog.create({
-        data: {
-          eventId: id,
-          actorId: owner,
-          action: "event.updated",
-          entityType: "event",
-          entityId: id,
-          ...data,
-        },
-      }),
-    ).rejects.toThrow();
-  });
+  ])(
+    "the database refuses %s",
+    async (_label: string, data: { action: string } | { entityType: string; entityId: null }) => {
+      const owner = await newUser();
+      const { id } = await newEvent(owner);
+      await expect(
+        db.auditLog.create({
+          data: {
+            eventId: id,
+            actorId: owner,
+            action: "event.updated",
+            entityType: "event",
+            entityId: id,
+            ...data,
+          },
+        }),
+      ).rejects.toThrow();
+    },
+  );
 
   it("goes with its event (D-004) and survives a deleted actor, without the actor", async () => {
     const owner = await newUser();

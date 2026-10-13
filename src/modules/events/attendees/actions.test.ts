@@ -1,0 +1,247 @@
+// src/modules/events/attendees/actions.test.ts
+// @vitest-environment node
+// Attendee server actions and the guest-list read (B2-01) with authorization, the database and
+// Next.js mocked: each authorizes first, uses only the authorized IDs, validates, and fails safely.
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ATTENDEE_MESSAGES, initialAttendeeFormState } from "./form-state";
+
+const authorizeEvent = vi.fn();
+const createAttendee = vi.fn();
+const updateAttendee = vi.fn();
+const deleteAttendee = vi.fn();
+const listAttendees = vi.fn();
+const revalidatePath = vi.fn();
+let sampleData = false;
+
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/db", () => ({ getDb: () => "db" }));
+vi.mock("@/lib/demo-auth", () => ({ isSampleDataMode: () => sampleData }));
+vi.mock("@/modules/events/public", () => ({
+  authorizeEvent: (...args: unknown[]) => authorizeEvent(...args),
+}));
+vi.mock("./create-attendee", () => ({
+  createAttendee: (...args: unknown[]) => createAttendee(...args),
+}));
+vi.mock("./update-attendee", () => ({
+  updateAttendee: (...args: unknown[]) => updateAttendee(...args),
+}));
+vi.mock("./delete-attendee", () => ({
+  deleteAttendee: (...args: unknown[]) => deleteAttendee(...args),
+}));
+vi.mock("./queries", () => ({ listAttendees: (...args: unknown[]) => listAttendees(...args) }));
+vi.mock("next/cache", () => ({
+  revalidatePath: (...args: unknown[]) => revalidatePath(...args),
+}));
+
+const { createAttendeeAction, updateAttendeeAction, deleteAttendeeAction } =
+  await import("./actions");
+const { getEventAttendees } = await import("./read");
+
+const EVENT = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
+const ATTENDEE = "7a1e2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b";
+const VERSION = "2026-10-12T04:00:00.000Z";
+const user = { id: "user-1", email: "mika@example.com" };
+
+function form(fields: Record<string, string>) {
+  const data = new FormData();
+  for (const [key, value] of Object.entries(fields)) data.set(key, value);
+  return data;
+}
+const valid = { name: "Maria Santos", rsvpStatus: "CONFIRMED", plusOnes: "1" };
+
+const allow = () =>
+  authorizeEvent.mockResolvedValue({ ok: true, user, event: { id: EVENT, role: "COORDINATOR" } });
+const refuse = (reason: "forbidden" | "not-found") =>
+  authorizeEvent.mockResolvedValue({ ok: false, reason });
+
+const create = (fields: Record<string, string> = valid) =>
+  createAttendeeAction(EVENT, initialAttendeeFormState, form(fields));
+const update = (fields: Record<string, string> = { ...valid, version: VERSION }, id = ATTENDEE) =>
+  updateAttendeeAction(EVENT, id, initialAttendeeFormState, form(fields));
+const remove = (id = ATTENDEE) => deleteAttendeeAction(EVENT, id);
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  sampleData = false;
+  allow();
+  createAttendee.mockResolvedValue({ ok: true, attendee: { id: ATTENDEE, reference: "ATT-0001" } });
+  updateAttendee.mockResolvedValue({ ok: true });
+  deleteAttendee.mockResolvedValue({ ok: true });
+});
+
+describe("every attendee action authorizes with attendees.manage first", () => {
+  it.each([
+    ["create", () => create()],
+    ["update", () => update()],
+    ["delete", () => remove()],
+  ])("%s", async (_label: string, run: () => Promise<unknown>) => {
+    await run();
+    expect(authorizeEvent).toHaveBeenCalledWith(
+      EVENT,
+      "attendees.manage",
+      `/events/${EVENT}/attendees`,
+    );
+  });
+
+  it.each([
+    ["forbidden", ATTENDEE_MESSAGES.forbidden],
+    ["not-found", ATTENDEE_MESSAGES.eventNotFound],
+  ] as const)(
+    "refuses when %s and touches nothing",
+    async (reason: "forbidden" | "not-found", message: string) => {
+      refuse(reason);
+      expect(await create()).toMatchObject({ status: "error", message });
+      expect(await update()).toMatchObject({ status: "error", message });
+      expect(await remove()).toMatchObject({ status: "error", message });
+      expect(createAttendee).not.toHaveBeenCalled();
+      expect(updateAttendee).not.toHaveBeenCalled();
+      expect(deleteAttendee).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("createAttendeeAction", () => {
+  it("saves the validated attendee with the session's user, then refreshes the list", async () => {
+    expect(await create()).toEqual({
+      status: "success",
+      message: ATTENDEE_MESSAGES.created,
+      reference: "ATT-0001",
+    });
+    expect(createAttendee).toHaveBeenCalledWith("db", {
+      eventId: EVENT,
+      creatorId: "user-1",
+      attendee: {
+        name: "Maria Santos",
+        email: null,
+        phone: null,
+        category: null,
+        rsvpStatus: "CONFIRMED",
+        plusOnes: 1,
+        dietaryNeeds: null,
+        notes: null,
+      },
+    });
+    expect(revalidatePath).toHaveBeenCalledWith(`/events/${EVENT}/attendees`);
+  });
+
+  it("ignores IDs, roles and numbers sent in the form", async () => {
+    await create({ ...valid, eventId: "other", creatorId: "x", role: "OWNER", number: "9" });
+    const saved = createAttendee.mock.calls[0][1];
+    expect(saved).toMatchObject({ eventId: EVENT, creatorId: "user-1" });
+    expect(Object.keys(saved.attendee)).not.toEqual(expect.arrayContaining(["number", "role"]));
+  });
+
+  it("returns field errors and keeps what was typed", async () => {
+    const result = await create({ name: " ", plusOnes: "12", email: "nope" });
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        name: "Enter the attendee's name.",
+        plusOnes: "Plus-ones must be a whole number from 0 to 10.",
+        email: "Enter an email like name@example.com.",
+      },
+      values: { name: " ", plusOnes: "12", email: "nope" },
+    });
+    expect(createAttendee).not.toHaveBeenCalled();
+  });
+
+  it("treats a database refusal (role changed in between) as forbidden", async () => {
+    createAttendee.mockResolvedValue({ ok: false });
+    expect(await create()).toMatchObject({ message: ATTENDEE_MESSAGES.forbidden });
+  });
+
+  it("shows a safe message when saving fails", async () => {
+    createAttendee.mockRejectedValue(
+      new Error('violates check constraint "attendees_x" password=1'),
+    );
+    const result = await create();
+    expect(result).toMatchObject({ status: "error", message: ATTENDEE_MESSAGES.saveFailed });
+    expect(JSON.stringify(result)).not.toMatch(/constraint|password/);
+  });
+});
+
+describe("updateAttendeeAction", () => {
+  it("saves with the stored version and the session's user", async () => {
+    expect(await update()).toEqual({ status: "success", message: ATTENDEE_MESSAGES.saved });
+    expect(updateAttendee).toHaveBeenCalledWith(
+      "db",
+      expect.objectContaining({
+        eventId: EVENT,
+        attendeeId: ATTENDEE,
+        editorId: "user-1",
+        version: new Date(VERSION),
+      }),
+    );
+  });
+
+  it.each(["not-a-uuid", "' OR 1=1 --", ""])("refuses the attendee ID %j", async (id: string) => {
+    expect(await update(undefined, id)).toMatchObject({
+      message: ATTENDEE_MESSAGES.attendeeNotFound,
+    });
+    expect(updateAttendee).not.toHaveBeenCalled();
+  });
+
+  it("refuses a missing or broken version as stale", async () => {
+    expect(await update(valid)).toMatchObject({ message: ATTENDEE_MESSAGES.stale });
+    expect(await update({ ...valid, version: "yesterday" })).toMatchObject({
+      message: ATTENDEE_MESSAGES.stale,
+    });
+    expect(updateAttendee).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["stale", ATTENDEE_MESSAGES.stale],
+    ["not-found", ATTENDEE_MESSAGES.attendeeNotFound],
+  ] as const)("explains a %s result", async (reason: "stale" | "not-found", message: string) => {
+    updateAttendee.mockResolvedValue({ ok: false, reason });
+    expect(await update()).toMatchObject({ status: "error", message });
+  });
+});
+
+describe("deleteAttendeeAction", () => {
+  it("removes the attendee as the session's user", async () => {
+    expect(await remove()).toEqual({ status: "success", message: ATTENDEE_MESSAGES.deleted });
+    expect(deleteAttendee).toHaveBeenCalledWith("db", {
+      eventId: EVENT,
+      attendeeId: ATTENDEE,
+      userId: "user-1",
+    });
+  });
+
+  it("refuses a malformed ID and explains a missing attendee", async () => {
+    expect(await remove("nope")).toMatchObject({ message: ATTENDEE_MESSAGES.attendeeNotFound });
+    deleteAttendee.mockResolvedValue({ ok: false });
+    expect(await remove()).toMatchObject({ message: ATTENDEE_MESSAGES.attendeeNotFound });
+  });
+
+  it("shows a safe message when removing fails", async () => {
+    deleteAttendee.mockRejectedValue(new Error("connect ECONNREFUSED"));
+    expect(await remove()).toEqual({ status: "error", message: ATTENDEE_MESSAGES.deleteFailed });
+  });
+});
+
+describe("sample data mode (D-041)", () => {
+  it("explains that attendees aren't in the sample data, after the same checks", async () => {
+    sampleData = true;
+    expect(await create()).toMatchObject({ message: ATTENDEE_MESSAGES.sampleData });
+    expect(await update()).toMatchObject({ message: ATTENDEE_MESSAGES.sampleData });
+    expect(await remove()).toMatchObject({ message: ATTENDEE_MESSAGES.sampleData });
+    expect(authorizeEvent).toHaveBeenCalledTimes(3);
+    expect(createAttendee).not.toHaveBeenCalled();
+  });
+});
+
+describe("getEventAttendees", () => {
+  it("lets any member read: authorizes with event.view, then lists the authorized event", async () => {
+    listAttendees.mockResolvedValue([{ id: ATTENDEE }]);
+    expect(await getEventAttendees(EVENT)).toEqual({ ok: true, attendees: [{ id: ATTENDEE }] });
+    expect(authorizeEvent).toHaveBeenCalledWith(EVENT, "event.view", `/events/${EVENT}/attendees`);
+    expect(listAttendees).toHaveBeenCalledWith("db", EVENT);
+  });
+
+  it("reads nothing for a non-member", async () => {
+    refuse("not-found");
+    expect(await getEventAttendees(EVENT)).toEqual({ ok: false, reason: "not-found" });
+    expect(listAttendees).not.toHaveBeenCalled();
+  });
+});

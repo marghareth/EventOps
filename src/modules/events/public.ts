@@ -9,7 +9,7 @@ export {
   type EventAuthorization,
 } from "./authorize";
 export { createEventAction, deleteEventAction, updateEventAction } from "./actions";
-export { ROLE_SUMMARY, can, type Permission } from "./permissions";
+export { ROLE_SUMMARY, can, rolesAllowed, type Permission } from "./permissions";
 export { toEventFormValues } from "./schema";
 export { MEMBER_ROLE_LABEL, groupEvents, type EventDetails, type EventListItem } from "./list";
 export { getMyEvents } from "./queries";

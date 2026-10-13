@@ -2,7 +2,10 @@
 // The audit context's public interface (D-001).
 export {
   AUDIT_ACTIONS,
+  RSVP_STATUSES,
+  attendeeChangesSchema,
   eventChangesSchema,
+  type AttendeeChanges,
   type AuditAction,
   type AuditDetails,
   type EventChanges,

@@ -27,6 +27,35 @@ export const eventChangesSchema = z
 
 export type EventChanges = z.infer<typeof eventChangesSchema>;
 
+/** RSVP values as stored (D-042). A test keeps this list equal to the database enum. */
+export const RSVP_STATUSES = ["PENDING", "CONFIRMED", "DECLINED", "MAYBE"] as const;
+
+/** The attendee's readable ID, for example ATT-0001 (D-042). */
+const attendeeReference = z.string().regex(/^ATT-\d{4,}$/);
+/** Personal or free-text fields: recorded as changed, never copied (docs/AUDIT.md, D-042). */
+const changedOnly = z.object({ changed: z.literal(true) }).strict();
+
+/** Attendee fields as recorded in "attendee.updated" (B2-01, D-042). */
+export const attendeeChangesSchema = z
+  .object({
+    name: fromTo(z.string()),
+    rsvpStatus: fromTo(z.enum(RSVP_STATUSES)),
+    plusOnes: fromTo(z.number().int()),
+    category: fromTo(z.string().nullable()),
+    email: changedOnly,
+    phone: changedOnly,
+    dietaryNeeds: changedOnly,
+    notes: changedOnly,
+  })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, "An update must change something.");
+
+export type AttendeeChanges = z.infer<typeof attendeeChangesSchema>;
+
+/** Who an attendee entry is about: the readable ID and the name at that moment. */
+const attendeeIdentity = z.object({ reference: attendeeReference, name: z.string() }).strict();
+
 export const AUDIT_ACTIONS = {
   /** An event was created (B1-02). */
   "event.created": {
@@ -38,6 +67,15 @@ export const AUDIT_ACTIONS = {
     entityType: "event",
     details: z.object({ changes: eventChangesSchema }).strict(),
   },
+  /** An attendee was added (B2-01). */
+  "attendee.created": { entityType: "attendee", details: attendeeIdentity },
+  /** An attendee's details were edited (B2-01). Only changed fields; personal ones as "changed". */
+  "attendee.updated": {
+    entityType: "attendee",
+    details: z.object({ reference: attendeeReference, changes: attendeeChangesSchema }).strict(),
+  },
+  /** An attendee was removed (B2-01). The entry keeps who it was; the record is gone. */
+  "attendee.deleted": { entityType: "attendee", details: attendeeIdentity },
 } as const;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
