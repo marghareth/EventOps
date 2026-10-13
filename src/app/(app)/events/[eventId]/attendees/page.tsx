@@ -9,7 +9,9 @@ import { UnauthorizedState } from "@/components/shared/UnauthorizedState";
 import { Button } from "@/components/ui/button";
 import {
   AttendeeNotice,
+  HeadcountSummary,
   AttendeeList,
+  expectedHeadcount,
   formatAttendeeReference,
   getEventAttendees,
   isAttendeeReference,
@@ -101,10 +103,14 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
           />
         </div>
       ) : (
-        <AttendeeList
-          attendees={attendees}
-          editHref={canManage ? (id) => `/events/${event.id}/attendees/${id}/edit` : undefined}
-        />
+        <>
+          {/* B2-05, D-046: the plus-one rule lives in expectedHeadcount, nowhere else. */}
+          <HeadcountSummary headcount={expectedHeadcount(attendees)} />
+          <AttendeeList
+            attendees={attendees}
+            editHref={canManage ? (id) => `/events/${event.id}/attendees/${id}/edit` : undefined}
+          />
+        </>
       )}
     </div>
   );

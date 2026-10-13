@@ -54,7 +54,7 @@ describe("AttendeeForm", () => {
   it("explains the limits next to the fields and stops typing past them", () => {
     render(<AttendeeForm action={vi.fn<Action>()} cancelHref={LIST} />);
     expect(screen.getByLabelText(/^Plus-ones/)).toHaveAccessibleDescription(
-      "Guests coming with them, 0 to 10.",
+      "Guests coming with them: 0 for none, up to 10.",
     );
     expect(screen.getByLabelText(/^Notes/)).toHaveAttribute("maxLength", "2000");
     expect(screen.getByLabelText(/^Dietary needs/)).toHaveAttribute("maxLength", "500");
