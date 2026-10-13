@@ -11,7 +11,12 @@ import { z } from "zod";
 import { fieldErrorsFrom } from "@/lib/auth-rules";
 import { getDb } from "@/lib/db";
 import { isSampleDataMode } from "@/lib/demo-auth";
-import { authorizeEvent, sampleCreateAttendee } from "@/modules/events/public";
+import {
+  authorizeEvent,
+  sampleCreateAttendee,
+  sampleGetAttendee,
+  sampleUpdateAttendee,
+} from "@/modules/events/public";
 import { createAttendee, type CreateAttendeeResult } from "./create-attendee";
 import { deleteAttendee } from "./delete-attendee";
 import {
@@ -19,8 +24,15 @@ import {
   type AttendeeFormState,
   type DeleteAttendeeFormState,
 } from "./form-state";
-import { ATTENDEE_FIELDS, attendeeFormSchema, type AttendeeField } from "./schema";
-import { updateAttendee } from "./update-attendee";
+import { getAttendee } from "./queries";
+import {
+  ATTENDEE_FIELDS,
+  attendeeChanges,
+  attendeeFormSchema,
+  formatAttendeeReference,
+  type AttendeeField,
+} from "./schema";
+import { updateAttendee, type UpdateAttendeeResult } from "./update-attendee";
 
 const idSchema = z.uuid();
 const versionSchema = z.iso.datetime();
@@ -79,7 +91,10 @@ export async function createAttendeeAction(
   );
 }
 
-/** Saves an attendee's details, unless someone else saved them first (D-032). */
+/**
+ * Saves an attendee's details, unless someone else saved them first (D-032), then opens the guest
+ * list with a "saved" notice (B2-03). Nothing changed: says so and records nothing.
+ */
 export async function updateAttendeeAction(
   eventId: string,
   attendeeId: string,
@@ -99,16 +114,31 @@ export async function updateAttendeeAction(
   }
   const version = versionSchema.safeParse(formData.get("version"));
   if (!version.success) return { status: "error", message: ATTENDEE_MESSAGES.stale, values };
-  if (isSampleDataMode()) return { status: "error", message: ATTENDEE_MESSAGES.sampleData, values };
 
+  const sample = isSampleDataMode(); // Dev-only sample data (D-041).
+  let reference: string;
   try {
-    const result = await updateAttendee(getDb(), {
+    // Only an attendee of the authorized event; another event's ID finds nothing.
+    const current = sample
+      ? sampleGetAttendee(auth.event.id, attendeeId)
+      : await getAttendee(getDb(), auth.event.id, attendeeId);
+    if (!current) return { status: "error", message: ATTENDEE_MESSAGES.attendeeNotFound, values };
+    const changes = attendeeChanges(current, parsed.data);
+    if (Object.keys(changes).length === 0) {
+      return { status: "success", message: ATTENDEE_MESSAGES.unchanged };
+    }
+    reference = formatAttendeeReference(current.number);
+
+    const args = {
       eventId: auth.event.id,
       attendeeId,
       editorId: auth.user.id,
       version: new Date(version.data),
       details: parsed.data,
-    });
+    };
+    const result: UpdateAttendeeResult = sample
+      ? sampleUpdateAttendee({ ...args, changes, now: new Date() })
+      : await updateAttendee(getDb(), args);
     if (!result.ok) {
       const message =
         result.reason === "stale" ? ATTENDEE_MESSAGES.stale : ATTENDEE_MESSAGES.attendeeNotFound;
@@ -118,7 +148,8 @@ export async function updateAttendeeAction(
     return { status: "error", message: ATTENDEE_MESSAGES.saveFailed, values };
   }
   revalidatePath(attendeesPath(auth.event.id));
-  return { status: "success", message: ATTENDEE_MESSAGES.saved };
+  // redirect() works by throwing, so it stays outside the try block.
+  redirect(`${attendeesPath(auth.event.id)}?saved=${encodeURIComponent(reference)}`);
 }
 
 /**

@@ -1,6 +1,6 @@
 // src/modules/events/attendees/ui/AttendeeForm.test.tsx
-// Add attendee form (B2-02) with the server action mocked: labels, defaults, accessible errors,
-// kept input, the loading state and the save-failure banner.
+// The attendee form with the server action mocked: adding (B2-02) and editing (B2-03). Labels,
+// defaults, stored values, accessible errors, kept input, loading state and failure banners.
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -115,5 +115,117 @@ describe("AttendeeForm", () => {
   it("cancels back to the guest list", () => {
     render(<AttendeeForm action={vi.fn<Action>()} cancelHref={LIST} />);
     expect(screen.getByRole("link", { name: "Cancel" })).toHaveAttribute("href", LIST);
+  });
+});
+
+describe("AttendeeForm in edit mode (B2-03)", () => {
+  const saved = {
+    name: "Ana Reyes",
+    email: "ana@example.com",
+    phone: "0917 555 0101",
+    category: "Family",
+    rsvpStatus: "CONFIRMED",
+    plusOnes: "1",
+    dietaryNeeds: "Vegetarian",
+    notes: "Near the stage",
+  };
+  const VERSION = "2026-10-12T04:00:00.000Z";
+  const renderEdit = (action: Action) =>
+    render(
+      <AttendeeForm
+        mode="edit"
+        action={action}
+        cancelHref={LIST}
+        saved={saved}
+        version={VERSION}
+      />,
+    );
+
+  it("loads every stored value into its field", () => {
+    renderEdit(vi.fn<Action>());
+    expect(screen.getByLabelText(/^Name/)).toHaveValue("Ana Reyes");
+    expect(screen.getByLabelText(/^Email/)).toHaveValue("ana@example.com");
+    expect(screen.getByLabelText(/^Phone/)).toHaveValue("0917 555 0101");
+    expect(screen.getByLabelText(/^Category/)).toHaveValue("Family");
+    expect(screen.getByLabelText(/^RSVP/)).toHaveValue("CONFIRMED");
+    expect(screen.getByLabelText(/^Plus-ones/)).toHaveValue(1);
+    expect(screen.getByLabelText(/^Dietary needs/)).toHaveValue("Vegetarian");
+    expect(screen.getByLabelText(/^Notes/)).toHaveValue("Near the stage");
+  });
+
+  it("sends every field changed, plus the stored version", async () => {
+    const action = vi.fn<Action>().mockResolvedValue({ status: "idle" });
+    renderEdit(action);
+    const replace = async (label: RegExp, text: string) => {
+      await userEvent.clear(screen.getByLabelText(label));
+      await userEvent.type(screen.getByLabelText(label), text);
+    };
+    await replace(/^Name/, "Ana R. Lim");
+    await replace(/^Email/, "ana.lim@example.com");
+    await replace(/^Phone/, "+63 917 000 0000");
+    await replace(/^Category/, "Friends");
+    await userEvent.selectOptions(screen.getByLabelText(/^RSVP/), "Declined");
+    await replace(/^Plus-ones/, "0");
+    await replace(/^Dietary needs/, "None");
+    await userEvent.clear(screen.getByLabelText(/^Notes/));
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(Object.fromEntries(action.mock.calls[0][1])).toEqual({
+      version: VERSION,
+      name: "Ana R. Lim",
+      email: "ana.lim@example.com",
+      phone: "+63 917 000 0000",
+      category: "Friends",
+      rsvpStatus: "DECLINED",
+      plusOnes: "0",
+      dietaryNeeds: "None",
+      notes: "",
+    });
+  });
+
+  it("says it is saving and blocks a second submit", async () => {
+    let finish: (state: AttendeeFormState) => void = () => {};
+    const action = vi.fn<Action>(() => new Promise((resolve) => (finish = resolve)));
+    renderEdit(action);
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("button", { name: "Saving changes…" })).toBeDisabled();
+    finish({ status: "idle" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled());
+  });
+
+  it("explains a stale save without losing the edits", async () => {
+    const action = vi.fn<Action>().mockResolvedValue({
+      status: "error",
+      message: "This attendee changed since you opened them.",
+      values: { ...saved, name: "My edit" },
+    });
+    renderEdit(action);
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the changes");
+    expect(screen.getByLabelText(/^Name/)).toHaveValue("My edit");
+  });
+
+  it("says when there was nothing to save, keeping the stored values", async () => {
+    const action = vi
+      .fn<Action>()
+      .mockResolvedValue({ status: "success", message: "No changes to save." });
+    renderEdit(action);
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("No changes to save.")).toBeVisible();
+    expect(screen.getByLabelText(/^Name/)).toHaveValue("Ana Reyes");
+  });
+
+  it("links errors to the edit form's own fields", async () => {
+    const action = vi.fn<Action>().mockResolvedValue({
+      status: "error",
+      fieldErrors: { name: "Enter the attendee's name." },
+      values: { ...saved, name: "" },
+    });
+    renderEdit(action);
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("link", { name: "Enter the attendee's name." })).toHaveAttribute(
+      "href",
+      "#edit-attendee-name",
+    );
   });
 });

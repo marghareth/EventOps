@@ -12,6 +12,9 @@ const deleteAttendee = vi.fn();
 const listAttendees = vi.fn();
 const sampleCreateAttendee = vi.fn();
 const sampleListAttendees = vi.fn();
+const sampleGetAttendee = vi.fn();
+const sampleUpdateAttendee = vi.fn();
+const getAttendee = vi.fn();
 const revalidatePath = vi.fn();
 let sampleData = false;
 
@@ -22,6 +25,8 @@ vi.mock("@/modules/events/public", () => ({
   authorizeEvent: (...args: unknown[]) => authorizeEvent(...args),
   sampleCreateAttendee: (...args: unknown[]) => sampleCreateAttendee(...args),
   sampleListAttendees: (...args: unknown[]) => sampleListAttendees(...args),
+  sampleGetAttendee: (...args: unknown[]) => sampleGetAttendee(...args),
+  sampleUpdateAttendee: (...args: unknown[]) => sampleUpdateAttendee(...args),
 }));
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
@@ -37,14 +42,17 @@ vi.mock("./update-attendee", () => ({
 vi.mock("./delete-attendee", () => ({
   deleteAttendee: (...args: unknown[]) => deleteAttendee(...args),
 }));
-vi.mock("./queries", () => ({ listAttendees: (...args: unknown[]) => listAttendees(...args) }));
+vi.mock("./queries", () => ({
+  listAttendees: (...args: unknown[]) => listAttendees(...args),
+  getAttendee: (...args: unknown[]) => getAttendee(...args),
+}));
 vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => revalidatePath(...args),
 }));
 
 const { createAttendeeAction, updateAttendeeAction, deleteAttendeeAction } =
   await import("./actions");
-const { getEventAttendees } = await import("./read");
+const { getAttendeeForEditing, getEventAttendees } = await import("./read");
 
 const EVENT = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
 const ATTENDEE = "7a1e2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b";
@@ -73,8 +81,34 @@ async function create(fields: Record<string, string> = valid) {
     throw error;
   }
 }
-const update = (fields: Record<string, string> = { ...valid, version: VERSION }, id = ATTENDEE) =>
-  updateAttendeeAction(EVENT, id, initialAttendeeFormState, form(fields));
+/** The edit action's answer, or where it redirected to. */
+async function update(
+  fields: Record<string, string> = { ...valid, version: VERSION },
+  id = ATTENDEE,
+) {
+  try {
+    return await updateAttendeeAction(EVENT, id, initialAttendeeFormState, form(fields));
+  } catch (error) {
+    const url = (error as { url?: string }).url;
+    if (url) return { redirect: url };
+    throw error;
+  }
+}
+
+/** The attendee as stored before the edit (differs from `valid` in RSVP and plus-ones). */
+const stored = {
+  id: ATTENDEE,
+  number: 3,
+  name: "Maria Santos",
+  email: null,
+  phone: null,
+  category: null,
+  rsvpStatus: "PENDING",
+  plusOnes: 0,
+  dietaryNeeds: null,
+  notes: null,
+  updatedAt: new Date(VERSION),
+};
 const remove = (id = ATTENDEE) => deleteAttendeeAction(EVENT, id);
 
 beforeEach(() => {
@@ -84,6 +118,7 @@ beforeEach(() => {
   createAttendee.mockResolvedValue({ ok: true, attendee: { id: ATTENDEE, reference: "ATT-0001" } });
   updateAttendee.mockResolvedValue({ ok: true });
   deleteAttendee.mockResolvedValue({ ok: true });
+  getAttendee.mockResolvedValue(stored);
 });
 
 describe("every attendee action authorizes with attendees.manage first", () => {
@@ -91,7 +126,7 @@ describe("every attendee action authorizes with attendees.manage first", () => {
     ["create", () => create()],
     ["update", () => update()],
     ["delete", () => remove()],
-  ])("%s", async (_label: string, run: () => Promise<unknown>) => {
+  ])("%s", async (_label, run) => {
     await run();
     expect(authorizeEvent).toHaveBeenCalledWith(
       EVENT,
@@ -103,18 +138,15 @@ describe("every attendee action authorizes with attendees.manage first", () => {
   it.each([
     ["forbidden", ATTENDEE_MESSAGES.forbidden],
     ["not-found", ATTENDEE_MESSAGES.eventNotFound],
-  ] as const)(
-    "refuses when %s and touches nothing",
-    async (reason: "forbidden" | "not-found", message: string) => {
-      refuse(reason);
-      expect(await create()).toMatchObject({ status: "error", message });
-      expect(await update()).toMatchObject({ status: "error", message });
-      expect(await remove()).toMatchObject({ status: "error", message });
-      expect(createAttendee).not.toHaveBeenCalled();
-      expect(updateAttendee).not.toHaveBeenCalled();
-      expect(deleteAttendee).not.toHaveBeenCalled();
-    },
-  );
+  ] as const)("refuses when %s and touches nothing", async (reason, message) => {
+    refuse(reason);
+    expect(await create()).toMatchObject({ status: "error", message });
+    expect(await update()).toMatchObject({ status: "error", message });
+    expect(await remove()).toMatchObject({ status: "error", message });
+    expect(createAttendee).not.toHaveBeenCalled();
+    expect(updateAttendee).not.toHaveBeenCalled();
+    expect(deleteAttendee).not.toHaveBeenCalled();
+  });
 });
 
 describe("createAttendeeAction", () => {
@@ -174,8 +206,10 @@ describe("createAttendeeAction", () => {
 });
 
 describe("updateAttendeeAction", () => {
-  it("saves with the stored version and the session's user", async () => {
-    expect(await update()).toEqual({ status: "success", message: ATTENDEE_MESSAGES.saved });
+  it("saves with the stored version and the session's user, then opens the list (B2-03)", async () => {
+    expect(await update()).toEqual({ redirect: `/events/${EVENT}/attendees?saved=ATT-0003` });
+    expect(getAttendee).toHaveBeenCalledWith("db", EVENT, ATTENDEE);
+    expect(revalidatePath).toHaveBeenCalledWith(`/events/${EVENT}/attendees`);
     expect(updateAttendee).toHaveBeenCalledWith(
       "db",
       expect.objectContaining({
@@ -187,7 +221,7 @@ describe("updateAttendeeAction", () => {
     );
   });
 
-  it.each(["not-a-uuid", "' OR 1=1 --", ""])("refuses the attendee ID %j", async (id: string) => {
+  it.each(["not-a-uuid", "' OR 1=1 --", ""])("refuses the attendee ID %j", async (id) => {
     expect(await update(undefined, id)).toMatchObject({
       message: ATTENDEE_MESSAGES.attendeeNotFound,
     });
@@ -205,9 +239,37 @@ describe("updateAttendeeAction", () => {
   it.each([
     ["stale", ATTENDEE_MESSAGES.stale],
     ["not-found", ATTENDEE_MESSAGES.attendeeNotFound],
-  ] as const)("explains a %s result", async (reason: "stale" | "not-found", message: string) => {
+  ] as const)("explains a %s result", async (reason, message) => {
     updateAttendee.mockResolvedValue({ ok: false, reason });
     expect(await update()).toMatchObject({ status: "error", message });
+  });
+
+  it("says when nothing changed, and saves nothing", async () => {
+    getAttendee.mockResolvedValue({ ...stored, rsvpStatus: "CONFIRMED", plusOnes: 1 });
+    expect(await update()).toEqual({ status: "success", message: ATTENDEE_MESSAGES.unchanged });
+    expect(updateAttendee).not.toHaveBeenCalled();
+  });
+
+  it("finds nothing for an attendee outside the authorized event, and saves nothing", async () => {
+    getAttendee.mockResolvedValue(null);
+    expect(await update()).toMatchObject({ message: ATTENDEE_MESSAGES.attendeeNotFound });
+    expect(updateAttendee).not.toHaveBeenCalled();
+  });
+
+  it("ignores event and attendee IDs sent in the form", async () => {
+    await update({ ...valid, version: VERSION, eventId: "other", attendeeId: "x", id: "y" });
+    expect(getAttendee).toHaveBeenCalledWith("db", EVENT, ATTENDEE);
+    expect(updateAttendee).toHaveBeenCalledWith(
+      "db",
+      expect.objectContaining({ eventId: EVENT, attendeeId: ATTENDEE }),
+    );
+  });
+
+  it("shows a safe message when saving fails", async () => {
+    updateAttendee.mockRejectedValue(new Error('violates check constraint "x" host=10.0.0.5'));
+    const result = await update();
+    expect(result).toMatchObject({ status: "error", message: ATTENDEE_MESSAGES.saveFailed });
+    expect(JSON.stringify(result)).not.toMatch(/constraint|10\.0/);
   });
 });
 
@@ -254,11 +316,30 @@ describe("sample data mode (D-041)", () => {
     expect(sampleCreateAttendee).not.toHaveBeenCalled();
   });
 
-  it("explains that editing and removing aren't in the sample data yet", async () => {
+  it("edits in the sample store with the computed changes, not the database (B2-03)", async () => {
     sampleData = true;
-    expect(await update()).toMatchObject({ message: ATTENDEE_MESSAGES.sampleData });
-    expect(await remove()).toMatchObject({ message: ATTENDEE_MESSAGES.sampleData });
+    sampleGetAttendee.mockReturnValue(stored);
+    sampleUpdateAttendee.mockReturnValue({ ok: true });
+    expect(await update()).toEqual({ redirect: `/events/${EVENT}/attendees?saved=ATT-0003` });
+    expect(sampleGetAttendee).toHaveBeenCalledWith(EVENT, ATTENDEE);
+    expect(sampleUpdateAttendee).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: EVENT,
+        attendeeId: ATTENDEE,
+        editorId: "user-1",
+        changes: {
+          rsvpStatus: { from: "PENDING", to: "CONFIRMED" },
+          plusOnes: { from: 0, to: 1 },
+        },
+      }),
+    );
     expect(updateAttendee).not.toHaveBeenCalled();
+    expect(getAttendee).not.toHaveBeenCalled();
+  });
+
+  it("explains that removing isn't in the sample data yet", async () => {
+    sampleData = true;
+    expect(await remove()).toMatchObject({ message: ATTENDEE_MESSAGES.sampleData });
     expect(deleteAttendee).not.toHaveBeenCalled();
   });
 
@@ -283,5 +364,34 @@ describe("getEventAttendees", () => {
     refuse("not-found");
     expect(await getEventAttendees(EVENT)).toEqual({ ok: false, reason: "not-found" });
     expect(listAttendees).not.toHaveBeenCalled();
+  });
+});
+
+describe("getAttendeeForEditing (B2-03)", () => {
+  it("authorizes with attendees.manage and loads only from the authorized event", async () => {
+    expect(await getAttendeeForEditing(EVENT, ATTENDEE)).toEqual({ ok: true, attendee: stored });
+    expect(authorizeEvent).toHaveBeenCalledWith(
+      EVENT,
+      "attendees.manage",
+      `/events/${EVENT}/attendees`,
+    );
+    expect(getAttendee).toHaveBeenCalledWith("db", EVENT, ATTENDEE);
+  });
+
+  it("refuses a role that may not edit, loading nothing", async () => {
+    refuse("forbidden");
+    expect(await getAttendeeForEditing(EVENT, ATTENDEE)).toEqual({
+      ok: false,
+      reason: "forbidden",
+    });
+    expect(getAttendee).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a malformed ID", "nope", undefined],
+    ["another event's attendee", ATTENDEE, null],
+  ])("treats %s as not found", async (_label, id, found) => {
+    if (found === null) getAttendee.mockResolvedValue(null);
+    expect(await getAttendeeForEditing(EVENT, id)).toEqual({ ok: false, reason: "not-found" });
   });
 });

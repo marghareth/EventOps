@@ -1,6 +1,6 @@
 // src/app/(app)/events/[eventId]/attendees/page.tsx
 // The event's guest list (B2-02). Every member can read it (event.view); Owners and Coordinators
-// also get "Add attendee" (attendees.manage, D-035). Checks access itself (D-027); the add action
+// also get "Add attendee" and a link to edit each attendee (attendees.manage, D-035, B2-03). Checks access itself (D-027); the add action
 // checks again. Search, filters and row actions arrive with their own tasks.
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { UnauthorizedState } from "@/components/shared/UnauthorizedState";
 import { Button } from "@/components/ui/button";
 import {
-  AttendeeAddedNotice,
+  AttendeeNotice,
   AttendeeList,
   formatAttendeeReference,
   getEventAttendees,
@@ -44,18 +44,25 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
   const canManage = can(event.role, "attendees.manage");
   const addHref = `/events/${event.id}/attendees/new`;
 
-  // B2-02: after adding. The reference is only displayed, and only if well formed; the name comes
-  // from the attendee itself, never from the URL.
-  const { added } = await searchParams;
-  const addedReference = Array.isArray(added) ? added[0] : added;
-  const addedAttendee = isAttendeeReference(addedReference)
-    ? attendees.find((a) => formatAttendeeReference(a.number) === addedReference)
+  // After adding (B2-02) or editing (B2-03). The reference is only displayed, and only if well
+  // formed; the name comes from the stored attendee, never from the URL.
+  const query = await searchParams;
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+  const added = first(query.added);
+  const saved = first(query.saved);
+  const notice = isAttendeeReference(added)
+    ? ({ kind: "added", reference: added } as const)
+    : isAttendeeReference(saved)
+      ? ({ kind: "saved", reference: saved } as const)
+      : null;
+  const noticeName = notice
+    ? attendees.find((a) => formatAttendeeReference(a.number) === notice.reference)?.name
     : undefined;
 
   return (
     <div className="flex flex-col gap-6">
-      {isAttendeeReference(addedReference) ? (
-        <AttendeeAddedNotice reference={addedReference} name={addedAttendee?.name} />
+      {notice ? (
+        <AttendeeNotice kind={notice.kind} reference={notice.reference} name={noticeName} />
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -91,7 +98,10 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
           />
         </div>
       ) : (
-        <AttendeeList attendees={attendees} />
+        <AttendeeList
+          attendees={attendees}
+          editHref={canManage ? (id) => `/events/${event.id}/attendees/${id}/edit` : undefined}
+        />
       )}
     </div>
   );

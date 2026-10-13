@@ -50,6 +50,11 @@ Status values:
 | D-037 | Audit log: controlled actions, written with each change    | Approved | 2026-10-12 |
 | D-038 | Event context in the shell: URL first, confirmed by access | Approved | 2026-10-12 |
 | D-039 | Event lifecycle tested end to end at two levels            | Approved | 2026-10-12 |
+| D-040 | Loading and error screens for the event foundation         | Approved | 2026-10-12 |
+| D-041 | Dev-only sample data instead of "No database connected"    | Approved | 2026-10-12 |
+| D-042 | Attendee data model                                        | Approved | 2026-10-12 |
+| D-043 | Adding attendees: page, guest list and sample guests       | Approved | 2026-10-12 |
+| D-044 | Editing attendees                                          | Approved | 2026-10-12 |
 
 ---
 
@@ -566,8 +571,8 @@ user's private event in the database: it appears in neither the page nor the API
 - The My events page's loading and error files live in the `(list)` route group, so their
   loading boundary does not wrap event pages. Otherwise Next.js starts streaming before the access
   check and a refused event is sent with HTTP 200 instead of 404.
-- Demo sign-in without a database shows a "No database connected" notice in the workspace and
-  still renders the placeholder sections.
+- ~~Demo sign-in without a database shows a "No database connected" notice in the workspace and
+  still renders the placeholder sections.~~ Replaced by D-041: it now shows sample events.
 
 **Evidence.** Database tests: a non-member and an unknown ID both get nothing, each member gets
 their own role, a removed member loses access. A browser run: another user's event and its
@@ -787,6 +792,137 @@ B3-05's held D-029; B3-05 will use this log when it is applied.
 
 ---
 
+## D-041 Dev-only sample data instead of "No database connected"
+
+**Status:** Approved by the technical lead on 2026-10-12 ("use mock data for now, to visualize").
+
+**Context.** Without Supabase or a database, demo sign-in (D-024) could open the pages but showed
+"No database connected" everywhere, so the signed-in side could not be reviewed by hand.
+
+**Decision.**
+
+- When demo sign-in is on **and** `DATABASE_URL` is not set (`isSampleDataMode()`), event data
+  comes from an in-memory sample store, `src/modules/events/sample-data.ts`, instead of
+  PostgreSQL. Setting `DATABASE_URL` switches it off; nothing else changes.
+- The store holds six sample events. The demo user is Owner of three, Coordinator of one and
+  Viewer of one, and is not a member of the sixth, so every role and the 404 for non-members can
+  be checked by hand. Each event has sample activity.
+- Only the data source is swapped, at the same points the database is used: the event list, the
+  access check, the activity feed, and create, edit and delete. Pages, sign-in, the access check,
+  the permission matrix, validation and the audit registry are the real code. The store repeats
+  the database's own rules: members only, role re-checks on writes, stale saves refused, audit
+  entries validated with the registry's schemas.
+- Create, edit and delete work, in memory only. Everything resets when `npm run dev` restarts.
+- The demo banner says "Demo sign-in and sample data are on" and that nothing is saved.
+- The "No database connected" notices and the `no-database` result are removed: with demo sign-in
+  there is now always data, either sample or real.
+- It cannot reach production: it needs `NODE_ENV=development` (only `next dev`) and
+  `DEV_DEMO_AUTH=true`, and `next build` refuses that flag (D-024).
+
+**Not a substitute for the database.** Batch work keeps being built and tested against
+PostgreSQL (database tests in CI, the browser lifecycle test). New features add their sample data
+here only when the technical lead asks for it, so the store does not become a second application.
+
+**Evidence.** `sample-data.test.ts` (members only, roles, stale saves, audit validity, reset), the
+updated action, access and activity tests, and a browser walkthrough as Owner, Coordinator, Viewer
+and non-member.
+
+---
+
+## D-042 Attendee data model
+
+**Status:** Approved by the technical lead on 2026-10-12 (B2-01 plan).
+
+**Decision.**
+
+- **Scope of B2-01:** the `attendees` table and migration, validation, and create, edit and delete
+  server actions with role checks and audit entries. The attendee screens are a later task.
+- **Fields:** name (required, up to 120 characters), optional email and phone (format-checked),
+  optional category (free text, up to 60), RSVP status, plus-ones, optional dietary needs (up to 500) and notes (up to 2,000), created and updated timestamps.
+- **RSVP status:** `PENDING`, `CONFIRMED`, `DECLINED`, `MAYBE` (labels Pending, Confirmed, Declined,
+  Maybe). New attendees are `PENDING`.
+- **Plus-ones:** a count from 0 to 10 on the attendee, not named records. How plus-ones count toward
+  the live attendance count stays open (open item 4).
+- **Readable IDs:** `ATT-0001`, numbered per event from `events.lastAttendeeNumber` in the creating
+  transaction; never reused.
+- **Duplicates:** allowed. Families share emails and two guests can share a name.
+- **Belongs to one event:** required `eventId`, deleted with the event (D-004), and
+  `@@unique([eventId, id])` so later links to attendees can't cross events (D-002).
+- **Who:** Owners and Coordinators add, edit and remove attendees (`attendees.manage`, D-035); every
+  member can read them (`event.view`). Writes re-check the role in the database, and an attendee is
+  only ever changed through its own event's ID.
+- **Edits** refuse stale saves, like event edits (D-032).
+- **Audit:** `attendee.created`, `attendee.updated`, `attendee.deleted`, written in the same
+  transaction. Email, phone, dietary needs and notes are recorded only as "changed" (docs/AUDIT.md).
+- **Sample data (D-041):** has no attendees yet; the actions say so instead of failing.
+
+**Evidence.** `attendees/attendees.db.test.ts` (constraints, cascade, indexes, numbering under
+concurrency, roles, cross-event attempts, stale saves, audit), `attendees/schema.test.ts`,
+`attendees/actions.test.ts`, `audit/actions.test.ts` and the action authorization guard.
+
+---
+
+## D-043 Adding attendees: page, guest list and sample guests
+
+**Status:** Approved by the technical lead on 2026-10-12 (B2-02 plan).
+
+**Decision.**
+
+- **Add attendee** is its own page, `/events/<id>/attendees/new`, like New event. Owners and
+  Coordinators get the form; Viewers get "You don't have access", even from a typed URL; non-members
+  get the usual 404. The action authorizes again (D-036), so the page is never the check.
+- **After saving** the user returns to the guest list, which confirms "Attendee added: <name> is on
+  the guest list as ATT-0001". Only a well-formed reference is read from the URL, and the name
+  comes from the stored attendee, never from the URL.
+- **The guest list** (`/events/<id>/attendees`) is a simple read-only table for every member: ID,
+  name, RSVP (text and icon, not colour alone), plus-ones and category, by name, with an empty state.
+  Search, filters, sorting, editing and removing are their own tasks.
+- **Sample data (D-041)** now includes guests in the Owner, Coordinator and Viewer sample events (the
+  Reyes Family Reunion stays empty to show the empty state). Adding works in memory with the same
+  rules; editing and removing in sample data wait for their screens.
+- **Client components** must not import values from a context's `public.ts` that also exports server
+  code. The attendee form therefore uses the attendees context's own RSVP list; a test keeps it equal
+  to the audit registry's copy and the database enum.
+
+**Evidence.** Component, page and action tests; `attendees/create-flow.db.test.ts` (the real action
+against PostgreSQL: saved to the current event, listed, in Activity; Viewer, non-member, forged
+event ID, invalid data and signed-out all refused); a browser check with sample data at 375 and
+1280 px (axe clean, keyboard submit, no sideways scroll).
+
+---
+
+## D-044 Editing attendees
+
+**Status:** Approved by the technical lead on 2026-10-12 (B2-03 plan).
+
+**Decision.**
+
+- **Edit page** at `/events/<id>/attendees/<attendeeId>/edit`, reached from the attendee's name in
+  the guest list. Names are links only for Owners and Coordinators (`attendees.manage`); Viewers see
+  plain names and get "You don't have access" from a typed URL; non-members get the event 404.
+- **The form** is the Add form with the stored values loaded; all eight fields can be changed. It
+  sends the stored version, so a save after someone else's is refused as stale (D-032).
+- **After saving** the user returns to the guest list with "Changes saved: <name> (ATT-0001) is up
+  to date". If nothing changed, the form says "No changes to save" and records nothing.
+- **Correct event:** the attendee is loaded and saved only inside the authorized event; another
+  event's attendee, an unknown ID and a malformed ID are all "not found".
+- **Not-found status:** the event's loading screen (D-040) starts the response before the attendee
+  is looked up, so these not-found pages are sent with HTTP 200, marked `noindex`. They look the
+  same and reveal nothing for every case. A refused event still gets a real 404 (checked in the
+  event layout). Getting a 404 here would mean moving the loading screen, which is a separate
+  decision.
+- **No unsaved-changes warning**, like event Settings; a warning would be a shared pattern for all
+  forms, added in its own task.
+- **Audit:** `attendee.updated`, unchanged from D-042.
+- **Sample data (D-041):** editing works in memory with the same checks and an Activity entry.
+
+**Evidence.** Form edit-mode, page, action and read tests; `attendees/edit-flow.db.test.ts` (load,
+save all fields, list, Activity wording without personal values, Viewer, non-member, another
+event's attendee, invalid data, no-change and stale saves); a browser check with two tabs (stale)
+and at 375 and 1280 px.
+
+---
+
 ## Open items needing a decision
 
 These were found during review. Each one is a conflict between sources or a product question, so
@@ -802,6 +938,8 @@ PROJECT_RULES says to stop and ask rather than choose.
    and modules already exist in the repository.
 4. **Plus-ones in the live attendance count.** The earlier draft modelled check-in as a single
    `Attendee.checkedInAt` timestamp, so how plus-ones count is not defined. PROJECT_RULES section 6.2 requires this before implementation.
+   Since D-042, plus-ones are stored as a count (0 to 10) on each attendee; the counting rule is
+   still open.
 5. **Commit type for security work.** PROJECT_RULES section 17 suggests `security(B4-19): ...`, but
    `commitlint.config.mjs` follows the hackathon convention and rejects the `security` type.
 6. **Payment status rule.** See D-003, "Not decided yet".

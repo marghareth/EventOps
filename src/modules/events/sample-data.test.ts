@@ -13,6 +13,8 @@ const {
   resetSampleData,
   sampleCreateAttendee,
   sampleCreateEvent,
+  sampleGetAttendee,
+  sampleUpdateAttendee,
   sampleDeleteEvent,
   sampleGetEventForMember,
   sampleListAttendees,
@@ -355,5 +357,69 @@ describe("sample attendees (B2-02)", () => {
   it("removes an event's guests with the event", () => {
     sampleDeleteEvent({ eventId: IDS.wedding, userId: ME });
     expect(sampleListAttendees(IDS.wedding)).toEqual([]);
+  });
+});
+
+describe("editing sample attendees (B2-03)", () => {
+  const now = new Date("2026-10-12T05:00:00Z");
+  const first = () => sampleListAttendees(IDS.wedding)[0];
+  const edit = (overrides: Partial<Parameters<typeof sampleUpdateAttendee>[0]> = {}) => {
+    const a = first();
+    const { id, number: _n, updatedAt, ...details } = a;
+    void _n;
+    return sampleUpdateAttendee({
+      eventId: IDS.wedding,
+      attendeeId: id,
+      editorId: ME,
+      version: updatedAt,
+      details: { ...details, rsvpStatus: "DECLINED" },
+      changes: { rsvpStatus: { from: a.rsvpStatus, to: "DECLINED" } },
+      now,
+      ...overrides,
+    });
+  };
+
+  it("finds an attendee only in its own event", () => {
+    const a = first();
+    expect(sampleGetAttendee(IDS.wedding, a.id)).toMatchObject({ name: a.name });
+    expect(sampleGetAttendee(IDS.summit, a.id)).toBeNull();
+  });
+
+  it("saves for the Owner, moves the version and records attendee.updated", () => {
+    const before = first();
+    expect(edit()).toEqual({ ok: true });
+    const after = sampleGetAttendee(IDS.wedding, before.id)!;
+    expect(after.rsvpStatus).toBe("DECLINED");
+    expect(after.updatedAt.getTime()).toBeGreaterThan(before.updatedAt.getTime());
+    expect(sampleListAuditEntries(IDS.wedding)[0]).toMatchObject({
+      action: "attendee.updated",
+      details: { reference: "ATT-0001", changes: { rsvpStatus: { to: "DECLINED" } } },
+    });
+  });
+
+  it("refuses a stale save", () => {
+    const version = first().updatedAt;
+    expect(edit()).toEqual({ ok: true });
+    expect(edit({ version })).toEqual({ ok: false, reason: "stale" });
+  });
+
+  it("refuses a Viewer, a non-member and another event's attendee", () => {
+    const viewerGuest = sampleListAttendees(IDS.yearEnd)[0];
+    const { id, number: _n, updatedAt, ...details } = viewerGuest;
+    void _n;
+    const base = { editorId: ME, version: updatedAt, details, changes: {}, now };
+    expect(sampleUpdateAttendee({ ...base, eventId: IDS.yearEnd, attendeeId: id })).toEqual({
+      ok: false,
+      reason: "not-found",
+    });
+    expect(edit({ eventId: IDS.summit })).toEqual({ ok: false, reason: "not-found" });
+    expect(edit({ editorId: "5e000000-0000-4000-8000-0000000000ff" })).toEqual({
+      ok: false,
+      reason: "not-found",
+    });
+  });
+
+  it("refuses audit changes the registry doesn't allow (no personal values)", () => {
+    expect(() => edit({ changes: { notes: { from: "a", to: "b" } } })).toThrow();
   });
 });

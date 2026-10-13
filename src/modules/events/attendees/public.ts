@@ -9,7 +9,12 @@ export {
   type DeleteAttendeeFormState,
 } from "./form-state";
 export type { AttendeeRecord } from "./queries";
-export { getEventAttendees, type EventAttendees } from "./read";
+export {
+  getAttendeeForEditing,
+  getEventAttendees,
+  type AttendeeForEditing,
+  type EventAttendees,
+} from "./read";
 export {
   ATTENDEE_LIMITS,
   isAttendeeReference,
@@ -21,7 +26,7 @@ export {
   type AttendeeField,
   type RsvpStatus,
 } from "./schema";
-export { AttendeeAddedNotice } from "./ui/AttendeeAddedNotice";
+export { AttendeeNotice } from "./ui/AttendeeNotice";
 export { AttendeeForm } from "./ui/AttendeeForm";
 export { AttendeeList, type AttendeeListItem } from "./ui/AttendeeList";
 export { RsvpBadge } from "./ui/RsvpBadge";

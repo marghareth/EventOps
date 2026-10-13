@@ -16,7 +16,9 @@ export { getMyEvents } from "./queries";
 // Dev-only sample data (D-041), for the attendees context's stand-ins.
 export {
   sampleCreateAttendee,
+  sampleGetAttendee,
   sampleListAttendees,
+  sampleUpdateAttendee,
   type SampleAttendee,
   type SampleAttendeeInput,
 } from "./sample-data";

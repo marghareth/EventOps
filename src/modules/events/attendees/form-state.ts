@@ -30,7 +30,7 @@ export const ATTENDEE_MESSAGES = {
     "This attendee changed since you opened them. Reload to see the latest details, then make your change again.",
   saveFailed: "We couldn't save the attendee. Try again in a moment.",
   deleteFailed: "We couldn't remove the attendee. Nothing was removed. Try again in a moment.",
-  /** Dev-only sample data (D-041) can add attendees but not edit or remove them yet. */
+  /** Dev-only sample data (D-041) can add and edit attendees but not remove them yet. */
   sampleData:
-    "Sample data can't edit or remove attendees yet. Connect a database (DATABASE_URL) to try it.",
+    "Sample data can't remove attendees yet. Connect a database (DATABASE_URL) to try it.",
 } as const;
