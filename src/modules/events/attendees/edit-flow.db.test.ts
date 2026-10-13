@@ -175,15 +175,21 @@ describe("editing an attendee", () => {
       attendees: [
         {
           name: "Maria S. Lim",
-          email: "maria.lim@example.com",
-          phone: "+63 917 000 0000",
           category: "Friends",
           rsvpStatus: "DECLINED",
           plusOnes: 0,
           dietaryNeeds: "None",
-          notes: "Can't make it",
         },
       ],
+    });
+    // Contact details and notes are saved but not loaded for the guest list (B2-06, D-047).
+    expect(await getAttendeeForEditing(eventId, stored.id)).toMatchObject({
+      ok: true,
+      attendee: {
+        email: "maria.lim@example.com",
+        phone: "+63 917 000 0000",
+        notes: "Can't make it",
+      },
     });
 
     const activity = await getEventActivity(eventId);

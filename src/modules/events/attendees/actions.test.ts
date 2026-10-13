@@ -24,6 +24,7 @@ vi.mock("@/lib/db", () => ({ getDb: () => "db" }));
 vi.mock("@/lib/demo-auth", () => ({ isSampleDataMode: () => sampleData }));
 vi.mock("@/modules/events/public", () => ({
   authorizeEvent: (...args: unknown[]) => authorizeEvent(...args),
+  can: (role: string, permission: string) => permission === "attendees.dietary" && !!role,
   sampleCreateAttendee: (...args: unknown[]) => sampleCreateAttendee(...args),
   sampleListAttendees: (...args: unknown[]) => sampleListAttendees(...args),
   sampleGetAttendee: (...args: unknown[]) => sampleGetAttendee(...args),
@@ -44,8 +45,10 @@ vi.mock("./update-attendee", () => ({
 vi.mock("./delete-attendee", () => ({
   deleteAttendee: (...args: unknown[]) => deleteAttendee(...args),
 }));
-vi.mock("./queries", () => ({
-  listAttendees: (...args: unknown[]) => listAttendees(...args),
+vi.mock("./queries", async (original) => ({
+  toGuestListRow: (await original<typeof import("./queries")>()).toGuestListRow,
+  // The guest list reads through listGuestList since B2-06; the mock keeps the old name.
+  listGuestList: (...args: unknown[]) => listAttendees(...args),
   getAttendee: (...args: unknown[]) => getAttendee(...args),
 }));
 vi.mock("next/cache", () => ({
@@ -371,8 +374,12 @@ describe("sample data mode (D-041)", () => {
 
   it("reads the sample guest list", async () => {
     sampleData = true;
-    sampleListAttendees.mockReturnValue([{ id: "s1" }]);
-    expect(await getEventAttendees(EVENT)).toEqual({ ok: true, attendees: [{ id: "s1" }] });
+    sampleListAttendees.mockReturnValue([{ ...stored, id: "s1" }]);
+    expect(await getEventAttendees(EVENT)).toMatchObject({
+      ok: true,
+      showDietaryNeeds: true,
+      attendees: [{ id: "s1", name: stored.name }],
+    });
     expect(sampleListAttendees).toHaveBeenCalledWith(EVENT);
     expect(listAttendees).not.toHaveBeenCalled();
   });
@@ -381,9 +388,13 @@ describe("sample data mode (D-041)", () => {
 describe("getEventAttendees", () => {
   it("lets any member read: authorizes with event.view, then lists the authorized event", async () => {
     listAttendees.mockResolvedValue([{ id: ATTENDEE }]);
-    expect(await getEventAttendees(EVENT)).toEqual({ ok: true, attendees: [{ id: ATTENDEE }] });
+    expect(await getEventAttendees(EVENT)).toEqual({
+      ok: true,
+      attendees: [{ id: ATTENDEE }],
+      showDietaryNeeds: true,
+    });
     expect(authorizeEvent).toHaveBeenCalledWith(EVENT, "event.view", `/events/${EVENT}/attendees`);
-    expect(listAttendees).toHaveBeenCalledWith("db", EVENT);
+    expect(listAttendees).toHaveBeenCalledWith("db", EVENT, { dietaryNeeds: true });
   });
 
   it("reads nothing for a non-member", async () => {

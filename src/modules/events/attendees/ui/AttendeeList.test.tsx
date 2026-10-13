@@ -57,3 +57,30 @@ describe("AttendeeList links (B2-03)", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 });
+
+describe("AttendeeList dietary needs (B2-06, D-047)", () => {
+  const withDietary = [
+    { ...attendees[0], dietaryNeeds: "Vegetarian; no nuts" },
+    { ...attendees[1], dietaryNeeds: null },
+  ];
+
+  it("adds a Dietary needs column when the reader may see it", () => {
+    render(<AttendeeList attendees={withDietary} showDietaryNeeds />);
+    expect(screen.getAllByRole("columnheader").at(-1)).toHaveTextContent("Dietary needs");
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows[0]).toHaveTextContent(/Family\s*Vegetarian; no nuts$/);
+  });
+
+  it("says 'Not recorded' to screen readers for an empty entry, never 'None'", () => {
+    render(<AttendeeList attendees={withDietary} showDietaryNeeds />);
+    const cells = within(screen.getAllByRole("row")[2]).getAllByRole("cell");
+    expect(within(cells.at(-1)!).getByText("Not recorded")).toHaveClass("sr-only");
+    expect(within(cells.at(-1)!).getByText("—")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("leaves the column out, text included, when the reader may not see it", () => {
+    render(<AttendeeList attendees={withDietary} />);
+    expect(screen.queryByRole("columnheader", { name: "Dietary needs" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Vegetarian/)).not.toBeInTheDocument();
+  });
+});

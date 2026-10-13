@@ -12,51 +12,52 @@ Status values:
   The code may already follow it; if it is rejected, the code changes.
 - **Superseded**: replaced by a later entry.
 
-| ID    | Title                                                      | Status   | Date       |
-| ----- | ---------------------------------------------------------- | -------- | ---------- |
-| D-001 | Module layout and import boundaries                        | Proposed | 2026-10-09 |
-| D-002 | Cross-event integrity with composite foreign keys          | Proposed | 2026-10-09 |
-| D-003 | Supplier records are the source of truth for money         | Approved | 2026-10-09 |
-| D-004 | Deleting an event purges its audit log                     | Approved | 2026-10-09 |
-| D-005 | Event reference numbers come from a per-year counter       | Proposed | 2026-10-09 |
-| D-006 | Upper-case documentation file names                        | Approved | 2026-10-09 |
-| D-007 | Exact dependency versions in package.json                  | Proposed | 2026-10-09 |
-| D-008 | B0-08 initial schema covers users and events only          | Approved | 2026-10-09 |
-| D-009 | The Supabase user mirror is `User` (table `users`)         | Approved | 2026-10-09 |
-| D-010 | CHECK constraints on events                                | Approved | 2026-10-09 |
-| D-011 | An event's creator cannot be deleted                       | Approved | 2026-10-09 |
-| D-012 | B0-09 includes minimal sign-in and sign-up pages           | Approved | 2026-10-09 |
-| D-013 | Server checks verify the user with getUser()               | Approved | 2026-10-09 |
-| D-014 | Email confirmation is required                             | Approved | 2026-10-09 |
-| D-015 | Passwords have at least 8 characters                       | Approved | 2026-10-09 |
-| D-016 | The users row is created at sign-in, not by a trigger      | Proposed | 2026-10-09 |
-| D-017 | Public routes, landing page and sign-out scope             | Proposed | 2026-10-09 |
-| D-018 | Event context placeholder reads only the URL               | Approved | 2026-10-10 |
-| D-019 | Placeholder pages and API routes until each feature task   | Approved | 2026-10-10 |
-| D-020 | Inline SVG icons instead of the lucide-react package       | Approved | 2026-10-10 |
-| D-021 | Navigation: desktop sidebar, mobile drawer                 | Approved | 2026-10-10 |
-| D-022 | Every event has an OWNER, enforced by a database trigger   | Approved | 2026-10-11 |
-| D-023 | Length limits on event text                                | Approved | 2026-10-11 |
-| D-024 | Dev-only demo sign-in                                      | Approved | 2026-10-11 |
-| D-025 | Creating an event: who, time zone, and what is required    | Approved | 2026-10-11 |
-| D-026 | The event list: membership only, grouped, plus an API      | Approved | 2026-10-11 |
-| D-027 | Event workspace access: members only, others see 404       | Approved | 2026-10-11 |
-| D-031 | Permission matrix, first row: editing an event             | Approved | 2026-10-11 |
-| D-032 | Editing an event: fields, stale saves, audit later         | Approved | 2026-10-11 |
-| D-033 | Deleting an event: Owner only, typed confirmation          | Approved | 2026-10-11 |
-| D-034 | Event membership: model and enforcement, management later  | Approved | 2026-10-12 |
-| D-035 | The full event permission matrix                           | Approved | 2026-10-12 |
-| D-036 | One authorization pattern for every event operation        | Approved | 2026-10-12 |
-| D-037 | Audit log: controlled actions, written with each change    | Approved | 2026-10-12 |
-| D-038 | Event context in the shell: URL first, confirmed by access | Approved | 2026-10-12 |
-| D-039 | Event lifecycle tested end to end at two levels            | Approved | 2026-10-12 |
-| D-040 | Loading and error screens for the event foundation         | Approved | 2026-10-12 |
-| D-041 | Dev-only sample data instead of "No database connected"    | Approved | 2026-10-12 |
-| D-042 | Attendee data model                                        | Approved | 2026-10-12 |
-| D-043 | Adding attendees: page, guest list and sample guests       | Approved | 2026-10-12 |
-| D-044 | Editing attendees                                          | Approved | 2026-10-12 |
-| D-045 | Removing attendees                                         | Approved | 2026-10-12 |
-| D-046 | Plus-ones: a count, and the expected headcount rule        | Approved | 2026-10-13 |
+| ID    | Title                                                       | Status   | Date       |
+| ----- | ----------------------------------------------------------- | -------- | ---------- |
+| D-001 | Module layout and import boundaries                         | Proposed | 2026-10-09 |
+| D-002 | Cross-event integrity with composite foreign keys           | Proposed | 2026-10-09 |
+| D-003 | Supplier records are the source of truth for money          | Approved | 2026-10-09 |
+| D-004 | Deleting an event purges its audit log                      | Approved | 2026-10-09 |
+| D-005 | Event reference numbers come from a per-year counter        | Proposed | 2026-10-09 |
+| D-006 | Upper-case documentation file names                         | Approved | 2026-10-09 |
+| D-007 | Exact dependency versions in package.json                   | Proposed | 2026-10-09 |
+| D-008 | B0-08 initial schema covers users and events only           | Approved | 2026-10-09 |
+| D-009 | The Supabase user mirror is `User` (table `users`)          | Approved | 2026-10-09 |
+| D-010 | CHECK constraints on events                                 | Approved | 2026-10-09 |
+| D-011 | An event's creator cannot be deleted                        | Approved | 2026-10-09 |
+| D-012 | B0-09 includes minimal sign-in and sign-up pages            | Approved | 2026-10-09 |
+| D-013 | Server checks verify the user with getUser()                | Approved | 2026-10-09 |
+| D-014 | Email confirmation is required                              | Approved | 2026-10-09 |
+| D-015 | Passwords have at least 8 characters                        | Approved | 2026-10-09 |
+| D-016 | The users row is created at sign-in, not by a trigger       | Proposed | 2026-10-09 |
+| D-017 | Public routes, landing page and sign-out scope              | Proposed | 2026-10-09 |
+| D-018 | Event context placeholder reads only the URL                | Approved | 2026-10-10 |
+| D-019 | Placeholder pages and API routes until each feature task    | Approved | 2026-10-10 |
+| D-020 | Inline SVG icons instead of the lucide-react package        | Approved | 2026-10-10 |
+| D-021 | Navigation: desktop sidebar, mobile drawer                  | Approved | 2026-10-10 |
+| D-022 | Every event has an OWNER, enforced by a database trigger    | Approved | 2026-10-11 |
+| D-023 | Length limits on event text                                 | Approved | 2026-10-11 |
+| D-024 | Dev-only demo sign-in                                       | Approved | 2026-10-11 |
+| D-025 | Creating an event: who, time zone, and what is required     | Approved | 2026-10-11 |
+| D-026 | The event list: membership only, grouped, plus an API       | Approved | 2026-10-11 |
+| D-027 | Event workspace access: members only, others see 404        | Approved | 2026-10-11 |
+| D-031 | Permission matrix, first row: editing an event              | Approved | 2026-10-11 |
+| D-032 | Editing an event: fields, stale saves, audit later          | Approved | 2026-10-11 |
+| D-033 | Deleting an event: Owner only, typed confirmation           | Approved | 2026-10-11 |
+| D-034 | Event membership: model and enforcement, management later   | Approved | 2026-10-12 |
+| D-035 | The full event permission matrix                            | Approved | 2026-10-12 |
+| D-036 | One authorization pattern for every event operation         | Approved | 2026-10-12 |
+| D-037 | Audit log: controlled actions, written with each change     | Approved | 2026-10-12 |
+| D-038 | Event context in the shell: URL first, confirmed by access  | Approved | 2026-10-12 |
+| D-039 | Event lifecycle tested end to end at two levels             | Approved | 2026-10-12 |
+| D-040 | Loading and error screens for the event foundation          | Approved | 2026-10-12 |
+| D-041 | Dev-only sample data instead of "No database connected"     | Approved | 2026-10-12 |
+| D-042 | Attendee data model                                         | Approved | 2026-10-12 |
+| D-043 | Adding attendees: page, guest list and sample guests        | Approved | 2026-10-12 |
+| D-044 | Editing attendees                                           | Approved | 2026-10-12 |
+| D-045 | Removing attendees                                          | Approved | 2026-10-12 |
+| D-046 | Plus-ones: a count, and the expected headcount rule         | Approved | 2026-10-13 |
+| D-047 | Dietary needs: one free-text entry, visible to every member | Approved | 2026-10-13 |
 
 ---
 
@@ -976,6 +977,39 @@ before implementation.
 **Alternatives not chosen.** A yes/no flag can't record a family of four. Separate guest records
 need a new table and linking rules for little gain now. Counting Pending and Maybe, or counting
 Maybe as half, would overstate or invent attendance.
+
+---
+
+## D-047 Dietary needs: one free-text entry, visible to every member
+
+**Status:** Approved by the technical lead on 2026-10-13 (B2-06 plan, options 1a, 2a and 3).
+
+**Decision.**
+
+- **Representation (confirms D-042):** dietary needs stay one optional free-text field on the
+  attendee (`dietaryNeeds`, up to 500 characters). Several needs go in the same entry, separated by
+  semicolons, for example "Vegetarian; no nuts; halal". No fixed list, no separate table.
+- **Removing:** clearing the field and saving removes them (stored as NULL). There is no separate
+  remove action. Activity records only "Dietary needs changed", never the old or new text (D-042,
+  AUDIT.md).
+- **Who sees them:** a new permission row, `attendees.dietary`, allows Owner, Coordinator and
+  Viewer. Every member sees a Dietary needs column on the guest list; only `attendees.manage` can
+  change them. The server loads the field only for roles with `attendees.dietary`, so narrowing it
+  later (for example to Owners and Coordinators) is a change to that one row.
+- **Guest list loads less:** the guest-list read now selects only the columns the list shows (ID,
+  name, RSVP, plus-ones, category and, when allowed, dietary needs). Email, phone and notes are
+  loaded only by the edit form, which needs `attendees.manage`.
+- **Empty is not "none":** an empty entry shows a dash, read to screen readers as "Not recorded",
+  so it is not mistaken for "no restrictions".
+
+**Alternatives not chosen.** A fixed list with "Other" (1b) would allow catering counts but needs a
+new table and migration, and no acceptance criterion asks for counts. Limiting visibility to Owners
+and Coordinators (2b) keeps possibly sensitive information (health or religion) to fewer people, but
+a caterer or client added as a Viewer could not see what they need to plan meals.
+
+**Not decided here.** Catering counts or a breakdown by need; whether accessibility requirements
+(the brand book lists dietary requirements among them) read this field; dietary needs in CSV export
+and import. Those tasks must follow the `attendees.dietary` row.
 
 ---
 

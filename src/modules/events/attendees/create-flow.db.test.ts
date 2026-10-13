@@ -142,13 +142,16 @@ describe("adding an attendee", () => {
         {
           number: 1,
           name: "Maria Santos",
-          email: "maria@example.com",
           rsvpStatus: "CONFIRMED",
           plusOnes: 2,
           dietaryNeeds: "Vegetarian",
-          notes: "Seat near the stage",
         },
       ],
+    });
+    // Contact details and notes are saved but not loaded for the guest list (B2-06, D-047).
+    expect(await db.attendee.findFirstOrThrow({ where: { eventId } })).toMatchObject({
+      email: "maria@example.com",
+      notes: "Seat near the stage",
     });
 
     const activity = await getEventActivity(eventId);

@@ -37,6 +37,48 @@ export async function listAttendees(db: PrismaClient, eventId: string): Promise<
   });
 }
 
+/**
+ * One guest-list row (B2-06, D-047): only what the list shows. Contact details and notes are never
+ * loaded for it. dietaryNeeds is present only when the reader may see it.
+ */
+export type GuestListRow = Pick<
+  AttendeeRecord,
+  "id" | "number" | "name" | "rsvpStatus" | "plusOnes" | "category"
+> & { dietaryNeeds?: string | null };
+
+const GUEST_LIST_SELECT = {
+  id: true,
+  number: true,
+  name: true,
+  rsvpStatus: true,
+  plusOnes: true,
+  category: true,
+} as const;
+
+/** The guest list, in the same order as listAttendees. */
+export async function listGuestList(
+  db: PrismaClient,
+  eventId: string,
+  options: { dietaryNeeds: boolean },
+): Promise<GuestListRow[]> {
+  const order = [{ name: "asc" as const }, { number: "asc" as const }];
+  return options.dietaryNeeds
+    ? db.attendee.findMany({
+        where: { eventId },
+        select: { ...GUEST_LIST_SELECT, dietaryNeeds: true },
+        orderBy: order,
+      })
+    : db.attendee.findMany({ where: { eventId }, select: GUEST_LIST_SELECT, orderBy: order });
+}
+
+/** A full record cut down to a guest-list row, for sample data (D-041). */
+export function toGuestListRow(record: AttendeeRecord, dietaryNeeds: boolean): GuestListRow {
+  const { id, number, name, rsvpStatus, plusOnes, category } = record;
+  const row: GuestListRow = { id, number, name, rsvpStatus, plusOnes, category };
+  if (dietaryNeeds) row.dietaryNeeds = record.dietaryNeeds;
+  return row;
+}
+
 /** One attendee, only if it belongs to this event. Null otherwise, also for another event's ID. */
 export async function getAttendee(
   db: PrismaClient,
