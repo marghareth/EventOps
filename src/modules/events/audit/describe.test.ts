@@ -47,6 +47,34 @@ describe("describeAuditEntry", () => {
     );
   });
 
+  it("describes an export by count only (B2-19, D-053)", () => {
+    expect(describeAuditEntry({ action: "attendees.exported", details: { count: 12 } })).toEqual({
+      summary: "Exported the guest list as CSV (12 attendees)",
+      lines: [],
+    });
+    expect(
+      describeAuditEntry({ action: "attendees.exported", details: { count: 1 } }).summary,
+    ).toBe("Exported the guest list as CSV (1 attendee)");
+  });
+
+  it("describes an import by counts and ID range, without names (B2-18, D-052)", () => {
+    expect(
+      describeAuditEntry({
+        action: "attendees.imported",
+        details: { count: 184, first: "ATT-0009", last: "ATT-0192", skipped: 6 },
+      }),
+    ).toEqual({
+      summary: "Imported 184 attendees from a CSV file (ATT-0009 to ATT-0192)",
+      lines: ["6 rows not imported"],
+    });
+    expect(
+      describeAuditEntry({
+        action: "attendees.imported",
+        details: { count: 1, first: "ATT-0003", last: "ATT-0003", skipped: 0 },
+      }),
+    ).toEqual({ summary: "Imported 1 attendee from a CSV file (ATT-0003)", lines: [] });
+  });
+
   it("lists attendee changes, personal ones without values", () => {
     expect(
       describeAuditEntry({

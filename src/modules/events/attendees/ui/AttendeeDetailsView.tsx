@@ -2,6 +2,7 @@
 // One attendee's details (B2-07, D-048), read-only. Shows only the fields the server loaded for the
 // reader's role: dietary needs with attendees.dietary; email, phone and notes with
 // attendees.private. Text is rendered as text (React escapes it) and notes keep their line breaks.
+import { DetailSection } from "@/components/shared/DetailSection";
 import type { AttendeeDetails } from "../queries";
 
 type Props = {
@@ -35,55 +36,61 @@ function Field({ label, value }: { label: string; value: string | number | null 
   );
 }
 
-export function AttendeeDetailsView({ attendee, fields }: Props) {
+/** Details: plus-ones, category, and the fields the role received (B2-07, B2-13). */
+export function AttendeeDetailsSection({ attendee, fields }: Props) {
+  return (
+    <DetailSection id="attendee-details" title="Details">
+      <dl className="mt-4 grid gap-5 sm:grid-cols-2">
+        <Field label="Plus-ones" value={attendee.plusOnes} />
+        <Field label="Category" value={attendee.category} />
+        {fields.dietaryNeeds ? (
+          <div className="sm:col-span-2">
+            <dt className={dt}>Dietary needs</dt>
+            <dd className={`${dd} whitespace-pre-line`}>
+              {attendee.dietaryNeeds ?? <Empty label="Not recorded" />}
+            </dd>
+          </div>
+        ) : null}
+        {fields.private ? (
+          <>
+            <Field label="Email" value={attendee.email} />
+            <Field label="Phone" value={attendee.phone} />
+          </>
+        ) : null}
+      </dl>
+    </DetailSection>
+  );
+}
+
+/**
+ * Notes for roles with attendees.private; for others, one line saying who can see contact details
+ * and notes (B2-07, D-048).
+ */
+export function AttendeeNotesSection({ attendee, fields }: Props) {
+  if (!fields.private) {
+    return (
+      <p className="text-sm text-ink-2">
+        Contact details and notes are visible to Owners and Coordinators.
+      </p>
+    );
+  }
+  return (
+    <DetailSection id="attendee-notes" title="Notes">
+      {attendee.notes ? (
+        <p className="mt-3 break-words whitespace-pre-wrap text-ink">{attendee.notes}</p>
+      ) : (
+        <p className="mt-3 text-ink-2">No notes.</p>
+      )}
+    </DetailSection>
+  );
+}
+
+/** Both attendee sections, in order. The details page composes them itself (B2-13). */
+export function AttendeeDetailsView(props: Props) {
   return (
     <div className="flex flex-col gap-6">
-      <section
-        aria-labelledby="attendee-details-heading"
-        className="rounded-xl bg-white p-6 shadow-xs sm:p-8"
-      >
-        <h2 id="attendee-details-heading" className="text-h4 font-bold">
-          Details
-        </h2>
-        <dl className="mt-4 grid gap-5 sm:grid-cols-2">
-          <Field label="Plus-ones" value={attendee.plusOnes} />
-          <Field label="Category" value={attendee.category} />
-          {fields.dietaryNeeds ? (
-            <div className="sm:col-span-2">
-              <dt className={dt}>Dietary needs</dt>
-              <dd className={`${dd} whitespace-pre-line`}>
-                {attendee.dietaryNeeds ?? <Empty label="Not recorded" />}
-              </dd>
-            </div>
-          ) : null}
-          {fields.private ? (
-            <>
-              <Field label="Email" value={attendee.email} />
-              <Field label="Phone" value={attendee.phone} />
-            </>
-          ) : null}
-        </dl>
-      </section>
-
-      {fields.private ? (
-        <section
-          aria-labelledby="attendee-notes-heading"
-          className="rounded-xl bg-white p-6 shadow-xs sm:p-8"
-        >
-          <h2 id="attendee-notes-heading" className="text-h4 font-bold">
-            Notes
-          </h2>
-          {attendee.notes ? (
-            <p className="mt-3 break-words whitespace-pre-wrap text-ink">{attendee.notes}</p>
-          ) : (
-            <p className="mt-3 text-ink-2">No notes.</p>
-          )}
-        </section>
-      ) : (
-        <p className="text-sm text-ink-2">
-          Contact details and notes are visible to Owners and Coordinators.
-        </p>
-      )}
+      <AttendeeDetailsSection {...props} />
+      <AttendeeNotesSection {...props} />
     </div>
   );
 }

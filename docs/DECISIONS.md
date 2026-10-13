@@ -60,6 +60,10 @@ Status values:
 | D-047 | Dietary needs: one free-text entry, visible to every member | Approved | 2026-10-13 |
 | D-048 | Attendee notes and the attendee details page                | Approved | 2026-10-13 |
 | D-049 | RSVP states, changes and the guest-list RSVP filter         | Approved | 2026-10-13 |
+| D-050 | Guest list search, filters and sorting                      | Approved | 2026-10-13 |
+| D-051 | Attendee details page as independent sections               | Approved | 2026-10-13 |
+| D-052 | CSV import: steps, validation, duplicates and policy        | Approved | 2026-10-13 |
+| D-053 | CSV export of the guest list                                | Approved | 2026-10-13 |
 
 ---
 
@@ -1112,6 +1116,107 @@ table that scrolls sideways on phones.
 
 **Not in this change:** pagination, saved filters, filtering by notes or contact details, search as
 you type, and exporting a filtered list.
+
+---
+
+## D-051 Attendee details page as independent sections
+
+**Status:** Approved by the technical lead on 2026-10-13 (B2-13 plan).
+
+**Decision.**
+
+- The attendee details page (`/events/<id>/attendees/<attendeeId>`, D-048) is a list of
+  independent sections, in order: Details, Notes, and from Batch 3 Accessibility.
+- Each section gets its data from its own module's public read and decides what the role may see
+  there. The attendees module provides `AttendeeDetailsSection` and `AttendeeNotesSection`; Batch 3
+  adds an accessibility section and read in `modules/accessibility`, authorized the same way
+  (`authorizeEvent`, then the attendee found only inside the event). No accessibility data, rules or
+  queries go into the attendees module, and the attendees read is not widened for it.
+- Sections share one frame, `components/shared/DetailSection` (a region named by its level-2
+  heading), so another module can add a section without importing attendee UI.
+- Nothing for accessibility is shown until Batch 3.
+
+---
+
+## D-052 CSV import: steps, validation, duplicates and policy
+
+**Status:** Approved by the technical lead on 2026-10-13 (B2-14 to B2-18 plan, options 1a to 4a).
+Built as one change.
+
+**Decision.**
+
+- **Steps:** upload → map columns → preview → confirm → result, on the event's Import page, for
+  `import.run` (Owner, Coordinator). Nothing is stored before confirming: no attendees, no Activity
+  entry and no uploaded file. The file text travels with the form; the server re-parses and
+  re-checks it at every step and trusts nothing else the browser sends.
+- **Parser:** our own RFC 4180 parser (`attendees/csv.ts`), no new dependency. Limits: 500 KB (so
+  every step stays under the default 1 MB request size), 2,000 rows, 50 columns, 5,000 characters
+  per value. UTF-8 only.
+- **Mapping:** each column goes to one attendee field (Name, Email, Phone, RSVP, Plus-ones,
+  Category, Dietary needs, Notes) or "Don't import". Name is required; each field at most once;
+  unknown fields are refused. Common header names are suggested from a fixed list (not AI);
+  EventOps' own export headers map back automatically. Unmapped columns are listed and ignored.
+- **Validation:** every row goes through the add form's schema, so imported data follows the same
+  rules (D-042). RSVP accepts the four states and a fixed list of words, ignoring case: yes,
+  attending, going → Confirmed; no, not attending, regrets → Declined; tentative, unsure → Maybe;
+  empty → Pending. Anything else, including a value with no letters such as "1", marks the row as
+  needing correction. Plus-ones: empty → 0, otherwise 0 to 10.
+- **Duplicates:** a row is a possible duplicate when an existing attendee or an earlier row in the
+  file has the same name (ignoring case and accents) and the same email when both have one.
+  Possible duplicates are skipped unless the user ticks "Import possible duplicates anyway".
+- **Policy:** valid rows are imported; rows needing correction are not (they can be downloaded,
+  fixed and imported later). There is no editing of cells in the app. The import is one
+  transaction: all chosen rows or none. At confirm the server recomputes the preview; if the number
+  to import differs from what the user saw (for example the guest list changed), nothing is
+  imported and the new preview is shown.
+- **Numbers and Activity:** new attendees continue the event's ATT numbers, in file order. One
+  Activity entry per import (`attendees.imported`: count, first and last ID, rows not imported),
+  never names.
+- **Sample data:** the same steps work with sample data (D-041).
+
+**Alternatives not chosen.** `papaparse` (1b) is a new dependency for what a tested parser of
+about 100 lines does. Exact state names only (2b) would reject most real spreadsheets. Warning
+about duplicates but importing them (3b) doubles a guest list imported twice. Blocking until every
+row is valid (4b) holds back hundreds of good rows for one typo.
+
+**Not in this change:** AI import, Excel (.xlsx) files, editing cells in the app, updating
+existing attendees from a file, and import history beyond Activity.
+
+---
+
+## D-053 CSV export of the guest list
+
+**Status:** Approved by the technical lead on 2026-10-13 (B2-19 plan, option 5a).
+
+**Decision.**
+
+- **Address:** `GET /api/events/<eventId>/attendees/export`, replacing the B0-10 placeholder at
+  `/api/attendees/export` (which named no event). Authorized with `authorizeEventRequest(eventId,
+"attendees.export")`: Owner and Coordinator. 401 signed out, 404 for unknown events, malformed
+  IDs and non-members (never revealing which), 403 for Viewers. The query filters by the
+  authorized event only.
+- **Contents:** ID, Name, RSVP (in words), Plus-ones, Category, Dietary needs, Email, Phone, Notes,
+  in ID order: every attendee field. Exporting roles already see all of them (`attendees.private`,
+  `attendees.dietary`). The headers are the ones the import understands, so a file can be imported
+  again.
+- **Format:** UTF-8 with a byte-order mark (Excel shows accents correctly), CRLF line ends, RFC 4180
+  quoting. Cells starting with `=`, `+`, `-`, `@`, tab or carriage return get a leading apostrophe
+  so spreadsheets never run them (this also prefixes phone numbers like `+63…`). An empty guest list
+  gives the header row only.
+- **Download:** `Content-Disposition: attachment` with a file name like
+  `EVT-2026-0001-attendees-2026-10-13.csv` (Manila date), `Cache-Control: no-store`,
+  `X-Content-Type-Options: nosniff`. The guest list shows "Export CSV" to roles that may export.
+  It exports the whole guest list, not the current search or filter.
+- **Activity:** each successful export is recorded in the same transaction as the read:
+  `attendees.exported` with the count only, shown as "Exported the guest list as CSV (12
+  attendees)". Refused attempts record nothing.
+
+**Alternatives not chosen.** Leaving notes out (5b) would make the file incomplete for the roles
+that already see notes, and break the import round trip.
+
+**Note.** The export is a GET with a side effect (the Activity entry). A cross-site page could
+start a download in a signed-in browser (SameSite=Lax cookies allow top-level GETs), but it can't
+read the file; the only effect is an extra Activity entry.
 
 ---
 

@@ -20,6 +20,8 @@ describe("audit action registry", () => {
       "attendee.created",
       "attendee.updated",
       "attendee.deleted",
+      "attendees.exported",
+      "attendees.imported",
     ]);
     for (const action of Object.keys(AUDIT_ACTIONS)) expect(action).toMatch(/^[a-z_]+\.[a-z_]+$/);
   });
@@ -46,7 +48,7 @@ describe("audit action registry", () => {
   it.each([
     ["an unlisted field", { reference: "EVT-2026-0001", name: "Gala", email: "a@b.c" }],
     ["a missing field", { reference: "EVT-2026-0001" }],
-  ])("refuses event.created details with %s", (_label: string, details: unknown) => {
+  ])("refuses event.created details with %s", (_label, details) => {
     expect(AUDIT_ACTIONS["event.created"].details.safeParse(details).success).toBe(false);
   });
 
@@ -55,7 +57,7 @@ describe("audit action registry", () => {
     ["the description text", { changes: { description: { from: "a", to: "b" } } }],
     ["no changes at all", { changes: {} }],
     ["a malformed date", { changes: { startsAt: { from: "yesterday", to: "today" } } }],
-  ])("refuses event.updated details with %s", (_label: string, details: unknown) => {
+  ])("refuses event.updated details with %s", (_label, details) => {
     expect(AUDIT_ACTIONS["event.updated"].details.safeParse(details).success).toBe(false);
   });
 
@@ -94,7 +96,7 @@ describe("audit action registry", () => {
     ["an email", { reference: "ATT-0001", name: "Maria", email: "a@b.c" }],
     ["a malformed reference", { reference: "EVT-2026-0001", name: "Maria" }],
     ["a missing name", { reference: "ATT-0001" }],
-  ])("refuses attendee.created details with %s", (_label: string, details: unknown) => {
+  ])("refuses attendee.created details with %s", (_label, details) => {
     expect(AUDIT_ACTIONS["attendee.created"].details.safeParse(details).success).toBe(false);
   });
 
@@ -106,7 +108,7 @@ describe("audit action registry", () => {
     ["an RSVP outside the list", { rsvpStatus: { from: "PENDING", to: "ATTENDING" } }],
     ["an unlisted field", { number: { from: 1, to: 2 } }],
     ["no changes at all", {}],
-  ])("refuses attendee changes with %s", (_label: string, changes: unknown) => {
+  ])("refuses attendee changes with %s", (_label, changes) => {
     expect(attendeeChangesSchema.safeParse(changes).success).toBe(false);
   });
 });

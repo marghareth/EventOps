@@ -97,7 +97,7 @@ describe("Attendees page", () => {
     await renderList();
     expect(screen.getByRole("columnheader", { name: "Dietary needs" })).toBeInTheDocument();
     expect(screen.getByText("Vegetarian; no nuts")).toBeInTheDocument();
-    expect(screen.getByText("Not recorded")).toHaveClass("sr-only");
+    expect(screen.getByText("Not recorded", { selector: "span" })).toHaveClass("sr-only");
   });
 
   it("has no dietary column when the server says the reader may not see it", async () => {
@@ -345,6 +345,27 @@ describe("Attendee details page (B2-07, D-048)", () => {
     }
   });
 
+  it.each([
+    ["OWNER", ["Details", "Notes"]],
+    ["VIEWER", ["Details"]],
+  ] as const)("composes its sections in order for a %s (B2-13)", async (role, sections) => {
+    access(role);
+    const privateFields = role !== "VIEWER";
+    getAttendeeDetails.mockResolvedValue({
+      ok: true,
+      attendee: privateFields ? { ...shown, email: null, phone: null, notes: null } : shown,
+      fields: { dietaryNeeds: true, private: privateFields },
+    });
+    await renderDetails();
+    const names = screen
+      .getAllByRole("region")
+      .map((region) => region.getAttribute("aria-labelledby"))
+      .map((id) => document.getElementById(id!)?.textContent);
+    expect(names).toEqual(sections);
+    // No accessibility section until Batch 3 adds one from its own module.
+    expect(screen.queryByRole("region", { name: /accessibility/i })).not.toBeInTheDocument();
+  });
+
   it("is not found for an unknown attendee or another event's attendee", async () => {
     access("OWNER");
     getAttendeeDetails.mockResolvedValue({ ok: false, reason: "not-found" });
@@ -470,5 +491,162 @@ describe("guest list acceptance (B2-09)", () => {
     await renderList();
     expect(getEventAttendees).toHaveBeenCalledTimes(1);
     expect(getEventAttendees).toHaveBeenCalledWith(ID);
+  });
+});
+
+describe("search, filters and sorting (B2-10, B2-11, B2-12; D-050)", () => {
+  const list = [
+    {
+      id: "a1",
+      number: 1,
+      name: "Ana Reyes",
+      rsvpStatus: "CONFIRMED",
+      plusOnes: 1,
+      category: "Family",
+      dietaryNeeds: "Vegetarian",
+      email: "ana@example.com",
+      phone: "0917 111 2222",
+    },
+    {
+      id: "a2",
+      number: 2,
+      name: "Ben Lim",
+      rsvpStatus: "PENDING",
+      plusOnes: 0,
+      category: "Friends",
+      dietaryNeeds: null,
+      email: null,
+      phone: null,
+    },
+    {
+      id: "a3",
+      number: 3,
+      name: "José Peña",
+      rsvpStatus: "MAYBE",
+      plusOnes: 3,
+      category: "Family",
+      dietaryNeeds: null,
+      email: "jose@example.com",
+      phone: null,
+    },
+  ];
+  /** A row without the given fields, as a role that doesn't receive them gets it. */
+  const without = (row: Record<string, unknown>, keys: string[]) =>
+    Object.fromEntries(Object.entries(row).filter(([key]) => !keys.includes(key)));
+  const viewerList = list.map((row) => without(row, ["email", "phone"]));
+  const names = () => screen.queryAllByRole("rowheader").map((th) => th.textContent);
+
+  beforeEach(() => {
+    getEventAttendees.mockResolvedValue({ ok: true, attendees: list, showDietaryNeeds: true });
+  });
+
+  it("searches by name ignoring accents, and counts the matches", async () => {
+    access("COORDINATOR");
+    await renderList({ q: "pena" });
+    expect(names()).toEqual(["José Peña"]);
+    expect(screen.getByText("1 of 3 attendees match")).toBeInTheDocument();
+    expect(screen.getByRole("searchbox")).toHaveValue("pena");
+    // The headcount summary still covers everyone: Ana 1 + 1.
+    expect(screen.getByRole("region", { name: "Headcount from the guest list" })).toHaveTextContent(
+      "Expected headcount2",
+    );
+  });
+
+  it("lets an Owner or Coordinator search by email; a Viewer's rows carry no email", async () => {
+    access("OWNER");
+    await renderList({ q: "jose@" });
+    expect(names()).toEqual(["José Peña"]);
+    document.body.innerHTML = "";
+
+    access("VIEWER");
+    getEventAttendees.mockResolvedValue({
+      ok: true,
+      attendees: viewerList,
+      showDietaryNeeds: true,
+    });
+    await renderList({ q: "jose@" });
+    expect(names()).toEqual([]);
+    expect(screen.getByRole("heading", { name: "No attendees match" })).toBeInTheDocument();
+  });
+
+  it("combines filters with AND and keeps them in the RSVP links", async () => {
+    access("OWNER");
+    await renderList({ category: "family", plusones: "yes", sort: "id", dir: "desc" });
+    expect(names()).toEqual(["José Peña", "Ana Reyes"]);
+    expect(screen.getByRole("link", { name: "Maybe (1)" })).toHaveAttribute(
+      "href",
+      `/events/${ID}/attendees?rsvp=maybe&category=Family&plusones=yes&sort=id&dir=desc`,
+    );
+    expect(screen.getByRole("link", { name: "All (3)" })).toHaveAttribute(
+      "href",
+      `/events/${ID}/attendees?category=Family&plusones=yes&sort=id&dir=desc`,
+    );
+  });
+
+  it("filters by dietary needs", async () => {
+    access("VIEWER");
+    getEventAttendees.mockResolvedValue({
+      ok: true,
+      attendees: viewerList,
+      showDietaryNeeds: true,
+    });
+    await renderList({ dietary: "no" });
+    expect(names()).toEqual(["Ben Lim", "José Peña"]);
+  });
+
+  it("ignores the dietary filter when the reader can't see dietary needs", async () => {
+    access("VIEWER");
+    getEventAttendees.mockResolvedValue({
+      ok: true,
+      attendees: viewerList.map((row) => without(row, ["dietaryNeeds"])),
+      showDietaryNeeds: false,
+    });
+    await renderList({ dietary: "yes" });
+    expect(names()).toHaveLength(3);
+    expect(screen.queryByRole("combobox", { name: "Dietary needs" })).not.toBeInTheDocument();
+  });
+
+  it("sorts, marks the sorted column, and offers Clear all", async () => {
+    access("OWNER");
+    await renderList({ sort: "rsvp", dir: "desc" });
+    expect(names()).toEqual(["José Peña", "Ben Lim", "Ana Reyes"]);
+    expect(screen.getByRole("columnheader", { name: "RSVP" })).toHaveAttribute(
+      "aria-sort",
+      "descending",
+    );
+    expect(screen.getByText("3 attendees")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Clear all" })).toHaveAttribute(
+      "href",
+      `/events/${ID}/attendees`,
+    );
+  });
+
+  it("says what was searched when nothing matches, and offers to clear it", async () => {
+    access("OWNER");
+    await renderList({ q: "zzz", rsvp: "confirmed" });
+    expect(screen.getByRole("heading", { name: "No attendees match" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Search: “zzz” · RSVP: Confirmed. Change the search or filters, or clear them.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Clear search and filters" })).toHaveAttribute(
+      "href",
+      `/events/${ID}/attendees`,
+    );
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("ignores junk in the address and shows everyone by name", async () => {
+    access("OWNER");
+    await renderList({
+      q: "   ",
+      sort: "drop table",
+      dir: "sideways",
+      category: "<script>",
+      plusones: "lots",
+    });
+    expect(names()).toEqual(["Ana Reyes", "Ben Lim", "José Peña"]);
+    expect(screen.getByText("3 attendees")).toBeInTheDocument();
   });
 });

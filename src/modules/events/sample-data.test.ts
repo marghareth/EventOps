@@ -13,8 +13,10 @@ const {
   resetSampleData,
   sampleCreateAttendee,
   sampleDeleteAttendee,
+  sampleExportAttendees,
   sampleCreateEvent,
   sampleGetAttendee,
+  sampleImportAttendees,
   sampleUpdateAttendee,
   sampleDeleteEvent,
   sampleGetEventForMember,
@@ -479,5 +481,92 @@ describe("removing sample attendees (B2-04)", () => {
     expect(
       sampleCreateAttendee({ eventId: IDS.wedding, creatorId: ME, attendee: guest, now }),
     ).toMatchObject({ ok: true, attendee: { reference: "ATT-0009" } });
+  });
+});
+
+describe("sample import (B2-18, D-052)", () => {
+  const at = new Date("2026-10-13T00:00:00Z");
+  const person = (name: string) => ({
+    name,
+    email: null,
+    phone: null,
+    category: null,
+    rsvpStatus: "PENDING" as const,
+    plusOnes: 0,
+    dietaryNeeds: null,
+    notes: null,
+  });
+
+  it("adds every attendee with the next numbers and one attendees.imported entry", () => {
+    expect(
+      sampleImportAttendees({
+        eventId: IDS.wedding,
+        importerId: ME,
+        attendees: [person("A"), person("B")],
+        skipped: 3,
+        now: at,
+      }),
+    ).toEqual({ ok: true, count: 2, first: "ATT-0009", last: "ATT-0010" });
+    expect(
+      sampleListAttendees(IDS.wedding)
+        .filter((a) => ["A", "B"].includes(a.name))
+        .map((a) => a.number),
+    ).toEqual([9, 10]);
+    expect(sampleListAuditEntries(IDS.wedding)[0]).toMatchObject({
+      action: "attendees.imported",
+      details: { count: 2, first: "ATT-0009", last: "ATT-0010", skipped: 3 },
+    });
+  });
+
+  it("refuses a Viewer, a stranger and an empty import, changing nothing", () => {
+    const before = sampleListAttendees(IDS.yearEnd).length;
+    expect(
+      sampleImportAttendees({
+        eventId: IDS.yearEnd,
+        importerId: ME,
+        attendees: [person("A")],
+        skipped: 0,
+        now: at,
+      }),
+    ).toEqual({ ok: false });
+    expect(
+      sampleImportAttendees({
+        eventId: IDS.wedding,
+        importerId: STRANGER,
+        attendees: [person("A")],
+        skipped: 0,
+        now: at,
+      }),
+    ).toEqual({ ok: false });
+    expect(
+      sampleImportAttendees({
+        eventId: IDS.wedding,
+        importerId: ME,
+        attendees: [],
+        skipped: 0,
+        now: at,
+      }),
+    ).toEqual({ ok: false });
+    expect(sampleListAttendees(IDS.yearEnd)).toHaveLength(before);
+  });
+});
+
+describe("sample export (B2-19, D-053)", () => {
+  const at = new Date("2026-10-13T00:00:00Z");
+
+  it("returns the event's attendees in ID order and records attendees.exported", () => {
+    const rows = sampleExportAttendees({ eventId: IDS.wedding, userId: ME, now: at });
+    expect(rows?.map((a) => a.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(sampleListAuditEntries(IDS.wedding)[0]).toMatchObject({
+      action: "attendees.exported",
+      details: { count: 8 },
+    });
+  });
+
+  it("refuses a Viewer and a stranger, recording nothing", () => {
+    const before = sampleListAuditEntries(IDS.yearEnd).length;
+    expect(sampleExportAttendees({ eventId: IDS.yearEnd, userId: ME, now: at })).toBeNull();
+    expect(sampleExportAttendees({ eventId: IDS.wedding, userId: STRANGER, now: at })).toBeNull();
+    expect(sampleListAuditEntries(IDS.yearEnd)).toHaveLength(before);
   });
 });

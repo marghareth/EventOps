@@ -65,6 +65,9 @@ Each row's action and database tests are written when its feature is built.
 | `audit.view`        | B1-11    | `activity.test.ts`, activity `page.test.tsx` | `authorization.db.test.ts`       |
 | `attendees.manage`  | B2-01    | `attendees/actions.test.ts`                  | `attendees/attendees.db.test.ts` |
 | `attendees.dietary` | B2-06    | `attendees/read.test.ts`                     | `attendees/dietary.db.test.ts`   |
+| `attendees.private` | B2-07    | `attendees/read.test.ts`                     | `attendees/notes.db.test.ts`     |
+| `import.run`        | B2-14    | `import/page.test.tsx`                       | `attendees/import.db.test.ts`    |
+| `attendees.export`  | B2-19    | export `route.test.ts`                       | `attendees/export.db.test.ts`    |
 
 End to end, through the real server actions, API route and database: `authorization.db.test.ts`
 (B1-09) covers the required security matrix, cross-event access and role escalation attempts.

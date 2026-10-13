@@ -3,7 +3,7 @@
 // authorize first (getEventAttendees below does, with event.view, D-035).
 import "server-only";
 import type { PrismaClient } from "@/generated/prisma/client";
-import type { AttendeeInput } from "./schema";
+import { formatAttendeeReference, type AttendeeInput } from "./schema";
 
 /** The stored fields an attendee form edits. */
 export const ATTENDEE_SELECT = {
@@ -137,6 +137,23 @@ export function toAttendeeDetails(
     details.notes = record.notes;
   }
   return details;
+}
+
+/** Names, emails and IDs of the event's attendees, for import duplicate checks (B2-17, D-052). */
+export async function listAttendeeIdentities(
+  db: PrismaClient,
+  eventId: string,
+): Promise<{ name: string; email: string | null; reference: string }[]> {
+  const rows = await db.attendee.findMany({
+    where: { eventId },
+    select: { name: true, email: true, number: true },
+    orderBy: { number: "asc" },
+  });
+  return rows.map((r) => ({
+    name: r.name,
+    email: r.email,
+    reference: formatAttendeeReference(r.number),
+  }));
 }
 
 /** One attendee, only if it belongs to this event. Null otherwise, also for another event's ID. */

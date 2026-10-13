@@ -9,6 +9,44 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B2-19 CSV Export (D-053).**
+  - "Export CSV" on the guest list (Owners and Coordinators) downloads every attendee of this event
+    as a CSV file named like `EVT-2026-0001-attendees-2026-10-13.csv`: ID, name, RSVP, plus-ones,
+    category, dietary needs, email, phone and notes. The file opens correctly in Excel and can be
+    imported again.
+  - Formula-looking values are made safe; an empty guest list gives a header-only file.
+  - New address `/api/events/<id>/attendees/export`, replacing the placeholder
+    `/api/attendees/export`. Viewers get 403, non-members and other events 404, signed-out users 401.
+  - Each export is recorded in Activity ("Exported the guest list as CSV (12 attendees)").
+  - Tests: the file (columns, order, quoting, formula safety, header-only, round trip to the import,
+    Manila file name), the route's failure paths, the Export link per role, sample data, and against
+    PostgreSQL: content, event isolation, every refused caller, and the Activity entry.
+
+- **B2-14 to B2-18 CSV import (D-052).**
+  - The Import page (and "Import CSV" on the guest list) brings a guest spreadsheet into the event
+    for Owners and Coordinators: choose a .csv file, match its columns to EventOps fields (common
+    headers are filled in), preview every row, then confirm.
+  - The preview shows the totals (rows, to import, needing correction, possible duplicates), the
+    matching, the columns not imported, and each row with its reasons. Rows needing correction can
+    be downloaded to fix. Possible duplicates are skipped unless chosen.
+  - Nothing is saved before confirming. At confirm the server re-checks the whole file and imports
+    the valid rows in one transaction, or nothing. The result shows the new IDs; Activity records
+    "Imported 184 attendees from a CSV file (ATT-0009 to ATT-0192)".
+  - Rows follow the add form's rules; RSVP also accepts common words such as Yes, No and Tentative.
+  - Limits: 500 KB, 2,000 rows, UTF-8 CSV. Works with sample data.
+  - Docs fixed: the decisions index now lists D-050 and D-051, and PERMISSIONS.md lists B2-07's
+    `attendees.private` row under "Role boundaries tested so far".
+  - Tests: the parser, mapping, validation, duplicates and preview rules; every step and its
+    states; the page per role; and against PostgreSQL: nothing written before confirming, event
+    isolation, numbering, all-or-nothing on a database failure, tampered steps, duplicates on a
+    second import, refused roles, and the Activity entry.
+
+- **B2-13 Attendee Detail View (D-051).**
+  - The attendee details page is now composed of independent sections (Details, Notes), each from
+    its own module, in a shared section frame. Batch 3 adds Accessibility as its own section without
+    changing the attendees module. Nothing visible changed.
+  - Tests: the section frame, section order per role, and a removed attendee being not found.
+
 - **B2-10 Attendee Search, B2-11 Attendee Filtering, B2-12 Attendee Sorting (D-050).**
   - One search, filter and sort form above the guest list, kept in the address (works without
     JavaScript, can be bookmarked). It stacks into one column on phones.

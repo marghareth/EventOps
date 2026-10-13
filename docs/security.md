@@ -98,6 +98,10 @@ demo user. It is an authentication bypass, so it is fenced in three ways:
 2. `next build` fails if the flag is set (`next.config.ts`), so it cannot be deployed by mistake.
 3. A "Demo sign-in is on" banner shows on every page while it is active.
 
+Without `DATABASE_URL`, demo sign-in also uses in-memory sample events (D-041). The sample store
+keeps the same rules as the database code (members only, role re-checks, audited changes) and the
+banner says the data is sample data. It is fenced by the same three rules.
+
 Never set `DEV_DEMO_AUTH` in Vercel or any shared environment. Tests in `src/lib/demo-auth.test.ts`
 cover every flag and environment combination and the build guard.
 
@@ -173,6 +177,38 @@ Where each membership criterion is enforced and tested:
 | Exactly one supported role              | `member_role` enum, NOT NULL, one row per user per event; one Owner minimum | `members/membership.db.test.ts`, `src/lib/db.db.test.ts`      |
 | Checked server-side                     | `requireEventAccess` / `getEventAccess` on every event page, action, route  | `access.test.ts`, `events/[eventId]/access-coverage.test.tsx` |
 | Knowing an event ID is not enough       | Non-members get the same 404 as unknown IDs (D-027)                         | `members/membership.db.test.ts`, API and page tests           |
+
+## CSV import (B2-14 to B2-18, D-052)
+
+- **Who:** `import.run` (Owner, Coordinator), checked by the page and again by the server action at
+  every step. Refused roles and non-members change nothing.
+- **File checks:** a `.csv` name and a CSV media type, at most 500 KB, decoded as UTF-8 with errors
+  refused, no NUL bytes; at most 2,000 rows, 50 columns and 5,000 characters per value. The file
+  name is shown only, never used as a path, and the file is never stored.
+- **Nothing trusted from the browser:** the file text travels between steps, and the server
+  re-checks its size and re-parses, re-maps and re-validates it at every step. At confirm, the
+  number the user saw must match the server's own count, or nothing is imported and the new
+  numbers are shown.
+- **Validation:** every row goes through the add form's schema (D-042); RSVP words come from a
+  fixed list; a mapping may only name known attendee fields, each once. Rows that fail are never
+  written.
+- **Writes:** one transaction: numbers, attendees and one Activity entry, or nothing.
+- **Cells are data:** values are stored as plain text and never evaluated. React escapes them when
+  shown. Formula-looking cells are neutralized when written to CSV (rows needing correction now,
+  the export later).
+- **No AI** in this import. The AI import (Tier 1) will reuse the same review-before-saving steps.
+
+## CSV export (B2-19, D-053)
+
+- **Who:** `attendees.export` (Owner, Coordinator) through `authorizeEventRequest`: 401, 404 (never
+  revealing whether an event exists) and 403 for Viewers. The query filters by the authorized
+  event; another event's ID in the address gets 404.
+- **Data:** every attendee field, which exporting roles already see. Each export is recorded in
+  Activity (count only).
+- **Formula injection:** cells starting with `=`, `+`, `-`, `@`, tab or carriage return get a
+  leading apostrophe.
+- **Headers:** `Content-Disposition: attachment` with a sanitized file name, `no-store`,
+  `nosniff`.
 
 ## Event isolation
 
