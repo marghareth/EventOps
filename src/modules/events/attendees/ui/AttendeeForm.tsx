@@ -207,7 +207,7 @@ export function AttendeeForm({
       <FormField
         label="Notes (optional)"
         id={fieldId("notes")}
-        hint={limit(ATTENDEE_LIMITS.notes)}
+        hint={`Only Owners and Coordinators see notes. Leave empty to remove. ${limit(ATTENDEE_LIMITS.notes)}`}
         error={error("notes")}
       >
         {(control) => (

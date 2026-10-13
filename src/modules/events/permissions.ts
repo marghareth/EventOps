@@ -25,6 +25,8 @@ const MATRIX = {
   "attendees.manage": ["OWNER", "COORDINATOR"],
   /** See attendees' dietary needs on the guest list (B2-06, D-047). Viewers read them too. */
   "attendees.dietary": ["OWNER", "COORDINATOR", "VIEWER"],
+  /** See attendees' contact details (email, phone) and notes (B2-07, D-048). */
+  "attendees.private": ["OWNER", "COORDINATOR"],
   /** Download attendees as CSV (guest personal data). */
   "attendees.export": ["OWNER", "COORDINATOR"],
   /** Spreadsheet or AI import, including confirming the rows. */

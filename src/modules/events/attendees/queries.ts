@@ -79,6 +79,53 @@ export function toGuestListRow(record: AttendeeRecord, dietaryNeeds: boolean): G
   return row;
 }
 
+/**
+ * One attendee for the details page (B2-07, D-048). Dietary needs only with attendees.dietary;
+ * email, phone and notes only with attendees.private. Fields a reader may not see are absent.
+ */
+export type AttendeeDetails = GuestListRow & {
+  email?: string | null;
+  phone?: string | null;
+  notes?: string | null;
+};
+
+export type AttendeeDetailsFields = { dietaryNeeds: boolean; private: boolean };
+
+function detailsSelect(fields: AttendeeDetailsFields) {
+  return {
+    ...GUEST_LIST_SELECT,
+    ...(fields.dietaryNeeds ? { dietaryNeeds: true } : {}),
+    ...(fields.private ? { email: true, phone: true, notes: true } : {}),
+  } as const;
+}
+
+/** One attendee's details, only if it belongs to this event. Null otherwise. */
+export async function getAttendeeDetails(
+  db: PrismaClient,
+  eventId: string,
+  attendeeId: string,
+  fields: AttendeeDetailsFields,
+): Promise<AttendeeDetails | null> {
+  return db.attendee.findFirst({
+    where: { id: attendeeId, eventId },
+    select: detailsSelect(fields),
+  }) as Promise<AttendeeDetails | null>;
+}
+
+/** A full record cut down to what the reader may see, for sample data (D-041). */
+export function toAttendeeDetails(
+  record: AttendeeRecord,
+  fields: AttendeeDetailsFields,
+): AttendeeDetails {
+  const details: AttendeeDetails = toGuestListRow(record, fields.dietaryNeeds);
+  if (fields.private) {
+    details.email = record.email;
+    details.phone = record.phone;
+    details.notes = record.notes;
+  }
+  return details;
+}
+
 /** One attendee, only if it belongs to this event. Null otherwise, also for another event's ID. */
 export async function getAttendee(
   db: PrismaClient,

@@ -57,6 +57,10 @@ describe("AttendeeForm", () => {
       "Guests coming with them: 0 for none, up to 10.",
     );
     expect(screen.getByLabelText(/^Notes/)).toHaveAttribute("maxLength", "2000");
+    // B2-07, D-048: who sees notes, and how to remove them.
+    expect(screen.getByLabelText(/^Notes/)).toHaveAccessibleDescription(
+      "Only Owners and Coordinators see notes. Leave empty to remove. Up to 2,000 characters.",
+    );
     expect(screen.getByLabelText(/^Dietary needs/)).toHaveAttribute("maxLength", "500");
     // B2-06, D-047: several needs in one entry; clearing the field removes them.
     expect(screen.getByLabelText(/^Dietary needs/)).toHaveAccessibleDescription(
