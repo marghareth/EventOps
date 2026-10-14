@@ -365,7 +365,7 @@ Every value is checked on the server with the same schemas the forms use:
   seats need a whole number from 0 to 10,000; other types ignore any count and store NULL; note as
   above.
 
-## Accessibility readiness (B3-07 to B3-09, D-062 to D-064)
+## Accessibility readiness (B3-07 to B3-11, D-062 to D-064, D-066)
 
 Readiness answers: "Are our guests' accessibility needs covered, and if not, what is missing?" It
 is calculated on demand from the stored requirements and resources by one pure function
@@ -469,6 +469,23 @@ Each gap carries:
 Order (deterministic): consequence (not ready, almost ready, advice), then resource in definition
 order with check-by-hand last, then the first affected guest's number.
 
+### Alerts (B3-11, D-066)
+
+Alerts are the gaps worth interrupting someone for. `accessibility/domain/alerts.ts` derives them
+from the status and the gaps on every read; nothing is stored, sent or dismissed.
+
+| Gap consequence | Alert                     |
+| --------------- | ------------------------- |
+| `not-ready`     | Critical                  |
+| `almost-ready`  | Warning (needs attention) |
+| `advice`        | None                      |
+
+- One alert per alerting gap, in the gaps' order, with a headline, the gap's sentence and its
+  consequence, the resource and the affected guests.
+- One event-level alert while the status is Not ready (critical) or Almost ready (warning), with
+  the number of issues. None for Ready or No required needs.
+- A guest's alerts are the gap alerts that list that guest.
+
 ### Edge cases
 
 - No needs, or only left-out needs: nothing to cover (the status is "No required needs", B3-08).
@@ -476,6 +493,8 @@ order with check-by-hand last, then the first affected guest's number.
   order, then by ID.
 - Two resources of the same type in the input are refused as invalid input (the database allows
   one per type, D-056).
+- A requirement whose type or priority is not one of the canonical values is refused as invalid
+  input (B3-14); it is never guessed as covered or as advice.
 - Notes are never part of the input.
 
 ## CHECK constraints (D-010)

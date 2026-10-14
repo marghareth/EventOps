@@ -4,7 +4,8 @@
 // decides that. Owners and Coordinators also get "Edit attendee" (attendees.manage). An unknown
 // attendee, a malformed ID or another event's attendee is "not found", like an unknown event.
 // Batch 3 adds the Accessibility section from the accessibility module (B3-04, D-051), with its own
-// read and its own notice after adding, editing or removing a need.
+// read and its own notice after adding, editing or removing a need, and above it the alerts about
+// this guest's needs (B3-11, D-066).
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -19,8 +20,11 @@ import {
 } from "@/modules/events/attendees/public";
 import {
   ACCESSIBILITY_NOTICES,
+  AccessibilityAlertsUnavailable,
   AccessibilityNotice,
   AccessibilitySection,
+  GuestAccessibilityAlerts,
+  getAccessibilityAlerts,
   getAttendeeAccessibility,
   isRequirementType,
 } from "@/modules/events/accessibility/public";
@@ -51,6 +55,16 @@ async function loadAccessibility(eventId: string, attendeeId: string) {
   }
 }
 
+/** This guest's alerts, or null when they couldn't be read (shown, never treated as none). */
+async function loadAlerts(eventId: string, attendeeId: string) {
+  try {
+    const result = await getAccessibilityAlerts(eventId, { attendeeId });
+    return result.ok ? result : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function AttendeePage({ params, searchParams }: Props) {
   const { eventId, attendeeId } = await params;
   const notice = noticeFrom((await searchParams) ?? {});
@@ -70,7 +84,10 @@ export default async function AttendeePage({ params, searchParams }: Props) {
     );
   }
   const { attendee, fields } = result;
-  const accessibility = await loadAccessibility(event.id, attendee.id);
+  const [accessibility, alerts] = await Promise.all([
+    loadAccessibility(event.id, attendee.id),
+    loadAlerts(event.id, attendee.id),
+  ]);
   const attendeeHref = `${listHref}/${attendee.id}`;
 
   return (
@@ -109,6 +126,15 @@ export default async function AttendeePage({ params, searchParams }: Props) {
       <div className="mt-6 flex flex-col gap-6">
         <AttendeeDetailsSection attendee={attendee} fields={fields} />
         <AttendeeNotesSection attendee={attendee} fields={fields} />
+        {alerts ? (
+          <GuestAccessibilityAlerts
+            alerts={alerts.alerts}
+            accessibilityPath={`/events/${event.id}/accessibility`}
+            canManage={alerts.canManage}
+          />
+        ) : (
+          <AccessibilityAlertsUnavailable />
+        )}
         <AccessibilitySection
           attendeeHref={attendeeHref}
           attendeeName={attendee.name}

@@ -2,7 +2,7 @@
 // B3-04, B3-05: an attendee's accessibility needs and the event's resources in a real browser, signed in as the dev demo user
 // (D-024), against a reset test database: add two needs (choosing with the keyboard), see them on
 // the attendee's details page, edit one, remove one, and find each change in Activity without the
-// note; then set up, edit and remove an event resource. Run with `npm run test:e2e:lifecycle` (docs/TESTING.md); CI runs it in the "e2e" job.
+// note; then set up, edit and remove an event resource; then readiness and its alerts (B3-10, B3-11). Run with `npm run test:e2e:lifecycle` (docs/TESTING.md); CI runs it in the "e2e" job.
 import { expect, test } from "@playwright/test";
 import { resetDemoData } from "../../scripts/reset-demo";
 
@@ -164,6 +164,19 @@ test("6. readiness: a Required need without a resource makes the event Not ready
   await expect(gaps).toContainText("Captioning is not set up, but 1 guest needs it.");
   await expect(gaps).toContainText("Makes the event Not ready.");
 
+  // B3-11: the alert on the event Overview and on the guest's page.
+  const overview = accessibility.replace(/\/accessibility$/, "");
+  await page.goto(overview);
+  const alert = page.getByRole("region", { name: "Accessibility alert" });
+  await expect(alert).toContainText("Accessibility: Not ready");
+  await expect(alert).toContainText("Captioning is not set up");
+  await page.goto(attendeePath);
+  const guestAlerts = page.getByRole("region", { name: "Alerts about this guest's needs" });
+  await expect(guestAlerts).toContainText("Captioning is not set up, but 1 guest needs it.");
+  await guestAlerts.getByRole("link", { name: "Set up Captioning" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Set up Captioning" })).toBeVisible();
+
+  await page.goto(accessibility);
   await gaps.getByRole("link", { name: "Set up Captioning" }).click();
   await page.getByRole("radio", { name: "Available", exact: true }).check();
   await page.getByRole("button", { name: "Set up" }).click();
@@ -173,4 +186,12 @@ test("6. readiness: a Required need without a resource makes the event Not ready
   await expect(readiness).not.toContainText("Not ready");
   await expect(gaps).toContainText("Accessible seats is not set up, but 1 guest needs it.");
   await expect(gaps).toContainText("Advice only");
+
+  // Ready: no alert on the Overview, and none for the guest (Preferred advice never alerts).
+  await page.goto(overview);
+  await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Accessibility alert" })).toHaveCount(0);
+  await page.goto(attendeePath);
+  await expect(page.getByRole("heading", { level: 1, name: "Maria Santos" })).toBeVisible();
+  await expect(guestAlerts).toHaveCount(0);
 });

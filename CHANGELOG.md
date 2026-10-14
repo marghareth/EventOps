@@ -9,6 +9,32 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B3-15 Accessibility integration tests.**
+  - One test follows a real event from guests to needs, resources, readiness, gaps and alerts in the
+    database, including a guest declining and a guest being removed, with refused users changing
+    nothing and every change in Activity.
+
+- **B3-14 Accessibility domain tests.**
+  - Every named readiness case is tested through status, gaps and alerts. A need with an unknown
+    type or priority is now refused instead of being guessed.
+
+- **B3-13 Accessibility authorization tests.**
+  - The security matrix now also covers another event's owner trying Event A, and the alert reads.
+    New tests show refused callers are turned away before any data is opened. Removing any
+    server-side check makes the tests fail (recorded in docs/TESTING.md).
+
+- **B3-12 Accessibility Activity.**
+  - Confirmed end to end: adding, changing and removing an accessibility need or an event resource
+    each appear in the event's Activity with who did it, never the note. Viewing pages records
+    nothing.
+
+- **B3-11 Accessibility Alerts (D-066).**
+  - The event Overview shows an accessibility alert while the event is Not ready or Almost ready,
+    with the issues behind it and a link to the Accessibility page. A guest's page shows the alerts
+    about their needs, with a link to fix the resource for Owners and Coordinators.
+  - Alerts are worked out from the stored data on every visit: only real gaps raise them, never a
+    covered need or a Preferred need's advice. Nothing is stored, sent or dismissed.
+
 - **B3-10 Accessibility Readiness View (D-065).**
   - The Accessibility page now answers "Are our guests' accessibility needs covered, and if not,
     what is missing?": the readiness status first, then each gap with the guests it affects and a

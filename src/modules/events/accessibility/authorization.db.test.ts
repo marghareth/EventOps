@@ -1,14 +1,24 @@
 // src/modules/events/accessibility/authorization.db.test.ts
-// Accessibility security checkpoint: requirements (B3-03, D-058) and event resources (B3-05). One matrix: every actor tries every
+// Accessibility security checkpoint: requirements (B3-03, D-058), event resources (B3-05), readiness
+// (B3-10) and alerts (B3-11); extended for B3-13. One matrix: every actor tries every
 // requirement operation through the real server actions and reads (the way a crafted request would,
 // with no page in between), against PostgreSQL. Allowed operations succeed; denied ones fail,
 // change nothing in either event and add nothing to Activity.
 //
 //   User A ── Event A ── Attendee A ── Requirement A → allowed
 //          └─ Event B ── Attendee B ── Requirement B → denied
-//   Viewer of A      → reads the needs, not their notes; every write denied (D-035, D-058)
+//   User B (owner of Event B) on Event A → denied
+//   Viewer of A      → reads the needs, readiness and alerts, not the notes; every write denied
+//                      (D-035, D-058, D-065, D-066)
 //   Coordinator of A → everything allowed
 //   Signed out       → everything denied
+//
+// Owner-level: User A is Event A's Owner and may do everything. Accessibility has no Owner-only
+// operation (docs/PERMISSIONS.md: accessibility.manage and accessibility.private are Owner and
+// Coordinator), so "Coordinator attempting an Owner-only operation" has nothing to test here.
+//
+// The tests call the server boundary directly, so hiding a button proves nothing here; removing a
+// server-side check makes them fail (checked by hand for B3-13, see docs/TESTING.md).
 //
 // Only the signed-in identity is mocked.
 import { randomUUID } from "node:crypto";
@@ -40,6 +50,17 @@ vi.mock("@/lib/db", async (original) => ({
   getDb: () => db,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+/** How many times the storage layer was opened: a refusal at the boundary never opens it. */
+let repositoryOpened = 0;
+vi.mock("./composition", async (original) => {
+  const real = await original<typeof import("./composition")>();
+  return {
+    accessibilityRepository: () => {
+      repositoryOpened += 1;
+      return real.accessibilityRepository();
+    },
+  };
+});
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
     throw Object.assign(new Error("NEXT_REDIRECT"), { url: to });
@@ -65,8 +86,10 @@ const {
   getRequirementForEditing,
   getAccessibilityOverview,
   getResourceForEditing,
+  getAccessibilityAlerts,
 } = await import("./queries");
 const { initialRequirementFormState, initialResourceFormState } = await import("./form-state");
+const { ACCESSIBILITY_MESSAGES: MESSAGES } = await import("./form-state");
 
 const YEAR = 2086;
 const userIds: string[] = [];
@@ -148,6 +171,7 @@ afterAll(async () => {
 type User = { id: string; email: string };
 type World = {
   userA: User;
+  userB: User;
   coordinator: User;
   viewer: User;
   eventA: string;
@@ -169,6 +193,7 @@ async function world(): Promise<World> {
   await join(viewer.id, "VIEWER");
   return {
     userA,
+    userB,
     coordinator,
     viewer,
     eventA,
@@ -233,6 +258,16 @@ const OPERATIONS = {
       throw error;
     }
   },
+  // Allowed means alerts about this guest were disclosed (the guest has an uncovered need).
+  "read the guest's alerts": async (...[e, a]: Target) => {
+    try {
+      const result = await getAccessibilityAlerts(e, { attendeeId: a });
+      return result.ok && result.alerts.length > 0 ? "allowed" : "denied";
+    } catch (error) {
+      if ((error as { url?: string }).url?.startsWith("/login")) return "denied";
+      throw error;
+    }
+  },
   "open the add form": (...[e, a]: Target) => read(() => getNewRequirementContext(e, a)),
   "open the edit form": (...[e, a, r]: Target) => read(() => getRequirementForEditing(e, a, r)),
   "add a requirement": (...[e, a]: Target) =>
@@ -289,12 +324,18 @@ const ACTORS: {
     name: "Viewer of A on Event A",
     as: (w) => w.viewer,
     target: (w) => [w.eventA, w.a.attendeeId, w.a.requirementId],
-    allowed: ["read an attendee's needs"],
+    allowed: ["read an attendee's needs", "read the guest's alerts"],
   },
   {
     name: "User A on Event B",
     as: (w) => w.userA,
     target: (w) => [w.eventB, w.b.attendeeId, w.b.requirementId],
+    allowed: [],
+  },
+  {
+    name: "User B on Event A",
+    as: (w) => w.userB,
+    target: (w) => [w.eventA, w.a.attendeeId, w.a.requirementId],
     allowed: [],
   },
   // Event A in the address, Event B's attendee and requirement in the request: never found.
@@ -312,6 +353,7 @@ const ACTORS: {
     allowed: [
       "read an attendee's needs",
       "read the notes",
+      "read the guest's alerts",
       "open the add form",
       "add a requirement",
     ],
@@ -368,6 +410,7 @@ const seatsVersion = async (eventId: string) =>
 const RESOURCE_OPERATIONS = {
   "read the resources and readiness": (eventId: string) =>
     read(() => getAccessibilityOverview(eventId)),
+  "read the alerts": (eventId: string) => read(() => getAccessibilityAlerts(eventId)),
   "open a resource form": (eventId: string) =>
     read(() => getResourceForEditing(eventId, "accessible-seats")),
   "set up a resource": (eventId: string) =>
@@ -414,9 +457,10 @@ const RESOURCE_ACTORS: {
     name: "Viewer of A on Event A",
     as: (w) => w.viewer,
     event: (w) => w.eventA,
-    allowed: ["read the resources and readiness"],
+    allowed: ["read the resources and readiness", "read the alerts"],
   },
   { name: "User A on Event B", as: (w) => w.userA, event: (w) => w.eventB, allowed: [] },
+  { name: "User B on Event A", as: (w) => w.userB, event: (w) => w.eventA, allowed: [] },
   { name: "Signed out on Event A", as: () => null, event: (w) => w.eventA, allowed: [] },
 ];
 
@@ -450,4 +494,84 @@ it("refuses a resource type that isn't one of the six, changing nothing", async 
     reason: "not-found",
   });
   expect(await snapshot(w)).toEqual(before);
+});
+
+it("discloses no alert about another event's guest, and never a note in an alert", async () => {
+  const w = await world();
+  signedIn = w.userA;
+  // Event A's address with Attendee B (Event B): the read works but says nothing about them.
+  expect(await getAccessibilityAlerts(w.eventA, { attendeeId: w.b.attendeeId })).toMatchObject({
+    ok: true,
+    alerts: [],
+  });
+  const own = await getAccessibilityAlerts(w.eventA);
+  expect(own).toMatchObject({ ok: true, status: "NOT_READY" });
+  expect(JSON.stringify(own)).not.toContain("Private note");
+  expect(JSON.stringify(own)).not.toContain(w.b.attendeeId);
+  // A malformed guest ID is "not found", like every other read.
+  expect(await getAccessibilityAlerts(w.eventA, { attendeeId: "not-a-uuid" })).toEqual({
+    ok: false,
+    reason: "not-found",
+  });
+});
+
+// The storage layer also re-checks the role (defence in depth, D-036), so the matrix alone can't
+// tell which layer refused. This pins the server boundary itself: refused callers are turned away
+// by authorizeEvent before any storage is opened.
+describe("refused at the server boundary, before storage (B3-13)", () => {
+  const WRITES = {
+    "add a requirement": (w: World) =>
+      createRequirementAction(
+        w.eventA,
+        w.a.attendeeId,
+        initialRequirementFormState,
+        form({ type: "CAPTIONING", priority: "REQUIRED", note: "" }),
+      ),
+    "edit a requirement": async (w: World) =>
+      updateRequirementAction(
+        w.eventA,
+        w.a.attendeeId,
+        w.a.requirementId,
+        initialRequirementFormState,
+        form({
+          type: "ACCESSIBLE_SEATING",
+          priority: "PREFERRED",
+          note: "",
+          version: await version(w.a.requirementId),
+        }),
+      ),
+    "remove a requirement": (w: World) =>
+      deleteRequirementAction(w.eventA, w.a.attendeeId, w.a.requirementId),
+    "set up a resource": (w: World) =>
+      saveResourceAction(
+        w.eventA,
+        "CAPTIONING",
+        initialResourceFormState,
+        form({ status: "AVAILABLE", quantity: "", note: "", version: "" }),
+      ),
+    "remove a resource": (w: World) => deleteResourceAction(w.eventA, "ACCESSIBLE_SEATS"),
+    "open the add form": (w: World) => getNewRequirementContext(w.eventA, w.a.attendeeId),
+    "open a resource form": (w: World) => getResourceForEditing(w.eventA, "captioning"),
+  } satisfies Record<string, (w: World) => Promise<unknown>>;
+
+  const CALLERS = [
+    ["the Viewer of A", (w: World) => w.viewer, MESSAGES.forbidden, "forbidden"],
+    ["User B", (w: World) => w.userB, MESSAGES.eventNotFound, "not-found"],
+  ] as const;
+
+  describe.each(CALLERS)("as %s", (_name, as, message, reason) => {
+    it.each(Object.keys(WRITES) as (keyof typeof WRITES)[])("%s", async (operation) => {
+      const w = await world();
+      const before = await snapshot(w);
+      signedIn = as(w);
+      repositoryOpened = 0;
+      const result = await WRITES[operation](w);
+      signedIn = null;
+      expect(repositoryOpened).toBe(0);
+      expect(result).toMatchObject(
+        operation.startsWith("open") ? { ok: false, reason } : { status: "error", message },
+      );
+      expect(await snapshot(w)).toEqual(before);
+    });
+  });
 });

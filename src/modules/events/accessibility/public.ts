@@ -13,6 +13,7 @@ export { REQUIREMENT_TYPE_DEFINITIONS, isRequirementType } from "./domain/requir
 export { RESOURCE_TYPE_DEFINITIONS, isResourceType } from "./domain/resource";
 export {
   getAttendeeAccessibility,
+  getAccessibilityAlerts,
   getAccessibilityOverview,
   getNewRequirementContext,
   getRequirementForEditing,
@@ -31,3 +32,8 @@ export { ResourceNotice } from "./ui/ResourceNotice";
 export { GapList } from "./ui/GapList";
 export { NeedsOverview } from "./ui/NeedsOverview";
 export { ReadinessSummary } from "./ui/ReadinessSummary";
+export {
+  AccessibilityAlertsUnavailable,
+  EventAccessibilityAlert,
+  GuestAccessibilityAlerts,
+} from "./ui/AccessibilityAlerts";

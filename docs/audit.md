@@ -75,6 +75,11 @@ The requirement note can hold health details, so it is never copied into the log
 their requirements go with them; the `attendee.deleted` entry covers it, with no separate entry per
 requirement. Proved by `accessibility/requirements.db.test.ts` and `accessibility/audit.test.ts`.
 
+All six accessibility actions go through the same audit log and Activity feed as every other
+change (no second mechanism). Reads, refused writes and saves that change nothing record nothing.
+Proved end to end, with the actor and event of each entry, by `accessibility/activity.db.test.ts`
+(B3-12).
+
 ## What must not be stored
 
 - Only what the action needs. Prefer IDs, names of fields and short business values.
