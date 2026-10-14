@@ -9,6 +9,45 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B3-05 Accessibility Resource CRUD (D-061).**
+  - The event's Accessibility page now lists the six resources (accessible seats, accessible
+    entrance, ramp or elevator, accessible restroom, captioning, sign-language interpreter) with
+    their status, seat count and note, replacing the placeholder. Owners and Coordinators can set
+    each one up, edit it or remove it; stale saves are refused.
+  - Activity entries `accessibility_resource.created`, `.updated` and `.deleted`.
+
+- **B3-04 Accessibility Requirement UI (D-060).**
+  - The attendee details page has an Accessibility section listing each need with its priority in
+    words and, for Owners and Coordinators, its note. Owners and Coordinators can add a need, edit
+    it, or remove it after confirming. Notices confirm each change.
+  - Accessible forms: labelled radio groups with descriptions, disabled "(already added)" choices,
+    errors in a summary and beside the field. Empty, error and no-access states.
+  - A browser test covers adding (choosing with the keyboard), editing, removing and Activity.
+
+- **B3-03 Accessibility Requirement CRUD (D-058, D-059).**
+  - Server actions to add, edit and remove an attendee's accessibility needs, for Owners and
+    Coordinators (`accessibility.manage`), validated with the shared schema. One need of each type
+    per attendee; stale saves refused; a save that changes nothing records nothing.
+  - New permission row `accessibility.private` (Owner, Coordinator): only those roles receive the
+    notes, which can hold health details. Every member sees types and priorities.
+  - Activity entries `accessibility_requirement.created`, `.updated` and `.deleted`, which never
+    store the note or the name.
+  - Use cases behind an `AccessibilityRepository` port, with Prisma and sample-data (D-041)
+    implementations. A security matrix test runs seven callers through every operation.
+
+- **B3-02 Accessibility Requirement Definitions (D-057).**
+  - One canonical list each for requirement types (seven, including Other), priorities (Required,
+    Preferred, For information), resource types (six) and resource statuses, with labels and
+    meanings, in `accessibility/domain/`. Shared Zod validation in `accessibility/schema.ts`.
+    Documented in DATA_MODEL.md.
+
+- **B3-01 Accessibility Data Model (D-056).**
+  - New tables `accessibility_requirements` (an attendee's needs: type, priority, optional note;
+    one of each type per attendee; tied to the attendee and event by a composite foreign key so it
+    can't cross events) and `accessibility_resources` (what the event provides: one row per type,
+    status, a seat count for accessible seats only, optional note). Migration
+    `20261013120000_accessibility`; both cascade with their event, requirements with their attendee.
+
 - **B2-25 Attendee Documentation.**
   - New `docs/USER_FLOWS.md` (guest list, add, view and edit, remove, import pipeline, export, with
     roles and error states) and `docs/ACCEPTANCE_CRITERIA.md` (every Batch 2 criterion → where it is

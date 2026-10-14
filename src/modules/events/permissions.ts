@@ -33,6 +33,11 @@ const MATRIX = {
   "import.run": ["OWNER", "COORDINATOR"],
   /** Accessibility requirements and resources. */
   "accessibility.manage": ["OWNER", "COORDINATOR"],
+  /**
+   * See the notes on attendees' accessibility requirements, which may hold health details (B3-03,
+   * D-058). Every member sees the types and priorities (event.view).
+   */
+  "accessibility.private": ["OWNER", "COORDINATOR"],
   /** Suppliers, quotes and payments. */
   "suppliers.manage": ["OWNER", "COORDINATOR"],
   /** Budget categories and allocations. */

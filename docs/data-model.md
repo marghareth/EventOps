@@ -128,6 +128,47 @@ D-002), `(eventId, name)` for the guest list, `(eventId, rsvpStatus)` for RSVP f
   not by column defaults.
 - **Plus-ones** are a count, not named records. See "Plus-ones and headcount" below (D-046).
 
+### `accessibility_requirements` (model `AccessibilityRequirement`, B3-01, D-056)
+
+One need of one attendee. Several needs are several rows. What each type and priority means is in
+"Accessibility requirements and resources" below (D-057).
+
+| Column       | Type                                  | Notes                                                                                                       |
+| ------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `id`         | uuid                                  | Primary key                                                                                                 |
+| `eventId`    | uuid                                  | Required. Foreign key to `events`, `ON DELETE CASCADE`                                                      |
+| `attendeeId` | uuid                                  | Required. With `eventId`, a composite foreign key to `attendees (eventId, id)`, `ON DELETE CASCADE` (D-002) |
+| `type`       | enum `accessibility_requirement_type` | One of the seven requirement types (D-057)                                                                  |
+| `priority`   | enum `requirement_priority`           | `REQUIRED`, `PREFERRED` or `INFORMATIONAL`. New requirements: `REQUIRED`                                    |
+| `note`       | varchar(500), optional                | Free text. Required for `OTHER`. Owners and Coordinators only (D-058)                                       |
+| `createdAt`  | timestamp                             | Set automatically                                                                                           |
+| `updatedAt`  | timestamp                             | Set on every change; edits refuse stale saves with it (D-032)                                               |
+
+Indexes: unique `(eventId, attendeeId, type)` (one requirement of each type per attendee), unique
+`(eventId, id)` (target of later composite foreign keys, D-002), `(eventId, type)` for counting needs
+across the event.
+
+- **Can't cross events.** The composite foreign key means a requirement in event A can never point
+  at an attendee of event B, whatever the application sends.
+- **Goes with its attendee** (D-045) and with its event (D-004).
+
+### `accessibility_resources` (model `AccessibilityResource`, B3-01, D-056)
+
+What the event provides for one resource type. No row for a type means "Not set up".
+
+| Column      | Type                               | Notes                                                                 |
+| ----------- | ---------------------------------- | --------------------------------------------------------------------- |
+| `id`        | uuid                               | Primary key                                                           |
+| `eventId`   | uuid                               | Required. Foreign key to `events`, `ON DELETE CASCADE`                |
+| `type`      | enum `accessibility_resource_type` | One of the six resource types (D-057)                                 |
+| `status`    | enum `resource_status`             | `NOT_AVAILABLE`, `ARRANGING` or `AVAILABLE`                           |
+| `quantity`  | integer, optional                  | Accessible seats only: how many, 0 or more. NULL for every other type |
+| `note`      | varchar(500), optional             | Free text, for example "Ramp at the side entrance"                    |
+| `createdAt` | timestamp                          | Set automatically                                                     |
+| `updatedAt` | timestamp                          | Set on every change; edits refuse stale saves with it (D-032)         |
+
+Indexes: unique `(eventId, type)` (one row per type per event), unique `(eventId, id)` (D-002).
+
 ## Attendees at a glance (Batch 2)
 
 One row per guest in `attendees` (table above), always inside one event. The sections below define
@@ -256,25 +297,97 @@ Decided by the technical lead on 2026-10-13, before implementation.
   phone). The details page's query selects these fields only for roles with that permission.
 - **Activity** records only that notes changed, never the text (AUDIT.md).
 
+## Accessibility requirements and resources (B3-02, D-057)
+
+The canonical definitions live in `src/modules/events/accessibility/domain/`:
+`requirement-type.ts` (requirement types and priorities) and `resource.ts` (resource types and
+statuses). Forms, server validation (`accessibility/schema.ts`), the details page and the Activity
+feed all read their labels and rules from there; UI text is never the source. Tests keep each list
+equal to its database enum and to the audit registry's copy. Labels describe what is needed, never
+the person.
+
+### Requirement types (what an attendee needs)
+
+| Value                 | Label                        | Covers                                                                        |
+| --------------------- | ---------------------------- | ----------------------------------------------------------------------------- |
+| `MOBILITY_ASSISTANCE` | Mobility assistance          | Uses a wheelchair or another mobility aid, or needs help moving around.       |
+| `ACCESSIBLE_SEATING`  | Accessible seating           | A seat with space for a wheelchair or with easy access.                       |
+| `STEP_FREE_ENTRANCE`  | Step-free entry              | Getting in and around without steps: a ramp, an elevator or a level entrance. |
+| `ACCESSIBLE_RESTROOM` | Accessible restroom          | A restroom they can use, for example with more space and grab bars.           |
+| `SIGN_LANGUAGE`       | Sign-language interpretation | An interpreter for the spoken parts of the event.                             |
+| `CAPTIONING`          | Captioning                   | Live captions for the spoken parts of the event.                              |
+| `OTHER`               | Other                        | Anything not listed. The note must say what is needed.                        |
+
+Dietary needs are not a requirement type: they stay one free-text field on the attendee (D-047).
+Transport, seating plans and volunteer needs are later tiers.
+
+### Priorities (how firmly a requirement must be met)
+
+| Value           | Label           | Meaning                                                                                    |
+| --------------- | --------------- | ------------------------------------------------------------------------------------------ |
+| `REQUIRED`      | Required        | Must be in place for the guest. The default. Readiness (later in Batch 3) counts it.       |
+| `PREFERRED`     | Preferred       | Would help, but the guest can attend without it. Shown; never makes the event "not ready". |
+| `INFORMATIONAL` | For information | Context for staff, nothing to arrange. Never counted.                                      |
+
+The readiness calculation itself (which requirements a resource satisfies, and how) is not defined
+here; it is decided with the readiness task.
+
+### Resource types (what the event provides)
+
+| Value                 | Label                     | Count?                     |
+| --------------------- | ------------------------- | -------------------------- |
+| `ACCESSIBLE_SEATS`    | Accessible seats          | Yes: how many, 0 to 10,000 |
+| `ACCESSIBLE_ENTRANCE` | Accessible entrance       | No                         |
+| `RAMP_OR_ELEVATOR`    | Ramp or elevator          | No                         |
+| `ACCESSIBLE_RESTROOM` | Accessible restroom       | No                         |
+| `CAPTIONING`          | Captioning                | No                         |
+| `SIGN_LANGUAGE`       | Sign-language interpreter | No                         |
+
+### Resource status
+
+| Value           | Label          | Meaning                       |
+| --------------- | -------------- | ----------------------------- |
+| (no row)        | Not set up     | Nobody has recorded it yet.   |
+| `NOT_AVAILABLE` | Not available  | The event can't provide this. |
+| `ARRANGING`     | Being arranged | Planned, not confirmed yet.   |
+| `AVAILABLE`     | Available      | In place and confirmed.       |
+
+### Validation
+
+Every value is checked on the server with the same schemas the forms use:
+
+- **Requirement:** type from the list (anything else: "Choose what the guest needs."); priority
+  from the list, empty means Required; note trimmed, empty stored as NULL, at most 500 characters
+  (counted like Postgres); `OTHER` must have a note ("Describe what the guest needs."). At most one
+  requirement of each type per attendee.
+- **Resource:** every member sees the whole record (it describes the venue, not a person, D-061);
+  the type comes from the address, never the form; status from the list; accessible
+  seats need a whole number from 0 to 10,000; other types ignore any count and store NULL; note as
+  above.
+
 ## CHECK constraints (D-010)
 
 Prisma cannot express these, so they are written by hand at the end of the migration that creates
 the table. Prisma does not diff CHECK constraints, so later generated migrations leave them in
 place.
 
-| Constraint                           | Rule                                                                                                |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `events_name_not_blank`              | `name` contains at least one non-space character.                                                   |
-| `events_capacity_positive`           | `capacity` is NULL or greater than 0.                                                               |
-| `events_expected_attendees_nonneg`   | `expectedAttendees` is 0 or more.                                                                   |
-| `events_ends_not_before_start`       | `endsAt` is NULL or not earlier than `startsAt`.                                                    |
-| `audit_logs_action_format`           | `action` looks like `<entity>.<verb>` in lower case.                                                |
-| `audit_logs_entity_pair`             | `entityType` and `entityId` are both set or both NULL.                                              |
-| `events_last_attendee_number_nonneg` | `lastAttendeeNumber` is 0 or more.                                                                  |
-| `attendees_name_not_blank`           | `name` contains at least one non-space character.                                                   |
-| `attendees_number_positive`          | `number` is 1 or more.                                                                              |
-| `attendees_plus_ones_range`          | `plusOnes` is from 0 to 10.                                                                         |
-| `attendees_optional_text_not_blank`  | `email`, `phone`, `category`, `dietaryNeeds` and `notes` are NULL or contain a non-space character. |
+| Constraint                                  | Rule                                                                                                |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `events_name_not_blank`                     | `name` contains at least one non-space character.                                                   |
+| `events_capacity_positive`                  | `capacity` is NULL or greater than 0.                                                               |
+| `events_expected_attendees_nonneg`          | `expectedAttendees` is 0 or more.                                                                   |
+| `events_ends_not_before_start`              | `endsAt` is NULL or not earlier than `startsAt`.                                                    |
+| `audit_logs_action_format`                  | `action` looks like `<entity>.<verb>` in lower case.                                                |
+| `audit_logs_entity_pair`                    | `entityType` and `entityId` are both set or both NULL.                                              |
+| `events_last_attendee_number_nonneg`        | `lastAttendeeNumber` is 0 or more.                                                                  |
+| `attendees_name_not_blank`                  | `name` contains at least one non-space character.                                                   |
+| `attendees_number_positive`                 | `number` is 1 or more.                                                                              |
+| `attendees_plus_ones_range`                 | `plusOnes` is from 0 to 10.                                                                         |
+| `attendees_optional_text_not_blank`         | `email`, `phone`, `category`, `dietaryNeeds` and `notes` are NULL or contain a non-space character. |
+| `accessibility_requirements_note_not_blank` | `note` is NULL or contains a non-space character.                                                   |
+| `accessibility_requirements_other_has_note` | An `OTHER` requirement has a note.                                                                  |
+| `accessibility_resources_quantity_rule`     | `quantity` is 0 or more for `ACCESSIBLE_SEATS`, and NULL for every other type.                      |
+| `accessibility_resources_note_not_blank`    | `note` is NULL or contains a non-space character.                                                   |
 
 ## Ownership trigger (D-022)
 
@@ -306,13 +419,15 @@ inside its own trigger).
 
 Who may delete what is set by the permission matrix (D-031, D-033).
 
-| Deleted row     | Effect                                                                                                                                  |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Event           | Owners only (D-033). Its memberships, attendees and audit log are deleted (cascade). Later event-owned tables also cascade (D-004).     |
-| Attendee        | Owners and Coordinators (`attendees.manage`, D-035). Permanently deleted; an `attendee.deleted` audit entry keeps its number and name.  |
-| User            | Blocked while the user created any event (D-011), or is the last `OWNER` of any event (D-022). Otherwise their memberships are deleted. |
-| Membership      | Blocked if it is the event's last `OWNER` (D-022). Demoting or moving the last `OWNER` is blocked too.                                  |
-| Audit log entry | Never deleted directly (D-037). Removed only with its event.                                                                            |
+| Deleted row               | Effect                                                                                                                                                                                                      |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Event                     | Owners only (D-033). Its memberships, attendees, accessibility requirements and resources, and audit log are deleted (cascade). Later event-owned tables also cascade (D-004).                              |
+| Attendee                  | Owners and Coordinators (`attendees.manage`, D-035). Permanently deleted; an `attendee.deleted` audit entry keeps its number and name. Its accessibility requirements are deleted with it (cascade, D-056). |
+| Accessibility requirement | Owners and Coordinators (`accessibility.manage`). Permanently deleted; the audit entry keeps the attendee number and the type.                                                                              |
+| Accessibility resource    | Owners and Coordinators (`accessibility.manage`). Permanently deleted; the type then shows as "Not set up".                                                                                                 |
+| User                      | Blocked while the user created any event (D-011), or is the last `OWNER` of any event (D-022). Otherwise their memberships are deleted.                                                                     |
+| Membership                | Blocked if it is the event's last `OWNER` (D-022). Demoting or moving the last `OWNER` is blocked too.                                                                                                      |
+| Audit log entry           | Never deleted directly (D-037). Removed only with its event.                                                                                                                                                |
 
 ## Reading events
 

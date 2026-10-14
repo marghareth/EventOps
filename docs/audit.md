@@ -21,15 +21,21 @@ The audit log records meaningful changes inside an event: who did what, to which
 Only these actions can be written. The registry is `src/modules/events/audit/actions.ts`; each action
 has a strict schema, so unlisted fields are refused, not silently stored.
 
-| Action               | Recorded when                                  | Entity     | Details                                                                                                            |
-| -------------------- | ---------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
-| `event.created`      | An event is created (B1-02)                    | `event`    | Event number and name                                                                                              |
-| `event.updated`      | Event details are edited (B1-05)               | `event`    | Changed fields only, old → new; the description is marked changed, its text not copied                             |
-| `attendee.created`   | An attendee is added (B2-01)                   | `attendee` | Readable ID (`ATT-0001`) and name                                                                                  |
-| `attendee.updated`   | An attendee is edited (B2-01)                  | `attendee` | Readable ID; name, RSVP, plus-ones and category old → new; email, phone, dietary needs and notes only as "changed" |
-| `attendee.deleted`   | An attendee is removed (B2-01)                 | `attendee` | Readable ID and name, so the log still says who was removed                                                        |
-| `attendees.imported` | Attendees are imported from a CSV file (B2-18) | `event`    | How many were added, the first and last new IDs, and how many rows were not imported. No names or file contents    |
-| `attendees.exported` | The guest list is downloaded as CSV (B2-19)    | `event`    | How many attendees were exported. Refused attempts are not recorded                                                |
+| Action                              | Recorded when                                         | Entity                      | Details                                                                                                            |
+| ----------------------------------- | ----------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `event.created`                     | An event is created (B1-02)                           | `event`                     | Event number and name                                                                                              |
+| `event.updated`                     | Event details are edited (B1-05)                      | `event`                     | Changed fields only, old → new; the description is marked changed, its text not copied                             |
+| `attendee.created`                  | An attendee is added (B2-01)                          | `attendee`                  | Readable ID (`ATT-0001`) and name                                                                                  |
+| `attendee.updated`                  | An attendee is edited (B2-01)                         | `attendee`                  | Readable ID; name, RSVP, plus-ones and category old → new; email, phone, dietary needs and notes only as "changed" |
+| `attendee.deleted`                  | An attendee is removed (B2-01)                        | `attendee`                  | Readable ID and name, so the log still says who was removed                                                        |
+| `attendees.imported`                | Attendees are imported from a CSV file (B2-18)        | `event`                     | How many were added, the first and last new IDs, and how many rows were not imported. No names or file contents    |
+| `attendees.exported`                | The guest list is downloaded as CSV (B2-19)           | `event`                     | How many attendees were exported. Refused attempts are not recorded                                                |
+| `accessibility_requirement.created` | An accessibility need is added to an attendee (B3-03) | `accessibility_requirement` | The attendee's readable ID, the type and the priority                                                              |
+| `accessibility_requirement.updated` | An accessibility need is edited (B3-03)               | `accessibility_requirement` | Readable ID and current type; type and priority old → new; the note only as "changed"                              |
+| `accessibility_resource.created`    | An event accessibility resource is set up (B3-05)     | `accessibility_resource`    | Type, status and seat count                                                                                        |
+| `accessibility_resource.updated`    | A resource is edited (B3-05)                          | `accessibility_resource`    | Type; status and seat count old → new; the note only as "changed"                                                  |
+| `accessibility_resource.deleted`    | A resource is removed (B3-05)                         | `accessibility_resource`    | Type                                                                                                               |
+| `accessibility_requirement.deleted` | An accessibility need is removed (B3-03)              | `accessibility_requirement` | Readable ID and type                                                                                               |
 
 Not recorded:
 
@@ -53,6 +59,21 @@ Add an action only when the feature that needs it is built, in the registry and 
 
 Refused actions and saves that change nothing record nothing. Proved by
 `attendees/activity.db.test.ts`, which scans every stored entry for the personal data it used.
+
+### Accessibility actions (B3-03, D-059)
+
+| Action | Entry                               | What is kept                | What is never kept            |
+| ------ | ----------------------------------- | --------------------------- | ----------------------------- |
+| Add    | `accessibility_requirement.created` | Attendee ID, type, priority | The note, the attendee's name |
+| Edit   | `accessibility_requirement.updated` | Type and priority old → new | The note: "changed" only      |
+| Remove | `accessibility_requirement.deleted` | Attendee ID and type        | The note                      |
+
+Resources (B3-05, D-061) describe the venue, not a person, so their status and seat count are kept
+old → new; their free-text note is recorded only as "changed", like the event description.
+
+The requirement note can hold health details, so it is never copied into the log. When an attendee is removed,
+their requirements go with them; the `attendee.deleted` entry covers it, with no separate entry per
+requirement. Proved by `accessibility/requirements.db.test.ts` and `accessibility/audit.test.ts`.
 
 ## What must not be stored
 

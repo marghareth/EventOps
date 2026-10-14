@@ -66,6 +66,12 @@ Status values:
 | D-053 | CSV export of the guest list                                | Approved | 2026-10-13 |
 | D-054 | CI green: placeholder tests and knip scope                  | Approved | 2026-10-13 |
 | D-055 | Browser lifecycle tests run in CI                           | Approved | 2026-10-13 |
+| D-056 | Accessibility data model                                    | Approved | 2026-10-13 |
+| D-057 | Accessibility requirement and resource definitions          | Approved | 2026-10-13 |
+| D-058 | Who sees accessibility requirements                         | Approved | 2026-10-13 |
+| D-059 | Managing accessibility requirements and their Activity      | Approved | 2026-10-13 |
+| D-060 | Accessibility needs on the attendee page                    | Approved | 2026-10-13 |
+| D-061 | Managing event accessibility resources                      | Approved | 2026-10-13 |
 
 ---
 
@@ -1257,6 +1263,201 @@ failure the Playwright report and traces are kept for 7 days. No new package: Pl
 a dev dependency; the job only downloads its Chromium.
 
 **Why.** B2-24 requires the end-to-end flow to run in CI, and the lifecycle tests were local only.
+
+---
+
+## D-056 Accessibility data model
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-01 to B3-05 plan, options 1a, 2a, 3a,
+4b, 5a and sample data).
+
+**Decision.**
+
+- **Two tables, two meanings.** `accessibility_requirements` holds what an attendee needs;
+  `accessibility_resources` holds what the event provides. Neither changes an existing table.
+- **Requirements belong to an attendee** through a composite foreign key on `(eventId,
+attendeeId)` to `attendees (eventId, id)` (D-002), so the database refuses a requirement that
+  points at another event's attendee. They are deleted with the attendee (D-045) and the event
+  (D-004).
+- **Several needs, one row each (3a).** At most one requirement of each type per attendee
+  (unique `(eventId, attendeeId, type)`). A requirement has a priority and an optional note of up to
+  500 characters; an `OTHER` requirement must have a note (CHECK).
+- **Resources (5a):** at most one row per type per event (unique `(eventId, type)`), with a status
+  (`NOT_AVAILABLE`, `ARRANGING`, `AVAILABLE`) and an optional note. Accessible seats also have a
+  count of 0 or more, and no other type has one (CHECK). No row means "Not set up".
+- **Timestamps:** `createdAt`, and `updatedAt` as the edit version for stale-save checks (D-032).
+- **Indexes:** the two unique keys above, `(eventId, id)` on both tables for later composite links,
+  and `(eventId, type)` on requirements for counting needs across the event.
+- **Not modelled:** seating assignment, transport and volunteer needs (Tier 2 and 3), readiness
+  results (computed, never stored), and dietary needs (stay on the attendee, D-047).
+
+**Migration.** `20261013120000_accessibility`. The Prisma schema engine could not be downloaded
+where it was written, so its generated part was written by hand in the engine's format and checked
+against PostgreSQL 16; CI's `prisma migrate deploy` and `prisma migrate status` are its first real
+Prisma run.
+
+**Evidence.** `accessibility/accessibility-tables.db.test.ts` (several needs, one per type,
+cross-event link refused, CHECKs, cascades with attendee and event, indexes, timestamps);
+`delete-event.db.test.ts` (every foreign key to `events` cascades); `db.db.test.ts` (expected
+tables).
+
+---
+
+## D-057 Accessibility requirement and resource definitions
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-02, options 1a and 2a).
+
+**Decision.**
+
+- **One canonical source.** `accessibility/domain/requirement-type.ts` defines the requirement
+  types and priorities; `accessibility/domain/resource.ts` defines the resource types and
+  statuses. Each value has a label and a one-sentence description. Forms, server validation, pages
+  and the Activity feed use these; the database enums and the audit registry's copies are kept
+  equal by tests.
+- **Types (1a):** Mobility assistance, Accessible seating, Step-free entry, Accessible restroom,
+  Sign-language interpretation, Captioning and Other (the note must say what is needed). Dietary
+  needs stay on the attendee (D-047); volunteer accommodation waits for volunteers (Tier 2).
+- **Priority per requirement (2a):** Required (the default; readiness counts it), Preferred (shown,
+  never makes the event "not ready"), For information (context for staff, never counted).
+- **Resources (5a):** Accessible seats (with a count), Accessible entrance, Ramp or elevator,
+  Accessible restroom, Captioning, Sign-language interpreter. Status Not available, Being arranged
+  or Available; no record means Not set up.
+- **Validation:** `accessibility/schema.ts` (Zod), used by both the forms and the server actions.
+  Invalid types, priorities and statuses are refused with a plain message; limits match the
+  database (note 500, seats 0 to 10,000; the seat maximum is a sanity limit).
+- **Wording:** labels describe the need, not the person ("Accessible seating", not "disabled
+  guest").
+
+**Not decided here.** How resources satisfy requirements and how readiness is calculated: the
+readiness task.
+
+**Evidence.** `accessibility/definitions.test.ts` (lists equal to the database enums),
+`accessibility/domain/definitions.test.ts` (every value defined, change helpers) and
+`accessibility/schema.test.ts` (valid and invalid input).
+
+---
+
+## D-058 Who sees accessibility requirements
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-03, option 4b). Adds one row to the
+permission matrix (D-035).
+
+**Context.** An accessibility requirement's type tells staff what to arrange; its note can hold
+health details ("Uses a power wheelchair", "Epilepsy: avoid strobe lights"). Viewers are often
+clients, venues or caterers.
+
+**Decision.**
+
+- **Every member** (event.view) sees an attendee's requirement types and priorities, so a venue or
+  caterer added as a Viewer can plan.
+- **Notes need `accessibility.private`**, a new permission row for Owner and Coordinator. Reads
+  load the note only for roles with it, so a Viewer's page never receives it; the page says who can
+  see notes.
+- **Changes need `accessibility.manage`** (Owner, Coordinator, unchanged from D-035).
+
+**Alternatives not chosen.** Everything to every member (4a) exposes health details to read-only
+users. Owners and Coordinators only (4c) hides what venues and caterers need to plan.
+
+**Evidence.** `permissions.test.ts` (code equals PERMISSIONS.md); `accessibility/authorization.db.test.ts`
+(the Viewer reads needs but never notes, and the response never contains the note text).
+
+---
+
+## D-059 Managing accessibility requirements and their Activity
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-03, plan item 6).
+
+**Decision.**
+
+- **Add, edit, remove** an attendee's requirements through server actions that authorize first with
+  `authorizeEvent(eventId, "accessibility.manage")` (D-036) and validate with the shared schema
+  (D-057). The repository re-checks the role in the same statement as each write, finds the attendee
+  and requirement only inside the authorized event and for that attendee, and refuses a second
+  requirement of the same type (also enforced by the unique key, so two requests at once can't both
+  succeed).
+- **Edits** refuse stale saves (D-032). A save that changes nothing writes and records nothing.
+- **Remove** is permanent, behind the shared confirmation dialog.
+- **Activity:** `accessibility_requirement.created` (attendee ID, type, priority),
+  `.updated` (type and priority old → new, note as "changed"), `.deleted` (attendee ID, type). Never
+  the note or the attendee's name. Removing an attendee removes their requirements without separate
+  entries (`attendee.deleted` covers it).
+- **Architecture (D-001):** use cases in `accessibility/application/`, storage behind the
+  `AccessibilityRepository` port, implemented with Prisma and with the dev-only sample store
+  (D-041), chosen in `composition.ts`. The audit registry keeps its own copy of the requirement
+  lists and labels; a test keeps them equal.
+
+**Evidence.** `accessibility/requirements.db.test.ts` (save, list order, notes not loaded, duplicates
+including concurrent, stale, unchanged, refused roles and events, cascade with the attendee);
+`accessibility/authorization.db.test.ts` (seven callers × seven operations through the real actions
+and reads, refusals change nothing); `accessibility/audit.test.ts`; `action-coverage.test.ts`.
+
+---
+
+## D-060 Accessibility needs on the attendee page
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-04, plan item 7).
+
+**Decision.**
+
+- **Where:** an Accessibility section on the attendee details page, after Details and Notes (D-051),
+  from the accessibility module's own read. Every member sees it, so needs are visible without
+  leaving the attendee. Each need shows its label, its priority in words (never colour alone) and,
+  for roles with `accessibility.private`, its note; Viewers are told who can see notes.
+- **Add** at `/events/<id>/attendees/<attendeeId>/accessibility/new` and **edit** at
+  `…/accessibility/<requirementId>/edit`, with **Remove** below the edit form behind the shared
+  confirmation dialog. Plain forms: they work without JavaScript. Viewers get "You don't have
+  access" without anything being loaded; unknown IDs or other attendees' and events' needs are
+  "not found".
+- **Form:** two radio groups (fieldset and legend) built from the canonical definitions, each choice
+  with its description linked by `aria-describedby` (the accessible name is only the choice);
+  types the guest already has are shown as "(already added)" and disabled; Required is chosen by
+  default; a note field that says who can see it. Errors are listed in the summary and next to the
+  field, from the server.
+- **After a change:** back to the details page with a dismissible notice. Only a known notice kind
+  and a known need type are read from the address; the label comes from the definitions.
+- **States:** the event's loading screen covers loading; an empty state says nothing is recorded
+  (with "Add accessibility need" for managers); a failed read shows an error inside the section and
+  keeps the rest of the page; "every listed need is already recorded" on the add page.
+- **Words:** "accessibility need" on screen; labels name the need, never the person.
+
+**Found while building.** A constant exported from a `"use client"` file reaches server code only
+as a client reference, so the notice list lives in a plain module (`accessibility/notices.ts`).
+
+**Evidence.** `accessibility/ui/*.test.tsx`, `attendees/[attendeeId]/accessibility/pages.test.tsx`,
+the updated section-order test in `attendees/page.test.tsx`, and
+`e2e/lifecycle/accessibility-flow.spec.ts` (keyboard choice, add, edit, remove, Activity).
+
+---
+
+## D-061 Managing event accessibility resources
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-05, option 5a).
+
+**Decision.**
+
+- **Where:** the event's Accessibility page (`/events/<id>/accessibility`) lists all six resource
+  types in definition order, each with its status in words and an icon (never colour alone), the
+  seat count for accessible seats, and any note. Every member sees the whole list: resources
+  describe the venue, not a person. Types with no record show "Not set up".
+- **Set up, edit, remove** at `/events/<id>/accessibility/<resource>/edit` (for example
+  `accessible-seats`), for Owners and Coordinators (`accessibility.manage`). The type comes from
+  the address, is checked against the six, and is bound to the server action; it is never read
+  from the form. A form opened while the type was "Not set up" creates it and never overwrites one
+  set up meanwhile; an edit refuses stale saves (D-032) and records nothing when nothing changed.
+  Remove is permanent behind the shared confirmation dialog, and the type shows as "Not set up"
+  again.
+- **Minimum for readiness:** per type, a status; for accessible seats, a count. This is what the
+  readiness task will compare with attendees' requirements; that comparison is not built here.
+- **Activity:** `accessibility_resource.created` (type, status, seat count), `.updated` (status and
+  seat count old → new, note as "changed"), `.deleted` (type).
+- **Viewers** get "You don't have access" on the form page without anything being loaded, and the
+  server actions refuse them.
+
+**Evidence.** `accessibility/resources.db.test.ts` (set up, concurrent set-up, edit, stale,
+unchanged, refused roles and events, remove, list order); the resource matrix in
+`accessibility/authorization.db.test.ts` (five callers × five operations, unknown types refused);
+`accessibility/audit.test.ts`; `accessibility/ui/Resource*.test.tsx`;
+`accessibility/pages.test.tsx`; step 5 of `e2e/lifecycle/accessibility-flow.spec.ts`.
 
 ---
 
