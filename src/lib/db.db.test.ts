@@ -121,12 +121,14 @@ describe("migrations", () => {
     expect(applied).toEqual(onDisk);
   });
 
-  it("creates exactly the expected tables (B0-08, audit_logs from B1-11, attendees from B2-01)", async () => {
+  it("creates exactly the expected tables (B0-08; audit_logs B1-11; attendees B2-01; accessibility B3-01)", async () => {
     const rows = await db.$queryRaw<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name <> '_prisma_migrations'
       ORDER BY table_name`;
     expect(rows.map((row) => row.table_name)).toEqual([
+      "accessibility_requirements",
+      "accessibility_resources",
       "attendees",
       "audit_logs",
       "event_members",

@@ -1,7 +1,7 @@
 // prisma/schema.prisma
 //
 // EventOps data model. B0-08 Database Foundation: users, events and event members; B1-11 adds the
-// audit log; B2-01 adds attendees.
+// audit log; B2-01 adds attendees; B3-01 adds accessibility requirements and resources.
 // Other tables (suppliers, budget, tasks, ...) are added by their own batch tasks,
 // following docs/DECISIONS.md (D-002, D-003) and docs/DATA_MODEL.md.
 //
@@ -62,6 +62,52 @@ enum RsvpStatus {
   @@map("rsvp_status")
 }
 
+// What an attendee needs (B3-01, D-056). The canonical list, labels and meanings live in
+// src/modules/events/accessibility/domain/requirement-type.ts (B3-02, D-057); a test keeps the two
+// equal. Dietary needs are not here: they stay on the attendee (D-047).
+enum AccessibilityRequirementType {
+  MOBILITY_ASSISTANCE
+  ACCESSIBLE_SEATING
+  STEP_FREE_ENTRANCE
+  ACCESSIBLE_RESTROOM
+  SIGN_LANGUAGE
+  CAPTIONING
+  OTHER
+
+  @@map("accessibility_requirement_type")
+}
+
+// How firmly a requirement must be met (D-057). REQUIRED is the domain default.
+enum RequirementPriority {
+  REQUIRED
+  PREFERRED
+  INFORMATIONAL
+
+  @@map("requirement_priority")
+}
+
+// What the event can provide (B3-01, D-056). Canonical list in
+// src/modules/events/accessibility/domain/resource.ts.
+enum AccessibilityResourceType {
+  ACCESSIBLE_SEATS
+  ACCESSIBLE_ENTRANCE
+  RAMP_OR_ELEVATOR
+  ACCESSIBLE_RESTROOM
+  CAPTIONING
+  SIGN_LANGUAGE
+
+  @@map("accessibility_resource_type")
+}
+
+// Whether a resource is in place (D-056). No row for a type means "Not set up".
+enum ResourceStatus {
+  NOT_AVAILABLE
+  ARRANGING
+  AVAILABLE
+
+  @@map("resource_status")
+}
+
 // ───────────────────────────── Users ─────────────────────────────
 
 // Mirror of the Supabase Auth user (same id), created on first sign-in. Used to show names and
@@ -118,10 +164,12 @@ model Event {
   // Set by Prisma on every update through the client. Raw SQL updates must set it themselves.
   updatedAt          DateTime    @updatedAt
 
-  createdBy User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  members   EventMember[]
-  auditLogs AuditLog[]
-  attendees Attendee[]
+  createdBy                 User                       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  members                   EventMember[]
+  auditLogs                 AuditLog[]
+  attendees                 Attendee[]
+  accessibilityRequirements AccessibilityRequirement[]
+  accessibilityResources    AccessibilityResource[]
 
   @@index([createdById])
   @@index([status, startsAt])
@@ -193,7 +241,8 @@ model Attendee {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event                     Event                      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  accessibilityRequirements AccessibilityRequirement[]
 
   @@unique([eventId, number])
   // Target of composite foreign keys from event-owned tables (D-002), for example accessibility
@@ -202,6 +251,64 @@ model Attendee {
   @@index([eventId, name])
   @@index([eventId, rsvpStatus])
   @@map("attendees")
+}
+
+// ───────────────────────── Accessibility ─────────────────────────
+
+// One need of one attendee (B3-01, D-056). An attendee has at most one requirement of each type;
+// several needs are several rows. Belongs to the attendee through a composite foreign key on
+// (eventId, attendeeId), so it can never point at another event's attendee (D-002), and is deleted
+// with the attendee (D-045) or the event (D-004).
+//
+// The note may hold health details: it is loaded only for roles with accessibility.private (D-058).
+//
+// CHECK constraints (migration SQL):
+// - accessibility_requirements_note_not_blank: note is NULL or has content.
+// - accessibility_requirements_other_has_note: an OTHER requirement always has a note.
+model AccessibilityRequirement {
+  id         String                       @id @default(uuid()) @db.Uuid
+  eventId    String                       @db.Uuid
+  attendeeId String                       @db.Uuid
+  type       AccessibilityRequirementType
+  priority   RequirementPriority
+  note       String?                      @db.VarChar(500)
+  createdAt  DateTime                     @default(now())
+  // Edit version: a save carrying an older value is refused as stale (D-032).
+  updatedAt  DateTime                     @updatedAt
+
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendee Attendee @relation(fields: [eventId, attendeeId], references: [eventId, id], onDelete: Cascade)
+
+  @@unique([eventId, attendeeId, type])
+  @@unique([eventId, id])
+  // For counting needs by type across the event (readiness, later in Batch 3).
+  @@index([eventId, type])
+  @@map("accessibility_requirements")
+}
+
+// What the event provides for one resource type (B3-01, D-056). At most one row per type per event;
+// no row means "Not set up". Only ACCESSIBLE_SEATS has a quantity.
+//
+// CHECK constraints (migration SQL):
+// - accessibility_resources_quantity_rule: quantity is set (0 or more) for ACCESSIBLE_SEATS and
+//   NULL for every other type.
+// - accessibility_resources_note_not_blank: note is NULL or has content.
+model AccessibilityResource {
+  id        String                    @id @default(uuid()) @db.Uuid
+  eventId   String                    @db.Uuid
+  type      AccessibilityResourceType
+  status    ResourceStatus
+  quantity  Int?
+  note      String?                   @db.VarChar(500)
+  createdAt DateTime                  @default(now())
+  // Edit version (D-032).
+  updatedAt DateTime                  @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, type])
+  @@unique([eventId, id])
+  @@map("accessibility_resources")
 }
 
 // ─────────────────────────── Audit log ───────────────────────────

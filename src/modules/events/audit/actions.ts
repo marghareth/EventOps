@@ -53,6 +53,66 @@ export const attendeeChangesSchema = z
 
 export type AttendeeChanges = z.infer<typeof attendeeChangesSchema>;
 
+/**
+ * Accessibility values as stored (B3-01, D-056, D-057). The audit registry keeps its own copies for
+ * validating log entries (it can't import the accessibility context); tests keep them equal to the
+ * accessibility definitions and the database enums.
+ */
+export const ACCESSIBILITY_REQUIREMENT_TYPES = [
+  "MOBILITY_ASSISTANCE",
+  "ACCESSIBLE_SEATING",
+  "STEP_FREE_ENTRANCE",
+  "ACCESSIBLE_RESTROOM",
+  "SIGN_LANGUAGE",
+  "CAPTIONING",
+  "OTHER",
+] as const;
+export const REQUIREMENT_PRIORITIES = ["REQUIRED", "PREFERRED", "INFORMATIONAL"] as const;
+export const ACCESSIBILITY_RESOURCE_TYPES = [
+  "ACCESSIBLE_SEATS",
+  "ACCESSIBLE_ENTRANCE",
+  "RAMP_OR_ELEVATOR",
+  "ACCESSIBLE_RESTROOM",
+  "CAPTIONING",
+  "SIGN_LANGUAGE",
+] as const;
+export const RESOURCE_STATUSES = ["NOT_AVAILABLE", "ARRANGING", "AVAILABLE"] as const;
+
+const requirementType = z.enum(ACCESSIBILITY_REQUIREMENT_TYPES);
+const requirementPriority = z.enum(REQUIREMENT_PRIORITIES);
+
+/**
+ * Requirement fields as recorded in "accessibility_requirement.updated" (B3-03, D-059). The note
+ * may hold health details: recorded as changed, never copied.
+ */
+export const requirementChangesSchema = z
+  .object({
+    type: fromTo(requirementType),
+    priority: fromTo(requirementPriority),
+    note: changedOnly,
+  })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, "An update must change something.");
+
+export type RequirementChanges = z.infer<typeof requirementChangesSchema>;
+
+const resourceType = z.enum(ACCESSIBILITY_RESOURCE_TYPES);
+const resourceStatus = z.enum(RESOURCE_STATUSES);
+const seatCount = z.number().int().min(0).nullable();
+
+/**
+ * Resource fields as recorded in "accessibility_resource.updated" (B3-05, D-061). Status and seat
+ * count are business values, recorded old → new; the note is free text, recorded as changed.
+ */
+export const resourceChangesSchema = z
+  .object({ status: fromTo(resourceStatus), quantity: fromTo(seatCount), note: changedOnly })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, "An update must change something.");
+
+export type ResourceChanges = z.infer<typeof resourceChangesSchema>;
+
 /** Who an attendee entry is about: the readable ID and the name at that moment. */
 const attendeeIdentity = z.object({ reference: attendeeReference, name: z.string() }).strict();
 
@@ -95,6 +155,51 @@ export const AUDIT_ACTIONS = {
         skipped: z.number().int().min(0),
       })
       .strict(),
+  },
+  /**
+   * An accessibility requirement was added to an attendee (B3-03, D-059). The attendee's readable
+   * ID, the type and the priority; never the note or the name.
+   */
+  "accessibility_requirement.created": {
+    entityType: "accessibility_requirement",
+    details: z
+      .object({
+        reference: attendeeReference,
+        type: requirementType,
+        priority: requirementPriority,
+      })
+      .strict(),
+  },
+  /** A requirement was edited (B3-03). Only changed fields; the note as "changed". */
+  "accessibility_requirement.updated": {
+    entityType: "accessibility_requirement",
+    details: z
+      .object({
+        reference: attendeeReference,
+        type: requirementType,
+        changes: requirementChangesSchema,
+      })
+      .strict(),
+  },
+  /** A requirement was removed (B3-03). The entry keeps the attendee's ID and the type. */
+  "accessibility_requirement.deleted": {
+    entityType: "accessibility_requirement",
+    details: z.object({ reference: attendeeReference, type: requirementType }).strict(),
+  },
+  /** An event accessibility resource was set up (B3-05, D-061): type, status and seat count. */
+  "accessibility_resource.created": {
+    entityType: "accessibility_resource",
+    details: z.object({ type: resourceType, status: resourceStatus, quantity: seatCount }).strict(),
+  },
+  /** A resource was edited (B3-05). Only changed fields; the note as "changed". */
+  "accessibility_resource.updated": {
+    entityType: "accessibility_resource",
+    details: z.object({ type: resourceType, changes: resourceChangesSchema }).strict(),
+  },
+  /** A resource was removed; the type shows as "Not set up" again (B3-05). */
+  "accessibility_resource.deleted": {
+    entityType: "accessibility_resource",
+    details: z.object({ type: resourceType }).strict(),
   },
 } as const;
 

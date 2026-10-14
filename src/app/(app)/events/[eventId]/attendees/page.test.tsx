@@ -10,6 +10,7 @@ const getEventAttendees = vi.fn();
 const createAttendeeAction = vi.fn();
 const getAttendeeForEditing = vi.fn();
 const getAttendeeDetails = vi.fn();
+const getAttendeeAccessibility = vi.fn();
 
 vi.mock("@/modules/events/access", () => ({
   requireEventAccess: (...args: unknown[]) => requireEventAccess(...args),
@@ -25,6 +26,16 @@ vi.mock("@/modules/events/attendees/read", () => ({
   getEventAttendees: (...args: unknown[]) => getEventAttendees(...args),
   getAttendeeForEditing: (...args: unknown[]) => getAttendeeForEditing(...args),
   getAttendeeDetails: (...args: unknown[]) => getAttendeeDetails(...args),
+}));
+vi.mock("@/modules/events/accessibility/queries", () => ({
+  getAttendeeAccessibility: (...args: unknown[]) => getAttendeeAccessibility(...args),
+  getNewRequirementContext: vi.fn(),
+  getRequirementForEditing: vi.fn(),
+}));
+vi.mock("@/modules/events/accessibility/actions", () => ({
+  createRequirementAction: vi.fn(),
+  updateRequirementAction: vi.fn(),
+  deleteRequirementAction: vi.fn(),
 }));
 vi.mock("@/modules/events/attendees/actions", () => ({
   createAttendeeAction: Object.assign((...args: unknown[]) => createAttendeeAction(...args), {
@@ -71,6 +82,12 @@ const renderList = async (search: Record<string, string> = {}) =>
 beforeEach(() => {
   vi.resetAllMocks();
   getEventAttendees.mockResolvedValue({ ok: true, attendees: guests });
+  getAttendeeAccessibility.mockResolvedValue({
+    ok: true,
+    requirements: [],
+    showNotes: false,
+    canManage: false,
+  });
 });
 
 describe("Attendees page", () => {
@@ -379,9 +396,9 @@ describe("Attendee details page (B2-07, D-048)", () => {
   });
 
   it.each([
-    ["OWNER", ["Details", "Notes"]],
-    ["VIEWER", ["Details"]],
-  ] as const)("composes its sections in order for a %s (B2-13)", async (role, sections) => {
+    ["OWNER", ["Details", "Notes", "Accessibility"]],
+    ["VIEWER", ["Details", "Accessibility"]],
+  ] as const)("composes its sections in order for a %s (B2-13, B3-04)", async (role, sections) => {
     access(role);
     const privateFields = role !== "VIEWER";
     getAttendeeDetails.mockResolvedValue({
@@ -395,8 +412,8 @@ describe("Attendee details page (B2-07, D-048)", () => {
       .map((region) => region.getAttribute("aria-labelledby"))
       .map((id) => document.getElementById(id!)?.textContent);
     expect(names).toEqual(sections);
-    // No accessibility section until Batch 3 adds one from its own module.
-    expect(screen.queryByRole("region", { name: /accessibility/i })).not.toBeInTheDocument();
+    // The Accessibility section comes from its own module's read (D-051), for this attendee.
+    expect(getAttendeeAccessibility).toHaveBeenCalledWith(ID, ATTENDEE);
   });
 
   it("is not found for an unknown attendee or another event's attendee", async () => {

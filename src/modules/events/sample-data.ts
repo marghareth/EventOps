@@ -14,7 +14,14 @@
 // Changes live in memory only and reset when `npm run dev` restarts. Never used in a build:
 // isSampleDataMode() needs NODE_ENV=development and `next build` refuses DEV_DEMO_AUTH=true.
 import "server-only";
-import type { EventStatus, MemberRole } from "@/generated/prisma/client";
+import type {
+  AccessibilityRequirementType,
+  AccessibilityResourceType,
+  EventStatus,
+  MemberRole,
+  RequirementPriority,
+  ResourceStatus,
+} from "@/generated/prisma/client";
 import { DEMO_USER } from "@/lib/demo-auth";
 import {
   AUDIT_ACTIONS,
@@ -54,6 +61,32 @@ export type SampleAttendeeInput = {
 /** One attendee as the guest list reads it (same shape as the attendees context's records). */
 export type SampleAttendee = SampleAttendeeInput & { id: string; number: number; updatedAt: Date };
 type StoredAttendee = SampleAttendee & { eventId: string };
+/** An attendee's accessibility requirement, as the accessibility context validates it (D-056). */
+export type SampleRequirementInput = {
+  type: AccessibilityRequirementType;
+  priority: RequirementPriority;
+  note: string | null;
+};
+/** One stored requirement (same shape as the accessibility context's records). */
+export type SampleRequirement = SampleRequirementInput & {
+  id: string;
+  attendeeId: string;
+  updatedAt: Date;
+};
+type StoredRequirement = SampleRequirement & { eventId: string };
+/** An event accessibility resource's editable values (B3-05, D-056). */
+export type SampleResourceInput = {
+  status: ResourceStatus;
+  quantity: number | null;
+  note: string | null;
+};
+/** One stored resource (same shape as the accessibility context's records). */
+export type SampleResource = SampleResourceInput & {
+  id: string;
+  type: AccessibilityResourceType;
+  updatedAt: Date;
+};
+type StoredResource = SampleResource & { eventId: string };
 
 type SampleStore = {
   users: Map<string, string>;
@@ -63,6 +96,10 @@ type SampleStore = {
   attendees: StoredAttendee[];
   /** Last attendee number issued per event, like events.lastAttendeeNumber: never reused. */
   lastAttendeeNumber: Map<string, number>;
+  /** Accessibility requirements (B3-03); removed with their attendee or event, like the cascade. */
+  requirements: StoredRequirement[];
+  /** Event accessibility resources (B3-05); at most one per type per event; removed with the event. */
+  resources: StoredResource[];
 };
 
 const MIKA = "5e000000-0000-4000-8000-0000000000a1";
@@ -257,7 +294,49 @@ function seed(): SampleStore {
     audit,
     attendees,
     lastAttendeeNumber,
+    requirements: seedRequirements(),
+    resources: seedResources(),
   };
+}
+
+/** Some of the wedding's resources set up, so the Accessibility page shows each status. */
+function seedResources(): StoredResource[] {
+  const rows: [AccessibilityResourceType, ResourceStatus, number | null, string | null][] = [
+    ["ACCESSIBLE_SEATS", "AVAILABLE", 2, "Front left, beside the aisle"],
+    ["ACCESSIBLE_ENTRANCE", "AVAILABLE", null, "Side entrance on the garden level"],
+    ["CAPTIONING", "ARRANGING", null, null],
+    ["SIGN_LANGUAGE", "NOT_AVAILABLE", null, null],
+  ];
+  return rows.map(([type, status, quantity, note], index) => ({
+    id: `5e000000-0000-4000-8000-a12${String(index + 1).padStart(9, "0")}`,
+    eventId: SAMPLE_EVENT_IDS.wedding,
+    type,
+    status,
+    quantity,
+    note,
+    updatedAt: at("2026-10-10T03:00:00Z"),
+  }));
+}
+
+/** A few accessibility needs on the wedding guest list, so the details page has something to show. */
+function seedRequirements(): StoredRequirement[] {
+  const wedding = SAMPLE_EVENT_IDS.wedding;
+  const guest = (number: number) =>
+    `5e000000-0000-4000-8000-${wedding.slice(-3)}${String(number).padStart(9, "0")}`;
+  const rows: [number, AccessibilityRequirementType, RequirementPriority, string | null][] = [
+    [1, "ACCESSIBLE_SEATING", "REQUIRED", "Near the aisle, close to an exit"],
+    [1, "STEP_FREE_ENTRANCE", "REQUIRED", "Uses a power wheelchair"],
+    [8, "CAPTIONING", "PREFERRED", null],
+  ];
+  return rows.map(([number, type, priority, note], index) => ({
+    id: `5e000000-0000-4000-8000-a11${String(index + 1).padStart(9, "0")}`,
+    eventId: wedding,
+    attendeeId: guest(number),
+    type,
+    priority,
+    note,
+    updatedAt: at("2026-10-10T02:00:00Z"),
+  }));
 }
 
 /** Sample guests. The Reyes Family Reunion has none, so the empty guest list can be seen too. */
@@ -314,16 +393,16 @@ function seedAttendees(): StoredAttendee[] {
 // reloads share one store.
 // The key has a version: a dev server still holding an older store shape after a code update
 // starts a fresh one instead of failing.
-const globalStore = globalThis as typeof globalThis & { __eventopsSampleDataV2?: SampleStore };
+const globalStore = globalThis as typeof globalThis & { __eventopsSampleDataV3?: SampleStore };
 
 function store(): SampleStore {
-  globalStore.__eventopsSampleDataV2 ??= seed();
-  return globalStore.__eventopsSampleDataV2;
+  globalStore.__eventopsSampleDataV3 ??= seed();
+  return globalStore.__eventopsSampleDataV3;
 }
 
 /** Back to the seeded samples. For tests. */
 export function resetSampleData(): void {
-  globalStore.__eventopsSampleDataV2 = seed();
+  globalStore.__eventopsSampleDataV3 = seed();
 }
 
 function roleOf(s: SampleStore, eventId: string, userId: string): MemberRole | null {
@@ -464,6 +543,8 @@ export function sampleDeleteEvent(args: { eventId: string; userId: string }): De
   s.members = s.members.filter((m) => m.eventId !== args.eventId);
   s.audit = s.audit.filter((a) => a.eventId !== args.eventId);
   s.attendees = s.attendees.filter((a) => a.eventId !== args.eventId);
+  s.requirements = s.requirements.filter((r) => r.eventId !== args.eventId);
+  s.resources = s.resources.filter((r) => r.eventId !== args.eventId);
   return { ok: true };
 }
 
@@ -552,6 +633,8 @@ export function sampleDeleteAttendee(args: {
     now: args.now,
   });
   s.attendees = s.attendees.filter((a) => a !== attendee);
+  // Like the composite foreign key's cascade (D-056): the attendee's requirements go with them.
+  s.requirements = s.requirements.filter((r) => r.attendeeId !== attendee.id);
   return { ok: true, reference };
 }
 
@@ -652,6 +735,253 @@ export function sampleExportAttendees(args: {
     now: args.now,
   });
   return attendees;
+}
+
+// ───────────────────────── Accessibility (B3-03) ─────────────────────────
+
+const attendeeReference = (number: number) => `ATT-${String(number).padStart(4, "0")}`;
+
+function mayManageAccessibility(s: SampleStore, eventId: string, userId: string): boolean {
+  const role = roleOf(s, eventId, userId);
+  return role !== null && rolesAllowed("accessibility.manage").includes(role);
+}
+
+function copyRequirement(r: StoredRequirement): SampleRequirement {
+  return {
+    id: r.id,
+    attendeeId: r.attendeeId,
+    type: r.type,
+    priority: r.priority,
+    note: r.note,
+    updatedAt: new Date(r.updatedAt),
+  };
+}
+
+/** Stand-in for listing an attendee's requirements: this event and attendee only. Copies. */
+export function sampleListRequirements(eventId: string, attendeeId: string): SampleRequirement[] {
+  return store()
+    .requirements.filter((r) => r.eventId === eventId && r.attendeeId === attendeeId)
+    .map(copyRequirement);
+}
+
+/** Stand-in for creating a requirement: accessibility.manage re-checked, one per type, audited. */
+export function sampleCreateRequirement(args: {
+  eventId: string;
+  attendeeId: string;
+  actorId: string;
+  input: SampleRequirementInput;
+  now: Date;
+}): { ok: true; id: string } | { ok: false; reason: "not-found" | "duplicate" } {
+  const s = store();
+  const attendee = s.attendees.find((a) => a.id === args.attendeeId && a.eventId === args.eventId);
+  if (!attendee || !mayManageAccessibility(s, args.eventId, args.actorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  if (
+    s.requirements.some(
+      (r) =>
+        r.eventId === args.eventId &&
+        r.attendeeId === args.attendeeId &&
+        r.type === args.input.type,
+    )
+  ) {
+    return { ok: false, reason: "duplicate" };
+  }
+  const id = crypto.randomUUID();
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.actorId,
+    action: "accessibility_requirement.created",
+    details: {
+      reference: attendeeReference(attendee.number),
+      type: args.input.type,
+      priority: args.input.priority,
+    },
+    now: args.now,
+  });
+  s.requirements.push({
+    ...args.input,
+    id,
+    eventId: args.eventId,
+    attendeeId: args.attendeeId,
+    updatedAt: args.now,
+  });
+  return { ok: true, id };
+}
+
+/** Stand-in for updating a requirement: accessibility.manage re-checked, stale saves refused. */
+export function sampleUpdateRequirement(args: {
+  eventId: string;
+  attendeeId: string;
+  requirementId: string;
+  actorId: string;
+  version: Date;
+  input: SampleRequirementInput;
+  changes: Record<string, unknown>;
+  now: Date;
+}): { ok: true } | { ok: false; reason: "not-found" | "stale" | "duplicate" } {
+  const s = store();
+  const requirement = s.requirements.find(
+    (r) =>
+      r.id === args.requirementId && r.eventId === args.eventId && r.attendeeId === args.attendeeId,
+  );
+  const attendee = s.attendees.find((a) => a.id === args.attendeeId && a.eventId === args.eventId);
+  if (!requirement || !attendee || !mayManageAccessibility(s, args.eventId, args.actorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  if (requirement.updatedAt.getTime() !== args.version.getTime()) {
+    return { ok: false, reason: "stale" };
+  }
+  if (
+    s.requirements.some(
+      (r) => r !== requirement && r.attendeeId === args.attendeeId && r.type === args.input.type,
+    )
+  ) {
+    return { ok: false, reason: "duplicate" };
+  }
+  // Never the same millisecond as the version the form holds, so the next save is not "stale".
+  const now = new Date(Math.max(args.now.getTime(), requirement.updatedAt.getTime() + 1));
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.actorId,
+    action: "accessibility_requirement.updated",
+    details: {
+      reference: attendeeReference(attendee.number),
+      type: args.input.type,
+      changes: args.changes,
+    },
+    now,
+  });
+  Object.assign(requirement, args.input, { updatedAt: now });
+  return { ok: true };
+}
+
+/** Stand-in for removing a requirement: accessibility.manage re-checked, an entry kept. */
+export function sampleDeleteRequirement(args: {
+  eventId: string;
+  attendeeId: string;
+  requirementId: string;
+  actorId: string;
+  now: Date;
+}): { ok: true; type: AccessibilityRequirementType } | { ok: false; reason: "not-found" } {
+  const s = store();
+  const requirement = s.requirements.find(
+    (r) =>
+      r.id === args.requirementId && r.eventId === args.eventId && r.attendeeId === args.attendeeId,
+  );
+  const attendee = s.attendees.find((a) => a.id === args.attendeeId && a.eventId === args.eventId);
+  if (!requirement || !attendee || !mayManageAccessibility(s, args.eventId, args.actorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.actorId,
+    action: "accessibility_requirement.deleted",
+    details: { reference: attendeeReference(attendee.number), type: requirement.type },
+    now: args.now,
+  });
+  s.requirements = s.requirements.filter((r) => r !== requirement);
+  return { ok: true, type: requirement.type };
+}
+
+/** Stand-in for listing the event's resources (B3-05). Copies. */
+export function sampleListResources(eventId: string): SampleResource[] {
+  return store()
+    .resources.filter((r) => r.eventId === eventId)
+    .map((r) => ({
+      id: r.id,
+      type: r.type,
+      status: r.status,
+      quantity: r.quantity,
+      note: r.note,
+      updatedAt: new Date(r.updatedAt),
+    }));
+}
+
+/** Stand-in for setting up a resource: accessibility.manage re-checked, one per type, audited. */
+export function sampleCreateResource(args: {
+  eventId: string;
+  type: AccessibilityResourceType;
+  actorId: string;
+  input: SampleResourceInput;
+  now: Date;
+}): { ok: true } | { ok: false; reason: "not-found" | "exists" } {
+  const s = store();
+  if (!s.events.some((e) => e.id === args.eventId)) return { ok: false, reason: "not-found" };
+  if (!mayManageAccessibility(s, args.eventId, args.actorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  if (s.resources.some((r) => r.eventId === args.eventId && r.type === args.type)) {
+    return { ok: false, reason: "exists" };
+  }
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.actorId,
+    action: "accessibility_resource.created",
+    details: { type: args.type, status: args.input.status, quantity: args.input.quantity },
+    now: args.now,
+  });
+  s.resources.push({
+    ...args.input,
+    id: crypto.randomUUID(),
+    eventId: args.eventId,
+    type: args.type,
+    updatedAt: args.now,
+  });
+  return { ok: true };
+}
+
+/** Stand-in for editing a resource: accessibility.manage re-checked, stale saves refused. */
+export function sampleUpdateResource(args: {
+  eventId: string;
+  type: AccessibilityResourceType;
+  actorId: string;
+  version: Date;
+  input: SampleResourceInput;
+  changes: Record<string, unknown>;
+  now: Date;
+}): { ok: true } | { ok: false; reason: "not-found" | "stale" } {
+  const s = store();
+  const resource = s.resources.find((r) => r.eventId === args.eventId && r.type === args.type);
+  if (!resource || !mayManageAccessibility(s, args.eventId, args.actorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  if (resource.updatedAt.getTime() !== args.version.getTime()) {
+    return { ok: false, reason: "stale" };
+  }
+  const now = new Date(Math.max(args.now.getTime(), resource.updatedAt.getTime() + 1));
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.actorId,
+    action: "accessibility_resource.updated",
+    details: { type: args.type, changes: args.changes },
+    now,
+  });
+  Object.assign(resource, args.input, { updatedAt: now });
+  return { ok: true };
+}
+
+/** Stand-in for removing a resource: accessibility.manage re-checked, an entry kept. */
+export function sampleDeleteResource(args: {
+  eventId: string;
+  type: AccessibilityResourceType;
+  actorId: string;
+  now: Date;
+}): { ok: true } | { ok: false; reason: "not-found" } {
+  const s = store();
+  const resource = s.resources.find((r) => r.eventId === args.eventId && r.type === args.type);
+  if (!resource || !mayManageAccessibility(s, args.eventId, args.actorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.actorId,
+    action: "accessibility_resource.deleted",
+    details: { type: args.type },
+    now: args.now,
+  });
+  s.resources = s.resources.filter((r) => r !== resource);
+  return { ok: true };
 }
 
 /** Stand-in for listAuditEntries. Not an access check: callers authorize first. */

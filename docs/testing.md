@@ -100,6 +100,37 @@ against a reset test database:
 It resets the demo data before and after, so it can run before or after the event lifecycle spec.
 Both run with `npm run test:e2e:lifecycle` and in CI's `e2e` job (D-055).
 
+## Accessibility tests (B3-01 to B3-05)
+
+| Area                                                                                                                  | Tests                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Tables, constraints, cascades, cross-event links (B3-01)                                                              | `accessibility/accessibility-tables.db.test.ts`                                                                 |
+| Definitions equal the database enums; validation (B3-02)                                                              | `accessibility/definitions.test.ts`, `accessibility/domain/definitions.test.ts`, `accessibility/schema.test.ts` |
+| Add, edit, remove; duplicates (also concurrent); stale and unchanged saves; notes not loaded (B3-03)                  | `accessibility/requirements.db.test.ts`                                                                         |
+| Security matrix: seven callers × seven operations through the real actions and reads; refusals change nothing (B3-03) | `accessibility/authorization.db.test.ts`                                                                        |
+| Activity entries, wording, and the audit registry's copies (B3-03)                                                    | `accessibility/audit.test.ts`                                                                                   |
+| Section, form, remove dialog, notice: states, roles, labels, keyboard-reachable radio groups (B3-04)                  | `accessibility/ui/*.test.tsx`                                                                                   |
+| Add and edit pages, details-page notice and failed-read state (B3-04)                                                 | `attendees/[attendeeId]/accessibility/pages.test.tsx`                                                           |
+| Resources: set up, concurrent set-up, edit, stale, unchanged, remove, refused roles and events (B3-05)                | `accessibility/resources.db.test.ts`                                                                            |
+| Resource security matrix: five callers × five operations; unknown types refused (B3-05)                               | `accessibility/authorization.db.test.ts`                                                                        |
+| Resource list, form, remove dialog, notice; Accessibility and resource pages (B3-05)                                  | `accessibility/ui/Resource*.test.tsx`, `accessibility/pages.test.tsx`                                           |
+
+### End-to-end accessibility flow (B3-04)
+
+`e2e/lifecycle/accessibility-flow.spec.ts` runs in Chromium as the demo user, against a reset test
+database: an attendee starts with no needs; add one choosing with the keyboard (arrow keys in the
+radio group) and one Other need (refused without a note, then saved); the details page lists both
+with their priority; edit one, remove the other through the confirmation dialog; Activity shows each
+change and never the notes. Step 5 sets up accessible seats (refused without a count, then saved),
+edits the status and count, removes it, and checks Activity.
+
+### Known flaky test
+
+`attendee-flow.spec.ts` step 5 (search, filter and sort) fails intermittently in `next dev`: for a
+moment after a client navigation the guest list is rendered twice, so a text match finds two
+elements or none. Seen on the Batch 2 commit before any Batch 3 change (1 run in 3); not fixed in
+Batch 3, reported to the technical lead.
+
 ## Event lifecycle tests (B1-14, D-039)
 
 The whole event foundation is tested as one story, twice:
