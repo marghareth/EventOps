@@ -5,6 +5,7 @@
 // one event only; writes re-check the actor's role in storage (rolesAllowed) and record the audit
 // entry in the same transaction (D-036, D-037).
 import type { RequirementChanges, RequirementInput } from "../domain/requirement";
+import type { ReadinessRequirement } from "../domain/readiness";
 import type { ResourceChanges, ResourceInput, ResourceType } from "../domain/resource";
 
 /** The attendee a requirement belongs to, as accessibility pages show it. */
@@ -91,6 +92,12 @@ export interface AccessibilityRepository {
     requirementId: string;
     actorId: string;
   }): Promise<DeleteRequirementResult>;
+
+  /**
+   * Every requirement in the event with its guest's number, name and RSVP, for readiness (B3-10).
+   * Never the note (D-058).
+   */
+  listEventRequirements(eventId: string): Promise<ReadinessRequirement[]>;
 
   /** The event's resources that are set up (B3-05). Types with no row are "Not set up". */
   listResources(eventId: string): Promise<ResourceRecord[]>;

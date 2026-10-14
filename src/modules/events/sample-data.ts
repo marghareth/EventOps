@@ -884,6 +884,39 @@ export function sampleDeleteRequirement(args: {
   return { ok: true, type: requirement.type };
 }
 
+/** Stand-in for listing every requirement in the event with its guest, for readiness (B3-10). */
+export function sampleListEventRequirements(eventId: string): {
+  id: string;
+  type: AccessibilityRequirementType;
+  priority: RequirementPriority;
+  attendee: {
+    id: string;
+    number: number;
+    name: string;
+    rsvpStatus: SampleAttendeeInput["rsvpStatus"];
+  };
+}[] {
+  const s = store();
+  return s.requirements.flatMap((r) => {
+    if (r.eventId !== eventId) return [];
+    const attendee = s.attendees.find((a) => a.id === r.attendeeId && a.eventId === eventId);
+    if (!attendee) return [];
+    return [
+      {
+        id: r.id,
+        type: r.type,
+        priority: r.priority,
+        attendee: {
+          id: attendee.id,
+          number: attendee.number,
+          name: attendee.name,
+          rsvpStatus: attendee.rsvpStatus,
+        },
+      },
+    ];
+  });
+}
+
 /** Stand-in for listing the event's resources (B3-05). Copies. */
 export function sampleListResources(eventId: string): SampleResource[] {
   return store()

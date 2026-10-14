@@ -43,6 +43,8 @@ const renderList = (canManage: boolean) =>
 describe("ResourceList", () => {
   it("shows every type with its status in words, the seat count and the note", () => {
     renderList(false);
+    // B3-06: headed as what the event provides, apart from guests' needs.
+    expect(screen.getByRole("region", { name: "What the event provides" })).toBeVisible();
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(6);
     expect(items[0]).toHaveTextContent("Accessible seats");

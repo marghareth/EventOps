@@ -80,6 +80,11 @@ _Last updated: 2026-10-13._
 | **B3-03 Accessibility Requirement CRUD**: add, edit, remove server-side (accessibility.manage), notes only with the new accessibility.private row, one need per type, stale saves refused, Activity without notes (D-058, D-059) | B3      | In review: use-case and 49-case authorization matrix tests pass on PostgreSQL 16; screens in B3-04                                                  |
 | **B3-04 Accessibility Requirement UI**: Accessibility section on the attendee page, add and edit pages, remove dialog, notices; empty, error and no-access states (D-060)                                                        | B3      | In review: component, page and browser tests pass (accessibility flow 4/4 in Chromium, keyboard included)                                           |
 | **B3-05 Accessibility Resource CRUD**: Accessibility page with the six resources (status, seat count, note), set up, edit and remove for Owners and Coordinators, Activity (D-061)                                               | B3      | In review: database, 25-case resource matrix, component, page and browser tests pass                                                                |
+| **B3-06 Accessibility Resource Management UI**: resource list headed "What the event provides", status in words, Viewer read-only, loading and error screens for the Accessibility routes (D-061)                                | B3      | In review: state, list and page tests pass; checked at 375 and 1280 px                                                                              |
+| **B3-07 Accessibility Readiness Domain Logic**: pure, deterministic coverage of Required and Preferred needs by resources, seats counted together, Other to check by hand; rules in DATA_MODEL.md first (D-062)                  | B3      | In review: 28 unit tests pass, including any-order determinism                                                                                      |
+| **B3-08 Readiness Status**: four canonical statuses (No required needs, Not ready, Almost ready, Ready) derived only from deciding needs; never stored (D-063)                                                                   | B3      | In review: 11 unit tests pass                                                                                                                       |
+| **B3-09 Accessibility Gap Detection**: explicit gaps per resource problem, one seats gap, one per Other need; each names guests, needs, resource state, consequence and a plain summary (D-064)                                  | B3      | In review: 12 unit tests pass                                                                                                                       |
+| **B3-10 Accessibility Readiness View**: Accessibility page shows readiness status, what is missing with fix links, what guests need and what the event provides; every member; loading, empty and error states (D-065)           | B3      | In review: page, component, use-case, database, matrix and browser tests pass; checked at 375 and 1280 px                                           |
 | Accessibility requirements per attendee                                                                                                                                                                                          | B3      | In review: B3-01 to B3-05; readiness is a later Batch 3 task                                                                                        |
 | **Live Attendance Count** (approved Tier 2 → Tier 1 addition)                                                                                                                                                                    | Batch 2 | Blocked: plus-one counting not defined (DECISIONS open item 4)                                                                                      |
 
@@ -100,14 +105,14 @@ _Last updated: 2026-10-13._
 
 ### Signature features
 
-| Item                                                        | Batch   | Status      |
-| ----------------------------------------------------------- | ------- | ----------- |
-| Impact Detection engine (deterministic)                     |         | Not started |
-| Accessibility readiness (required vs available)             |         | Not started |
-| Event Health dashboard                                      |         | Not started |
-| **Critical Alert View** (approved Tier 2 → Tier 1 addition) | Batch 8 | Not started |
-| AI spreadsheet import with review step                      |         | Not started |
-| Configurable assumptions panel                              |         | Not started |
+| Item                                                        | Batch   | Status                    |
+| ----------------------------------------------------------- | ------- | ------------------------- |
+| Impact Detection engine (deterministic)                     |         | Not started               |
+| Accessibility readiness (required vs available)             | B3      | In review: B3-07 to B3-10 |
+| Event Health dashboard                                      |         | Not started               |
+| **Critical Alert View** (approved Tier 2 → Tier 1 addition) | Batch 8 | Not started               |
+| AI spreadsheet import with review step                      |         | Not started               |
+| Configurable assumptions panel                              |         | Not started               |
 
 ### Engineering
 

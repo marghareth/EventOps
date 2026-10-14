@@ -365,6 +365,119 @@ Every value is checked on the server with the same schemas the forms use:
   seats need a whole number from 0 to 10,000; other types ignore any count and store NULL; note as
   above.
 
+## Accessibility readiness (B3-07 to B3-09, D-062 to D-064)
+
+Readiness answers: "Are our guests' accessibility needs covered, and if not, what is missing?" It
+is calculated on demand from the stored requirements and resources by one pure function
+(`accessibility/domain/readiness.ts`): no database, clock, network, AI or permission check inside.
+Nothing about readiness is stored, so it can't be set by hand. The same input always gives the same
+result, in the same order.
+
+### Which needs count (B3-07, options 1a and 2a)
+
+| Requirement                             | Treatment                                                           |
+| --------------------------------------- | ------------------------------------------------------------------- |
+| Guest's RSVP is Declined                | Left out ("declined"), whatever the priority                        |
+| Priority For information                | Left out ("for information")                                        |
+| Priority Required (guest not declined)  | **Decides** readiness                                               |
+| Priority Preferred (guest not declined) | Checked the same way, but **advice only**: never changes the status |
+
+Confirmed, Pending and Maybe guests all count: preparing one accessible seat too many is better than
+one too few. Plus-ones have no needs of their own.
+
+### Which resource covers which need (option 3a)
+
+| Need                         | Depends on                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------- |
+| Accessible seating           | Accessible seats, counted (below)                                                  |
+| Step-free entry              | Accessible entrance; and Ramp or elevator **if it has been recorded**              |
+| Mobility assistance          | The same as step-free entry. Staff help can't be tracked until volunteers (Tier 2) |
+| Accessible restroom          | Accessible restroom                                                                |
+| Sign-language interpretation | Sign-language interpreter                                                          |
+| Captioning                   | Captioning                                                                         |
+| Other                        | Nothing: it can't be checked automatically ("check by hand")                       |
+
+Ramp or elevator is considered only when someone has recorded it, because EventOps does not know
+whether the venue has more than one level; once recorded, anything but Available is a problem.
+
+### When a resource covers a need
+
+| Resource state           | Result for the need              |
+| ------------------------ | -------------------------------- |
+| No record ("Not set up") | Missing                          |
+| Not available            | Missing                          |
+| Being arranged           | Being arranged (not covered yet) |
+| Available                | Covered (seats: see below)       |
+
+A need that depends on two resources takes the worse result: missing, then short, then being
+arranged, then covered.
+
+### Seats
+
+When accessible seats are Available, the seat count is compared with the counted Accessible
+seating needs:
+
+- **Required** seating needs are covered when seats ≥ the number of Required seating needs.
+  Otherwise every Required seating need is **short**: EventOps can't choose which guests go
+  without, so it never marks some covered and others not.
+- **Preferred** seating needs are covered only when seats ≥ Required + Preferred seating needs
+  (Required guests come first); otherwise they are short (advice only).
+- 0 seats Available with any seating need is short.
+
+### Readiness status (B3-08, option 7a)
+
+The event's status is derived from the coverage above, only from needs that **decide** (Required,
+guest not declined). Preferred needs never change it. The canonical list is
+`accessibility/domain/readiness-status.ts`; the UI and the server both use it.
+
+| Status              | When                                                                                      | Shown as |
+| ------------------- | ----------------------------------------------------------------------------------------- | -------- |
+| `NO_REQUIRED_NEEDS` | No need decides readiness (none recorded, or only Preferred, For information or declined) | Info     |
+| `NOT_READY`         | At least one deciding need is missing or short                                            | Critical |
+| `ALMOST_READY`      | None missing or short, but at least one is being arranged or to check by hand             | Warning  |
+| `READY`             | Every deciding need is covered                                                            | Success  |
+
+Checked in that order. "No required needs" is kept apart from Ready so an event with nothing
+recorded never looks finished. The status is never stored and has no setter, so it can't be changed
+by hand.
+
+### Gaps (B3-09)
+
+A gap says exactly what is wrong, for whom, and what it means. `accessibility/domain/gaps.ts`
+derives them from the coverage; covered needs never produce one. Several gaps can exist at once.
+
+| Kind               | When                                                 | One gap per                          |
+| ------------------ | ---------------------------------------------------- | ------------------------------------ |
+| `not-set-up`       | A needed resource has no record                      | resource                             |
+| `not-available`    | A needed resource is recorded as Not available       | resource                             |
+| `being-arranged`   | A needed resource is recorded as Being arranged      | resource                             |
+| `not-enough-seats` | Accessible seats are Available but fewer than needed | event (seats are counted as a whole) |
+| `check-by-hand`    | An Other need, which no resource can cover           | requirement                          |
+
+Each gap carries:
+
+- **the affected requirements**: guest (ID such as `ATT-0003` and name), need type and priority,
+  sorted by guest number;
+- **the resource** and its state (or none, for check by hand), and for seats the seats available
+  and the Required and Preferred seating needs;
+- **the consequence**: `not-ready` (a deciding need is missing or short), `almost-ready` (a
+  deciding need is being arranged or to check by hand), or `advice` (only Preferred needs are
+  affected);
+- **a plain summary** built from the canonical labels, for example "Captioning is not set up, but
+  2 guests need it." Never a vague "Accessibility issue".
+
+Order (deterministic): consequence (not ready, almost ready, advice), then resource in definition
+order with check-by-hand last, then the first affected guest's number.
+
+### Edge cases
+
+- No needs, or only left-out needs: nothing to cover (the status is "No required needs", B3-08).
+- The order of the input never changes the result: needs are sorted by guest number, then by type
+  order, then by ID.
+- Two resources of the same type in the input are refused as invalid input (the database allows
+  one per type, D-056).
+- Notes are never part of the input.
+
 ## CHECK constraints (D-010)
 
 Prisma cannot express these, so they are written by hand at the end of the migration that creates

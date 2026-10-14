@@ -1,5 +1,6 @@
 // src/modules/events/accessibility/ui/ResourceList.tsx
-// The event's accessibility resources on the Accessibility page (B3-05, D-061): all six types in
+// The event's accessibility resources on the Accessibility page (B3-05, D-061; headed "What the
+// event provides" so it reads apart from guests' needs, B3-06): all six types in
 // definition order, each with its status in words, the seat count for accessible seats and any
 // note. Types with no record show "Not set up". Owners and Coordinators get "Set up" or "Edit".
 import Link from "next/link";
@@ -22,7 +23,7 @@ export function ResourceList({ basePath, resources, canManage }: Props) {
       className="rounded-xl bg-white p-6 shadow-xs sm:p-8"
     >
       <h2 id="resources-heading" className="text-h4 font-bold">
-        Event resources
+        What the event provides
       </h2>
       <p className="mt-1 text-sm text-ink-2">
         {setUp === 0
@@ -49,7 +50,7 @@ export function ResourceList({ basePath, resources, canManage }: Props) {
                   </p>
                 ) : null}
                 {resource?.note ? (
-                  <p className="mt-2 wrap-break-word whitespace-pre-wrap text-ink">
+                  <p className="mt-2 break-words whitespace-pre-wrap text-ink">
                     <span className="sr-only">Note: </span>
                     {resource.note}
                   </p>

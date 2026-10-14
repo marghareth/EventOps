@@ -186,6 +186,19 @@ export function prismaAccessibilityRepository(db: PrismaClient): AccessibilityRe
       });
     },
 
+    async listEventRequirements(eventId) {
+      // No note: readiness never needs it (D-058). The domain sorts the result.
+      return db.accessibilityRequirement.findMany({
+        where: { eventId },
+        select: {
+          id: true,
+          type: true,
+          priority: true,
+          attendee: { select: { id: true, number: true, name: true, rsvpStatus: true } },
+        },
+      });
+    },
+
     async listResources(eventId) {
       const rows = await db.accessibilityResource.findMany({
         where: { eventId },

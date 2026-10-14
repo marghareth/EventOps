@@ -9,6 +9,7 @@ import {
   sampleDeleteRequirement,
   sampleDeleteResource,
   sampleGetAttendee,
+  sampleListEventRequirements,
   sampleListRequirements,
   sampleListResources,
   sampleUpdateRequirement,
@@ -45,6 +46,9 @@ export function sampleAccessibilityRepository(): AccessibilityRepository {
     },
     async deleteRequirement(args) {
       return sampleDeleteRequirement({ ...args, now: new Date() });
+    },
+    async listEventRequirements(eventId) {
+      return sampleListEventRequirements(eventId);
     },
     async listResources(eventId) {
       return sampleListResources(eventId).sort(

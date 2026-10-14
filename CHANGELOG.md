@@ -9,6 +9,32 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B3-10 Accessibility Readiness View (D-065).**
+  - The Accessibility page now answers "Are our guests' accessibility needs covered, and if not,
+    what is missing?": the readiness status first, then each gap with the guests it affects and a
+    link to fix it, then guests' needs by type, then the event's resources. Calculated on every
+    visit from the stored data; every member can see it.
+
+- **B3-09 Accessibility Gap Detection (D-064).**
+  - Each gap names the guests and needs affected, the missing or short resource, what it means for
+    readiness (Not ready, Almost ready or advice only) and a plain sentence such as "Captioning is
+    not set up, but 2 guests need it." Covered needs never produce a gap; the order is fixed.
+
+- **B3-08 Readiness Status (D-063).**
+  - Four canonical readiness statuses with plain descriptions: No required needs, Not ready, Almost
+    ready, Ready. Derived from the coverage of Required needs only, never stored, so it can't be set
+    by hand.
+
+- **B3-07 Accessibility Readiness Domain Logic (D-062).**
+  - A pure, deterministic calculation of which guests' accessibility needs the event's resources
+    cover: Required needs decide, Preferred are advice, For information and declined guests are
+    left out; seats are compared as a whole; Other needs are to check by hand. The rules are
+    written in DATA_MODEL.md. No AI, no permission checks, nothing stored.
+
+- **B3-06 Accessibility Resource Management UI.**
+  - The Accessibility page and resource forms have their own loading and error screens, and the
+    resource list is headed "What the event provides" so it reads apart from guests' needs.
+
 - **B3-05 Accessibility Resource CRUD (D-061).**
   - The event's Accessibility page now lists the six resources (accessible seats, accessible
     entrance, ramp or elevator, accessible restroom, captioning, sign-language interpreter) with

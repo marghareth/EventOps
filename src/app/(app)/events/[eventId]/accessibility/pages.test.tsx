@@ -1,12 +1,13 @@
 // src/app/(app)/events/[eventId]/accessibility/pages.test.tsx
-// The event's Accessibility page and the resource form page (B3-05): access checked by each page,
-// the list for every member, forms only for managers (a Viewer's request loads nothing), not found
-// for an unknown resource segment, notices read only from known values, and the error state.
-import { render, screen } from "@testing-library/react";
+// The event's Accessibility page and the resource form page (B3-05, B3-10): access checked by each
+// page; readiness, gaps, needs and resources for every member, in that order; fix and edit links
+// only for managers (a Viewer's form request loads nothing); not found for an unknown resource
+// segment; notices read only from known values; and the error state.
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireEventAccess = vi.fn();
-const getEventResources = vi.fn();
+const getAccessibilityOverview = vi.fn();
 const getResourceForEditing = vi.fn();
 
 vi.mock("@/modules/events/access", () => ({
@@ -23,7 +24,7 @@ vi.mock("@/modules/events/accessibility/queries", () => ({
   getAttendeeAccessibility: vi.fn(),
   getNewRequirementContext: vi.fn(),
   getRequirementForEditing: vi.fn(),
-  getEventResources: (...args: unknown[]) => getEventResources(...args),
+  getAccessibilityOverview: (...args: unknown[]) => getAccessibilityOverview(...args),
   getResourceForEditing: (...args: unknown[]) => getResourceForEditing(...args),
 }));
 vi.mock("@/modules/events/accessibility/actions", () => ({
@@ -35,6 +36,10 @@ vi.mock("@/modules/events/accessibility/actions", () => ({
 }));
 
 const { default: AccessibilityPage } = await import("./page");
+const { assessCoverage } = await import("@/modules/events/accessibility/domain/readiness");
+const { readinessStatus, decidingCounts } =
+  await import("@/modules/events/accessibility/domain/readiness-status");
+const { detectGaps } = await import("@/modules/events/accessibility/domain/gaps");
 const { default: EditResourcePage } = await import("./[resource]/edit/page");
 
 const ID = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
@@ -48,8 +53,8 @@ const TYPES = [
 ] as const;
 const seats = {
   id: "r1",
-  type: "ACCESSIBLE_SEATS",
-  status: "ARRANGING",
+  type: "ACCESSIBLE_SEATS" as const,
+  status: "ARRANGING" as const,
   quantity: 6,
   note: "By the stage",
   updatedAt: new Date("2026-10-13T04:00:00.000Z"),
@@ -64,6 +69,43 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
+/** An overview as the server builds it, from the real domain rules. */
+function overview(canManage: boolean, withNeeds = true) {
+  const requirements = withNeeds
+    ? [
+        {
+          id: "q1",
+          type: "ACCESSIBLE_SEATING" as const,
+          priority: "REQUIRED" as const,
+          attendee: { id: "a1", number: 1, name: "Ana Reyes", rsvpStatus: "CONFIRMED" as const },
+        },
+        {
+          id: "q2",
+          type: "CAPTIONING" as const,
+          priority: "REQUIRED" as const,
+          attendee: { id: "a2", number: 2, name: "Ben Lim", rsvpStatus: "PENDING" as const },
+        },
+      ]
+    : [];
+  const resources = [{ ...seats, status: "AVAILABLE" as const, quantity: 1 }];
+  const coverage = assessCoverage({ requirements, resources });
+  return {
+    ok: true,
+    readiness: {
+      status: readinessStatus(coverage),
+      counts: decidingCounts(coverage),
+      coverage,
+      gaps: detectGaps(coverage),
+      resources,
+    },
+    resources: TYPES.map((type) => ({
+      type,
+      resource: type === "ACCESSIBLE_SEATS" ? resources[0] : null,
+    })),
+    canManage,
+  };
+}
+
 describe("Accessibility page", () => {
   const renderPage = async (search: Record<string, string> = {}) =>
     render(
@@ -76,33 +118,55 @@ describe("Accessibility page", () => {
   it.each([
     ["OWNER", true],
     ["VIEWER", false],
-  ] as const)("lists the six resources for a %s; changes offered: %s", async (role, canManage) => {
-    access(role);
-    getEventResources.mockResolvedValue({
-      ok: true,
-      resources: TYPES.map((type) => ({
-        type,
-        resource: type === "ACCESSIBLE_SEATS" ? seats : null,
-      })),
-      canManage,
-    });
+  ] as const)(
+    "shows readiness first, then gaps, needs and resources, for a %s (fix links: %s)",
+    async (role, canManage) => {
+      access(role);
+      getAccessibilityOverview.mockResolvedValue(overview(canManage));
+      await renderPage();
+      expect(requireEventAccess).toHaveBeenCalledWith(ID);
+      expect(getAccessibilityOverview).toHaveBeenCalledWith(ID);
+      expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
+        "Accessibility readiness",
+        "What's missing",
+        "What guests need",
+        "What the event provides",
+      ]);
+      const readiness = screen.getByRole("region", { name: "Accessibility readiness" });
+      expect(readiness).toHaveTextContent("Status: Not ready");
+      expect(readiness).toHaveTextContent("1 of 2 Required needs covered: 1 missing or short.");
+      const gaps = screen.getByRole("region", { name: "What's missing" });
+      expect(gaps).toHaveTextContent("Captioning is not set up, but 1 guest needs it.");
+      expect(gaps).toHaveTextContent("Makes the event Not ready.");
+      expect(within(gaps).getByRole("link", { name: "Ben Lim (ATT-0002)" })).toHaveAttribute(
+        "href",
+        `/events/${ID}/attendees/a2`,
+      );
+      // The gap links to the fix for managers only (the resource list has its own link too).
+      expect(within(gaps).queryByRole("link", { name: "Set up Captioning" }) !== null).toBe(
+        canManage,
+      );
+    },
+  );
+
+  it("explains an event with no needs yet, without a false Ready", async () => {
+    access("VIEWER");
+    getAccessibilityOverview.mockResolvedValue(overview(false, false));
     await renderPage();
-    expect(requireEventAccess).toHaveBeenCalledWith(ID);
-    expect(getEventResources).toHaveBeenCalledWith(ID);
-    expect(screen.getByRole("heading", { level: 1, name: "Accessibility" })).toBeVisible();
-    expect(screen.getAllByRole("listitem")).toHaveLength(6);
-    expect(screen.queryAllByRole("link", { name: /^(Edit|Set up) / })).toHaveLength(
-      canManage ? 6 : 0,
+    expect(screen.getByRole("region", { name: "Accessibility readiness" })).toHaveTextContent(
+      "Status: No required needs",
+    );
+    expect(screen.getByRole("region", { name: "What's missing" })).toHaveTextContent(
+      "Nothing to check yet",
+    );
+    expect(screen.getByRole("region", { name: "What guests need" })).toHaveTextContent(
+      "No accessibility needs recorded for guests who are coming.",
     );
   });
 
   it("confirms a change by the resource's canonical label, ignoring forged values", async () => {
     access("OWNER");
-    getEventResources.mockResolvedValue({
-      ok: true,
-      resources: TYPES.map((type) => ({ type, resource: null })),
-      canManage: true,
-    });
+    getAccessibilityOverview.mockResolvedValue(overview(true));
     await renderPage({ resource: "saved", type: "ACCESSIBLE_SEATS" });
     expect(screen.getByText("Accessible seats is up to date.")).toBeVisible();
     document.body.innerHTML = "";
@@ -112,11 +176,10 @@ describe("Accessibility page", () => {
 
   it("shows an error state when the read fails", async () => {
     access("OWNER");
-    getEventResources.mockRejectedValue(new Error("database down"));
+    getAccessibilityOverview.mockRejectedValue(new Error("database down"));
     await renderPage();
-    expect(
-      screen.getByRole("heading", { name: "We couldn't load the accessibility resources" }),
-    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "We couldn't load accessibility" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Accessibility readiness" })).toBeNull();
   });
 
   it("is not found for a non-member", async () => {
@@ -124,7 +187,7 @@ describe("Accessibility page", () => {
       Object.assign(new Error("NEXT_NOT_FOUND"), { notFound: true }),
     );
     await expect(renderPage()).rejects.toMatchObject({ notFound: true });
-    expect(getEventResources).not.toHaveBeenCalled();
+    expect(getAccessibilityOverview).not.toHaveBeenCalled();
   });
 });
 

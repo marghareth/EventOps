@@ -72,6 +72,10 @@ Status values:
 | D-059 | Managing accessibility requirements and their Activity      | Approved | 2026-10-13 |
 | D-060 | Accessibility needs on the attendee page                    | Approved | 2026-10-13 |
 | D-061 | Managing event accessibility resources                      | Approved | 2026-10-13 |
+| D-062 | Accessibility readiness rules                               | Approved | 2026-10-13 |
+| D-063 | Accessibility readiness status                              | Approved | 2026-10-13 |
+| D-064 | Accessibility gap detection                                 | Approved | 2026-10-13 |
+| D-065 | Accessibility readiness view                                | Approved | 2026-10-13 |
 
 ---
 
@@ -1458,6 +1462,112 @@ unchanged, refused roles and events, remove, list order); the resource matrix in
 `accessibility/authorization.db.test.ts` (five callers × five operations, unknown types refused);
 `accessibility/audit.test.ts`; `accessibility/ui/Resource*.test.tsx`;
 `accessibility/pages.test.tsx`; step 5 of `e2e/lifecycle/accessibility-flow.spec.ts`.
+
+---
+
+## D-062 Accessibility readiness rules
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-06 to B3-10 plan, options 1a, 2a, 3a
+and 6a). Written in DATA_MODEL.md ("Accessibility readiness") before implementation.
+
+**Decision.**
+
+- **Deterministic and pure.** `accessibility/domain/readiness.ts` takes the event's requirements
+  (type, priority, guest number, name and RSVP; never notes) and resources (type, status, seat
+  count) and returns, for every requirement, whether it decides readiness, is advice or is left
+  out, which resources it depends on, and whether it is covered, being arranged, missing, short or
+  to check by hand. No database, clock, network, AI or permission check; the same input gives the
+  same result in the same order. Calculated on demand, never stored.
+- **Counting (1a, 2a):** Required needs of guests who haven't declined decide readiness; Preferred
+  needs are checked as advice; For information needs and declined guests' needs are left out.
+- **Mapping (3a):** see DATA_MODEL.md. Step-free entry and mobility assistance need the
+  accessible entrance, plus the ramp or elevator when it has been recorded.
+- **Resource states:** Available covers; Being arranged doesn't yet; Not available and Not set up
+  are missing. Two dependencies: the worse result.
+- **Seats:** Required seating needs are covered only together (seats ≥ Required count), else all
+  short; Preferred only after Required.
+- **Other (6a):** "check by hand".
+
+**Alternatives not chosen.** Counting Confirmed guests only (2b) could leave a Pending guest
+without a seat. Always requiring a ramp (3b) flags single-level venues. Marking some seating needs
+covered when seats run short would pick guests arbitrarily.
+
+**Evidence.** `accessibility/domain/readiness.test.ts`.
+
+---
+
+## D-063 Accessibility readiness status
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-06 to B3-10 plan, option 7a).
+Written in DATA_MODEL.md ("Readiness status") before implementation.
+
+**Decision.**
+
+- **Four canonical statuses** in `accessibility/domain/readiness-status.ts`, each with a label, a
+  plain description and a severity: No required needs (info), Not ready (critical), Almost ready
+  (warning), Ready (success).
+- **Derived, never stored.** `readinessStatus(coverage)` reads only the needs that decide (D-062),
+  checked in this order: none → No required needs; any missing or short → Not ready; any being
+  arranged or to check by hand → Almost ready; otherwise Ready. Preferred needs never change it.
+  There is no column and no action to set it.
+- **One source for UI and server:** pages and server reads both use the same function and labels.
+
+**Wording.** The plan's label "No needs recorded" became **"No required needs"**, because the status
+also applies when only Preferred needs exist; the rule is unchanged.
+
+**Evidence.** `accessibility/domain/readiness-status.test.ts`.
+
+---
+
+## D-064 Accessibility gap detection
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-06 to B3-10 plan, B3-09 rules).
+Written in DATA_MODEL.md ("Gaps") before implementation.
+
+**Decision.**
+
+- **Explicit gaps** from the coverage (D-062), in `accessibility/domain/gaps.ts`: not set up, not
+  available, being arranged (one per resource, listing every affected need), not enough seats (one
+  for the event, with seats available and Required and Preferred seating needs), and check by hand
+  (one per Other need).
+- **Each gap names** the affected guests and needs (ID, name, type, priority), the resource and its
+  state, the consequence for readiness (`not-ready`, `almost-ready` or `advice`) and a plain
+  summary built from the canonical labels.
+- **Covered needs never produce a gap**; several gaps coexist; the order is fixed (consequence,
+  resource order with check by hand last, first guest number), so the same input gives the same
+  gaps.
+- **Pure:** no database, clock, AI or permission check. The guest ID text (`ATT-0001`) follows
+  D-042's format.
+
+**Evidence.** `accessibility/domain/gaps.test.ts`.
+
+---
+
+## D-065 Accessibility readiness view
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-06 to B3-10 plan, B3-10 layout).
+
+**Decision.**
+
+- **One page answers the question.** The event's Accessibility page shows, in order: the
+  readiness status with its plain meaning and the counts behind it; what's missing (each gap's
+  sentence, consequence, affected guests linked to their pages, and for Owners and Coordinators a
+  link to set up or edit the resource); what guests need (needs by type, Required and Preferred
+  counts, guests linked, and how many are not counted and why); and what the event provides (the
+  resources, B3-05).
+- **One server read** (`getAccessibilityOverview`, replacing B3-05's resource-only read) authorizes
+  with `event.view`, loads the event's requirements (with guest number, name and RSVP, never
+  notes) and resources, and runs the domain rules (D-062 to D-064) on every request. Nothing about
+  readiness is stored. Every member sees it: need types and guest names are already visible to
+  every member (D-058).
+- **States:** loading (route loading screen), error (inside the page and the route error
+  screen), and empty states that never look like Ready ("No required needs", "Nothing to check
+  yet", "No accessibility needs recorded").
+
+**Evidence.** `accessibility/pages.test.tsx`, `accessibility/ui/ReadinessView.test.tsx`,
+`accessibility/application/get-readiness.test.ts`, the readiness tests in
+`accessibility/requirements.db.test.ts`, the overview row of the resource matrix in
+`accessibility/authorization.db.test.ts`, and step 6 of `e2e/lifecycle/accessibility-flow.spec.ts`.
 
 ---
 
