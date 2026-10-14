@@ -3,6 +3,7 @@
 // guests and needs it affects (linked to their pages) and, for managers, a link to fix the
 // resource. Built only from the server's gap results; nothing is decided here.
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { GAP_CONSEQUENCE_TEXT, guestReference, type Gap } from "../domain/gaps";
 import {
   REQUIREMENT_PRIORITY_DEFINITIONS,
@@ -69,7 +70,7 @@ export function GapList({ gaps, status, basePath, attendeesPath, canManage }: Pr
                     <li key={requirement.id}>
                       <Link
                         href={`${attendeesPath}/${requirement.attendee.id}`}
-                        className="text-blue underline-offset-2 hover:underline"
+                        className="inline-flex min-h-6 items-center text-blue underline underline-offset-2 hover:decoration-2"
                       >
                         {requirement.attendee.name} ({guestReference(requirement.attendee.number)})
                       </Link>
@@ -81,12 +82,9 @@ export function GapList({ gaps, status, basePath, attendeesPath, canManage }: Pr
                 </ul>
                 {fix ? (
                   <p className="mt-3">
-                    <Link
-                      href={fix.href}
-                      className="text-sm font-semibold text-blue underline-offset-2 hover:underline"
-                    >
-                      {fix.label}
-                    </Link>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={fix.href}>{fix.label}</Link>
+                    </Button>
                   </p>
                 ) : null}
               </li>

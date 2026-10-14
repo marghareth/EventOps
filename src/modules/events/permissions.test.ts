@@ -55,6 +55,14 @@ describe("permission matrix", () => {
     ]);
   });
 
+  // The requirement edit form loads the note for anyone who may manage accessibility; saving it
+  // without the note would erase it. So every manager must also be allowed to see notes (B3-19).
+  it("lets every role that manages accessibility also see accessibility notes", () => {
+    const managers = rolesAllowed("accessibility.manage");
+    const readers = rolesAllowed("accessibility.private");
+    expect(managers.filter((role) => !readers.includes(role))).toEqual([]);
+  });
+
   it("every permission allows at least the Owner, and lists no role twice", () => {
     for (const permission of PERMISSIONS) {
       const roles = rolesAllowed(permission);

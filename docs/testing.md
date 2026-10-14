@@ -100,7 +100,23 @@ against a reset test database:
 It resets the demo data before and after, so it can run before or after the event lifecycle spec.
 Both run with `npm run test:e2e:lifecycle` and in CI's `e2e` job (D-055).
 
-## Accessibility tests (B3-01 to B3-10)
+## Accessibility tests (Batch 3)
+
+**Strategy.** Each layer is tested where that is cheapest to do thoroughly, and each layer's tests
+fail if that layer is broken:
+
+| Layer                                                            | What proves it                                                                                                 |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Readiness rules (coverage, status, gaps, alerts): pure functions | Unit tests of every named case and edge; 35 of 35 deliberately broken rules caught (B3-14). About a second.    |
+| Definitions and validation                                       | Unit tests; definitions compared with the database enums                                                       |
+| Server boundary: who may do what                                 | Database matrix calling the real actions and reads as each kind of caller; removed checks make it fail (B3-13) |
+| Storage: constraints, one per type, stale saves, cascades, audit | Database tests on PostgreSQL 16                                                                                |
+| The whole chain from stored data                                 | Integration test: guest → need → resource → readiness → gaps → alert, with refusals and Activity (B3-15)       |
+| Screens: states, roles, labels                                   | Component and page tests using the real domain rules                                                           |
+| The workflow in a browser                                        | Two Chromium flows from a reset database, in CI's e2e job (B3-04, B3-16)                                       |
+| Accessibility of the screens                                     | One-off audit: axe-core, keyboard, headings, form errors, three widths (B3-17)                                 |
+
+Where each area is tested:
 
 | Area                                                                                                                          | Tests                                                                                                                                                                 |
 | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -162,6 +178,72 @@ edits the status and count, removes it, and checks Activity. Step 6 adds a Requi
 the resource up from the gap, and sees Ready with the Preferred need left as advice. While Not ready, the Overview shows the
 accessibility alert and the guest's page shows their alert with a fix link; once Ready, neither
 appears (B3-11).
+
+### End-to-end accessibility readiness workflow (B3-16)
+
+`e2e/lifecycle/accessibility-readiness.spec.ts` follows the whole workflow in Chromium, from a
+reset test database:
+
+1. Sign in through the login form, create an event and import a twelve-guest list with the CSV
+   import.
+2. Open the event from the event list, then a guest from the guest list.
+3. Add an accessibility need with a note and save it, and give a second guest a captioning need.
+4. Set up accessible seats.
+5. See the readiness at **Not ready**, with "Captioning is not set up" as the gap and as the
+   Overview alert.
+6. Add the missing captioning from the gap's link: **Almost ready** while it is being arranged,
+   then **Ready** once Available, with no gap and no alert left.
+7. Check Activity has every change and never the note.
+8. As a Viewer: readiness is visible, but no change links or forms, and the note is hidden.
+
+Every record is made through the real pages and server actions, so nothing bypasses
+authorization. Two stand-ins remain:
+
+- **Sign-in** uses the dev-only demo stand-in (D-024), because there is no Supabase project in
+  tests. Membership and role checks are the real ones.
+- **The role change** in step 8 is a direct database update (`e2e/lifecycle/db.ts`), standing in
+  for member screens that don't exist yet (D-034).
+
+Stability: on 2026-10-14 it passed five runs in a row (`--repeat-each=5`, 40 of 40). It waits only
+on what the page shows, never on fixed delays.
+
+### Accessibility screens: accessibility and responsive audit (B3-17)
+
+On 2026-10-14 every accessibility screen was audited in Chromium at 375, 768 and 1280 px, with the
+sample data and a gap present. The screens:
+
+- the event Overview, with its alert;
+- the attendee page, with the Accessibility section and alerts;
+- the add-need and edit-need forms;
+- the Accessibility page (readiness, gaps, needs, resources);
+- the resource form, both setting up and editing.
+
+What was checked, and the result after the fixes below:
+
+| Check                                                                         | Result                                                                               |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| axe-core scan (WCAG 2.0/2.1 A and AA, best practices), page and invalid forms | 0 violations                                                                         |
+| Sideways scrolling                                                            | None at any width                                                                    |
+| Keyboard: Tab order through each page                                         | Every control reachable, in reading order, each with a visible focus style           |
+| Keyboard: radio groups                                                        | Arrow keys move between choices                                                      |
+| Keyboard: remove dialogs                                                      | Focus moves in and stays in; Escape closes; focus returns to the button              |
+| Headings                                                                      | One h1 per page; sections are h2, items h3, in order                                 |
+| Form errors                                                                   | `aria-invalid` and `aria-describedby` on the field; focus moves to the error summary |
+| Tap targets                                                                   | Actions at least 44 px; guest-name links at least 24 px (WCAG 2.2 AA)                |
+
+Fixed:
+
+- **Guest links inside sentences** were told apart from the text by color only (axe
+  `link-in-text-block`). They are now always underlined.
+- **"Edit" and "Set up" links** were 20 px tall. They now have a 44 px target, and a gap's fix
+  link is now a small outline button.
+
+Loading, error and empty states are covered by existing tests: `accessibility/states.test.tsx`,
+the error and empty tests in `pages.test.tsx`, `AccessibilitySection.test.tsx` and
+`ReadinessView.test.tsx`.
+
+The scan used the `axe-core` copy that ESLint's accessibility plugin already installs, run from a
+script outside the repository, so no dependency was added (option 2a). It is not part of CI.
 
 ### Known flaky test
 

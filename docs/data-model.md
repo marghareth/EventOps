@@ -6,10 +6,12 @@ The source of truth is `prisma/schema.prisma` plus the migrations in `prisma/mig
 explains the rules the schema alone does not make obvious. Decisions are recorded in
 [DECISIONS.md](DECISIONS.md).
 
-**Status (B2-01):** the database has `users`, `events`, `event_members`,
-`event_reference_counters`, `audit_logs` and `attendees`, created by migrations
-`20261009143000_init` (B0-08), `20261011090000_event_ownership` (B1-01), `20261012090000_audit_log`
-(B1-11) and `20261012120000_attendees` (B2-01). Other tables are added by their batch tasks (D-008).
+**Status (B3-01):** the database has `users`, `events`, `event_members`,
+`event_reference_counters`, `audit_logs`, `attendees`, `accessibility_requirements` and
+`accessibility_resources`, created by migrations `20261009143000_init` (B0-08),
+`20261011090000_event_ownership` (B1-01), `20261012090000_audit_log` (B1-11),
+`20261012120000_attendees` (B2-01) and `20261013120000_accessibility` (B3-01). Other tables are added
+by their batch tasks (D-008).
 
 ## Connections
 

@@ -28,7 +28,10 @@ export function NeedsOverview({ coverage, attendeesPath }: Props) {
         <p className="mt-3 text-ink-2">
           No accessibility needs recorded for guests who are coming. Add them from each guest&apos;s
           page on the{" "}
-          <Link href={attendeesPath} className="text-blue underline-offset-2 hover:underline">
+          <Link
+            href={attendeesPath}
+            className="text-blue underline underline-offset-2 hover:decoration-2"
+          >
             guest list
           </Link>
           .
@@ -46,7 +49,7 @@ export function NeedsOverview({ coverage, attendeesPath }: Props) {
                   <li key={requirement.id}>
                     <Link
                       href={`${attendeesPath}/${requirement.attendee.id}`}
-                      className="text-blue underline-offset-2 hover:underline"
+                      className="inline-flex min-h-6 items-center text-blue underline underline-offset-2 hover:decoration-2"
                     >
                       {requirement.attendee.name} ({guestReference(requirement.attendee.number)})
                     </Link>

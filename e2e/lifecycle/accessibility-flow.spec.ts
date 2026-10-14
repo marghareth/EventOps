@@ -1,197 +1,211 @@
-// e2e/lifecycle/accessibility-flow.spec.ts
-// B3-04, B3-05: an attendee's accessibility needs and the event's resources in a real browser, signed in as the dev demo user
-// (D-024), against a reset test database: add two needs (choosing with the keyboard), see them on
-// the attendee's details page, edit one, remove one, and find each change in Activity without the
-// note; then set up, edit and remove an event resource; then readiness and its alerts (B3-10, B3-11). Run with `npm run test:e2e:lifecycle` (docs/TESTING.md); CI runs it in the "e2e" job.
-import { expect, test } from "@playwright/test";
+// e2e/lifecycle/accessibility-readiness.spec.ts
+// B3-16: the accessibility workflow in a real browser, end to end, against a reset test database.
+// Sign in → open the event → open a guest → add an accessibility need → save → set up an event
+// resource → open readiness → see the status and the gap → add the missing resource → see readiness
+// change (Not ready → Almost ready → Ready) → see Activity. Then the same screens as a Viewer.
+//
+// Realistic event: created through the app, with a twelve-guest list brought in through the CSV
+// import, so every record is made by the signed-in user through the real server actions and their
+// authorization. Sign-in uses the dev-only demo stand-in (D-024: there is no Supabase project in
+// tests); event membership and role checks are the real ones. The only direct database step is
+// e2e/lifecycle/db.ts changing the demo user's role, which stands in for member management screens
+// that don't exist yet (D-034). Run with `npm run test:e2e:lifecycle` (docs/TESTING.md).
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { expect, test, type Page } from "@playwright/test";
 import { resetDemoData } from "../../scripts/reset-demo";
+import { addSecondOwner, setDemoRole } from "./db";
 
 test.describe.configure({ mode: "serial" });
 
-const EVENT = `Accessibility Flow ${Date.now()}`;
-let attendeePath = "";
+const EVENT = `Reyes–Cruz Wedding ${Date.now()}`;
+const NOTE = "Uses a wheelchair; seat near the aisle";
+let eventPath = "";
+let remediosPath = "";
 
 const database = () => process.env.E2E_DATABASE_URL ?? "";
 test.beforeAll(async () => resetDemoData(database()));
 test.afterAll(async () => resetDemoData(database()));
 
-test("1. an attendee starts with no accessibility needs", async ({ page }) => {
+const GUESTS = [
+  "Guest Name,E-mail,RSVP,Plus ones,Group",
+  "Maria Reyes,maria.reyes@example.com,Yes,0,Family",
+  "Jose Cruz,jose.cruz@example.com,Yes,1,Family",
+  "Remedios Cruz,,Yes,0,Family",
+  "Ana Villanueva,ana.v@example.com,Yes,1,Friends",
+  "Ben Lim,ben.lim@example.com,Maybe,0,Friends",
+  "Carla Santos,,Yes,2,Family",
+  "Paolo Reyes,paolo.reyes@example.com,Yes,0,Family",
+  "Liza Tan,liza.tan@example.com,No,0,Colleagues",
+  "Mark Dela Cruz,,Yes,1,Colleagues",
+  "Nena Bautista,,Maybe,0,Family",
+  "Rico Mendoza,rico.m@example.com,Yes,0,Friends",
+  "Joy Aquino,joy.aquino@example.com,Yes,1,Colleagues",
+].join("\r\n");
+
+const readiness = (page: Page) => page.getByRole("region", { name: "Accessibility readiness" });
+const gaps = (page: Page) => page.getByRole("region", { name: "What's missing" });
+
+test("1. sign in, create a realistic event and import its guest list", async ({ page }) => {
+  await page.goto("/login?next=%2Fevents");
+  await page.getByLabel(/Email/).fill("coordinator@example.com");
+  await page.getByLabel(/Password/).fill("a-long-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(/\/events$/);
+
   await page.goto("/events/new");
   await page.getByLabel(/Event name/).fill(EVENT);
   await page.getByLabel(/^Date/).fill("2099-12-12");
   await page.getByLabel(/^Start time/).fill("16:00");
   await page.getByRole("button", { name: "Create event" }).click();
   await expect(page).toHaveURL(/\/events\/[0-9a-f-]{36}\?created=/);
-  const eventPath = new URL(page.url()).pathname;
+  eventPath = new URL(page.url()).pathname;
 
-  await page.goto(`${eventPath}/attendees/new`);
-  await page.getByLabel(/^Name/).fill("Maria Santos");
-  await page.getByRole("button", { name: "Add attendee" }).click();
-  await page.getByRole("link", { name: "Maria Santos" }).click();
+  const dir = mkdtempSync(join(tmpdir(), "eventops-e2e-"));
+  const file = join(dir, "reyes-cruz-guests.csv");
+  writeFileSync(file, GUESTS);
+  await page.goto(`${eventPath}/attendees`);
+  await page.getByRole("link", { name: "Import CSV" }).click();
+  await page.getByLabel("CSV file").setInputFiles(file);
+  await page.getByRole("button", { name: "Upload and continue" }).click();
+  await expect(page.getByRole("heading", { name: "2. Match your columns" })).toBeVisible();
+  await page.getByRole("button", { name: "Preview the import" }).click();
+  await page.getByRole("button", { name: "Import 12 attendees" }).click();
+  await expect(page.getByText("12 attendees were added")).toBeVisible();
+});
+
+test("2. open the event from the list, then a guest from the guest list", async ({ page }) => {
+  await page.goto("/events");
+  await page.getByRole("link", { name: EVENT }).click();
+  await expect(page).toHaveURL(new RegExp(`${eventPath}$`));
+  // Nothing to check yet: no alert on the Overview.
+  await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Accessibility alert" })).toHaveCount(0);
+
+  await page.getByRole("link", { name: "Attendees" }).first().click();
+  await expect(page).toHaveURL(new RegExp(`${eventPath}/attendees$`));
+  await page.getByRole("link", { name: "Remedios Cruz" }).click();
   await expect(page).toHaveURL(/\/attendees\/[0-9a-f-]{36}$/);
-  attendeePath = new URL(page.url()).pathname;
-
-  const section = page.getByRole("region", { name: "Accessibility" });
-  await expect(section).toContainText("No accessibility needs recorded for Maria Santos.");
-});
-
-test("2. add two needs, choosing the first with the keyboard", async ({ page }) => {
-  await page.goto(attendeePath);
-  await page.getByRole("link", { name: "Add accessibility need" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Add an accessibility need for Maria Santos" }),
-  ).toBeVisible();
-
-  // Native radio group: focus the first choice, arrow down to the next.
-  await page.getByRole("radio", { name: /^Mobility assistance/ }).focus();
-  await page.keyboard.press("Space");
-  await page.keyboard.press("ArrowDown");
-  await expect(page.getByRole("radio", { name: /^Accessible seating/ })).toBeChecked();
-  await page.getByLabel("Note").fill("Near the aisle");
-  await page.getByRole("button", { name: "Add need" }).click();
-
-  await expect(page.getByText("Accessibility need added")).toBeVisible();
-  await page.getByRole("link", { name: "Add accessibility need" }).click();
-  await expect(
-    page.getByRole("radio", { name: /Accessible seating \(already added\)/ }),
-  ).toBeDisabled();
-  await page.getByRole("radio", { name: /^Other/ }).check();
-  await page.getByRole("button", { name: "Add need" }).click();
-  // Other needs a note: the server refuses and says so next to the field.
-  await expect(page.getByText("Describe what the guest needs.").first()).toBeVisible();
-  await page.getByLabel("Note").fill("Guide dog");
-  await page.getByRole("radio", { name: /For information/ }).check();
-  await page.getByRole("button", { name: "Add need" }).click();
-
-  const section = page.getByRole("region", { name: "Accessibility" });
-  await expect(section).toContainText("2 needs recorded.");
-  await expect(section.getByRole("listitem").first()).toContainText("Accessible seating");
-  await expect(section.getByRole("listitem").first()).toContainText("Near the aisle");
-  await expect(section.getByRole("listitem").nth(1)).toContainText("For information");
-});
-
-test("3. edit one need and remove the other", async ({ page }) => {
-  await page.goto(attendeePath);
-  await page.getByRole("link", { name: "Edit Accessible seating" }).click();
-  await page.getByRole("radio", { name: /^Preferred/ }).check();
-  await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Accessible seating is up to date.")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Accessibility" })).toContainText("Preferred");
-
-  await page.getByRole("link", { name: "Edit Other" }).click();
-  await page.getByRole("button", { name: "Remove need" }).click();
-  const dialog = page.getByRole("alertdialog", { name: "Remove this accessibility need?" });
-  await dialog.getByRole("button", { name: "Remove need" }).click();
-  await expect(
-    page.getByText("Other is no longer on this guest's accessibility needs."),
-  ).toBeVisible();
+  remediosPath = new URL(page.url()).pathname;
   await expect(page.getByRole("region", { name: "Accessibility" })).toContainText(
-    "1 need recorded.",
+    "No accessibility needs recorded for Remedios Cruz.",
   );
 });
 
-test("4. Activity records each change, never the notes", async ({ page }) => {
-  await page.goto(attendeePath.replace(/\/attendees\/.*/, "/activity"));
-  const feed = page.getByRole("main");
-  await expect(feed).toContainText(
-    "Added an accessibility need for ATT-0001: Accessible seating (Required)",
-  );
-  await expect(feed).toContainText("Edited an accessibility need of ATT-0001: Accessible seating");
-  await expect(feed).toContainText("Priority: Required → Preferred");
-  await expect(feed).toContainText("Removed an accessibility need from ATT-0001: Other");
-  await expect(feed).not.toContainText("Near the aisle");
-  await expect(feed).not.toContainText("Guide dog");
-});
+test("3. add an accessibility need and save it", async ({ page }) => {
+  await page.goto(remediosPath);
+  await page.getByRole("link", { name: "Add accessibility need" }).click();
+  await page.getByRole("radio", { name: /^Accessible seating/ }).check();
+  await page.getByRole("radio", { name: /^Required/ }).check();
+  await page.getByLabel("Note").fill(NOTE);
+  await page.getByRole("button", { name: "Add need" }).click();
 
-test("5. set up, edit and remove an event resource", async ({ page }) => {
-  const accessibility = attendeePath.replace(/\/attendees\/.*/, "/accessibility");
-  await page.goto(accessibility);
-  // The resources section; the gaps above it may offer the same fix links (B3-10).
-  const provides = page.getByRole("region", { name: "What the event provides" });
-  await expect(provides.getByText(/None of the six resources is set up yet\./)).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`${remediosPath}\\?accessibility=added`));
+  await expect(page.getByText("Accessibility need added")).toBeVisible();
+  const section = page.getByRole("region", { name: "Accessibility", exact: true });
+  await expect(section).toContainText("1 need recorded.");
+  await expect(section).toContainText("Accessible seating");
+  await expect(section).toContainText(NOTE);
 
-  await provides.getByRole("link", { name: "Set up Accessible seats" }).click();
-  await page.getByRole("radio", { name: "Being arranged" }).check();
-  await page.getByRole("button", { name: "Set up" }).click();
-  // Accessible seats need a count: the server refuses and says so beside the field.
-  await expect(page.getByText("Enter how many seats", { exact: false }).first()).toBeVisible();
-  await page.getByLabel(/^Number of accessible seats/).fill("6");
-  await page.getByRole("button", { name: "Set up" }).click();
-  await expect(page.getByText("Accessible seats is up to date.")).toBeVisible();
-  const seats = provides.getByRole("listitem").filter({ hasText: "Accessible seats" });
-  await expect(seats).toContainText("Being arranged");
-  await expect(seats).toContainText("6 seats");
-
-  await provides.getByRole("link", { name: "Edit Accessible seats" }).click();
-  await page.getByRole("radio", { name: "Available", exact: true }).check();
-  await page.getByLabel(/^Number of accessible seats/).fill("8");
-  await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(seats).toContainText("Available");
-  await expect(seats).toContainText("8 seats");
-
-  await provides.getByRole("link", { name: "Edit Accessible seats" }).click();
-  await page.getByRole("button", { name: "Remove resource" }).click();
-  await page
-    .getByRole("alertdialog", { name: "Remove this resource?" })
-    .getByRole("button", { name: "Remove resource" })
-    .click();
-  await expect(page.getByText("Accessible seats is not set up any more.")).toBeVisible();
-
-  await page.goto(accessibility.replace(/\/accessibility$/, "/activity"));
-  const feed = page.getByRole("main");
-  await expect(feed).toContainText("Set up Accessible seats: Being arranged, 6 seats");
-  await expect(feed).toContainText("Seats: 6 → 8");
-  await expect(feed).toContainText("Removed Accessible seats");
-});
-
-test("6. readiness: a Required need without a resource makes the event Not ready", async ({
-  page,
-}) => {
-  const accessibility = attendeePath.replace(/\/attendees\/.*/, "/accessibility");
-  // After step 3 the guest's only need is Preferred seating, which never decides readiness.
-  await page.goto(accessibility);
-  const readiness = page.getByRole("region", { name: "Accessibility readiness" });
-  await expect(readiness).toContainText("No required needs");
-
-  await page.goto(`${attendeePath}/accessibility/new`);
+  // A second guest needs captioning: the event will depend on a resource it doesn't have.
+  await page.goto(`${eventPath}/attendees`);
+  await page.getByRole("link", { name: "Paolo Reyes" }).click();
+  await expect(page).toHaveURL(/\/attendees\/[0-9a-f-]{36}$/);
+  await page.getByRole("link", { name: "Add accessibility need" }).click();
   await page.getByRole("radio", { name: "Captioning", exact: true }).check();
   await page.getByRole("button", { name: "Add need" }).click();
   await expect(page.getByText("Accessibility need added")).toBeVisible();
+});
 
-  await page.goto(accessibility);
-  await expect(readiness).toContainText("Not ready");
-  const gaps = page.getByRole("region", { name: "What's missing" });
-  await expect(gaps).toContainText("Captioning is not set up, but 1 guest needs it.");
-  await expect(gaps).toContainText("Makes the event Not ready.");
+test("4. set up an event accessibility resource", async ({ page }) => {
+  await page.goto(`${eventPath}/accessibility`);
+  const provides = page.getByRole("region", { name: "What the event provides" });
+  await provides.getByRole("link", { name: "Set up Accessible seats" }).click();
+  await page.getByRole("radio", { name: "Available", exact: true }).check();
+  await page.getByLabel(/^Number of accessible seats/).fill("2");
+  await page.getByRole("button", { name: "Set up" }).click();
+  await expect(page.getByText("Accessible seats is up to date.")).toBeVisible();
+  await expect(
+    provides.getByRole("listitem").filter({ hasText: "Accessible seats" }),
+  ).toContainText("2 seats");
+});
 
-  // B3-11: the alert on the event Overview and on the guest's page.
-  const overview = accessibility.replace(/\/accessibility$/, "");
-  await page.goto(overview);
+test("5. readiness: Not ready, with the missing resource named as the gap", async ({ page }) => {
+  await page.goto(`${eventPath}/accessibility`);
+  await expect(readiness(page)).toContainText("Status: Not ready");
+  await expect(readiness(page)).toContainText("1 of 2 Required needs covered: 1 missing or short.");
+  await expect(gaps(page)).toContainText("Captioning is not set up, but 1 guest needs it.");
+  await expect(gaps(page)).toContainText("Makes the event Not ready.");
+  await expect(gaps(page).getByRole("link", { name: /^Paolo Reyes \(ATT-\d{4}\)$/ })).toBeVisible();
+  // The seats are enough, so they are not a gap.
+  await expect(gaps(page)).not.toContainText("accessible seats");
+
+  // The same gap is raised as an alert on the Overview.
+  await page.goto(eventPath);
   const alert = page.getByRole("region", { name: "Accessibility alert" });
   await expect(alert).toContainText("Accessibility: Not ready");
   await expect(alert).toContainText("Captioning is not set up");
-  await page.goto(attendeePath);
-  const guestAlerts = page.getByRole("region", { name: "Alerts about this guest's needs" });
-  await expect(guestAlerts).toContainText("Captioning is not set up, but 1 guest needs it.");
-  await guestAlerts.getByRole("link", { name: "Set up Captioning" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Set up Captioning" })).toBeVisible();
+});
 
-  await page.goto(accessibility);
-  await gaps.getByRole("link", { name: "Set up Captioning" }).click();
-  await page.getByRole("radio", { name: "Available", exact: true }).check();
+test("6. add the missing resource: Almost ready while arranged, then Ready", async ({ page }) => {
+  await page.goto(`${eventPath}/accessibility`);
+  await gaps(page).getByRole("link", { name: "Set up Captioning" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Set up Captioning" })).toBeVisible();
+  await page.getByRole("radio", { name: "Being arranged" }).check();
   await page.getByRole("button", { name: "Set up" }).click();
   await expect(page.getByText("Captioning is up to date.")).toBeVisible();
-  // Captioning covered; the Preferred seating need without seats stays as advice only.
-  await expect(readiness).toContainText("Ready");
-  await expect(readiness).not.toContainText("Not ready");
-  await expect(gaps).toContainText("Accessible seats is not set up, but 1 guest needs it.");
-  await expect(gaps).toContainText("Advice only");
+  await expect(readiness(page)).toContainText("Status: Almost ready");
+  await expect(gaps(page)).toContainText("Captioning is still being arranged; 1 guest needs it.");
+  await expect(gaps(page)).toContainText("Keeps the event at Almost ready.");
 
-  // Ready: no alert on the Overview, and none for the guest (Preferred advice never alerts).
-  await page.goto(overview);
+  await gaps(page).getByRole("link", { name: "Edit Captioning" }).click();
+  await page.getByRole("radio", { name: "Available", exact: true }).check();
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Captioning is up to date.")).toBeVisible();
+  await expect(readiness(page)).toContainText("Status: Ready");
+  await expect(readiness(page)).toContainText("2 of 2 Required needs covered.");
+  await expect(gaps(page)).toContainText("Nothing is missing. Every need is covered.");
+
+  // No alert left anywhere.
+  await page.goto(eventPath);
   await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Accessibility alert" })).toHaveCount(0);
-  await page.goto(attendeePath);
-  await expect(page.getByRole("heading", { level: 1, name: "Maria Santos" })).toBeVisible();
-  await expect(guestAlerts).toHaveCount(0);
+});
+
+test("7. Activity records every change, never the note", async ({ page }) => {
+  await page.goto(`${eventPath}/activity`);
+  const feed = page.getByRole("main");
+  await expect(feed).toContainText(
+    /Added an accessibility need for ATT-\d{4}: Accessible seating \(Required\)/,
+  );
+  await expect(feed).toContainText(
+    /Added an accessibility need for ATT-\d{4}: Captioning \(Required\)/,
+  );
+  await expect(feed).toContainText("Set up Accessible seats: Available, 2 seats");
+  await expect(feed).toContainText("Set up Captioning: Being arranged");
+  await expect(feed).toContainText("Status: Being arranged → Available");
+  await expect(feed).toContainText("Imported 12 attendees from a CSV file");
+  await expect(feed).not.toContainText(NOTE);
+});
+
+test("8. as a Viewer: readiness is visible, nothing can be changed", async ({ page }) => {
+  const eventId = eventPath.split("/").pop()!;
+  await addSecondOwner(eventId);
+  await setDemoRole(eventId, "VIEWER");
+
+  await page.goto(`${eventPath}/accessibility`);
+  await expect(readiness(page)).toContainText("Status: Ready");
+  await expect(page.getByRole("link", { name: /^(Set up|Edit) / })).toHaveCount(0);
+  await page.goto(`${eventPath}/accessibility/captioning/edit`);
+  await expect(page.getByRole("heading", { name: "You don't have access to this" })).toBeVisible();
+
+  // The guest's page shows the need but not its note, and offers no changes.
+  await page.goto(remediosPath);
+  const section = page.getByRole("region", { name: "Accessibility", exact: true });
+  await expect(section).toContainText("Accessible seating");
+  await expect(section).not.toContainText(NOTE);
+  await expect(page.getByRole("link", { name: "Add accessibility need" })).toHaveCount(0);
+  await page.goto(`${remediosPath}/accessibility/new`);
+  await expect(page.getByRole("heading", { name: "You don't have access to this" })).toBeVisible();
 });

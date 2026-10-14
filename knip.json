@@ -1,5 +1,4 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": ["vitest.server-only-stub.ts", "src/**/*.db.test.ts", "e2e/lifecycle/*.ts"],
   "ignoreExportsUsedInFile": true,
   "ignore": [

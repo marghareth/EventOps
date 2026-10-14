@@ -9,6 +9,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B3-20 Accessibility batch verification.**
+  - Every local check passes and is recorded in docs/gates/BATCH-3.md. CI and the first
+    `prisma migrate deploy` of the accessibility migration have not run yet.
+
+- **B3-19 Accessibility security review.**
+  - A note containing an invisible NUL character is now refused with a clear message instead of a
+    generic save error. The review and its remaining debt are recorded in SECURITY.md.
+
+- **B3-18 Accessibility documentation.**
+  - ARCHITECTURE.md now describes the accessibility context: its layers, how a change and a
+    readiness read flow, and where it touches other parts. ACCEPTANCE_CRITERIA.md lists every Batch
+    3 criterion with its evidence. TESTING.md gains a test strategy summary.
+
+- **B3-17 Accessibility screens polish.**
+  - Guest links inside sentences are now underlined, not just colored, and "Edit" and "Set up"
+    links are easier to tap (44 px). Every accessibility screen was checked for keyboard use,
+    screen-reader structure, form errors and small screens.
+
+- **B3-16 Accessibility browser workflow.**
+  - A browser test now follows the whole accessibility workflow on a realistic twelve-guest event,
+    from sign-in to readiness going from Not ready to Almost ready to Ready, Activity, and a
+    Viewer's read-only view.
+
 - **B3-15 Accessibility integration tests.**
   - One test follows a real event from guests to needs, resources, readiness, gaps and alerts in the
     database, including a guest declining and a guest being removed, with refused users changing
