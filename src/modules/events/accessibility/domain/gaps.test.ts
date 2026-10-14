@@ -179,3 +179,10 @@ it("counts seats and guests in correct singular and plural", () => {
     "Not enough accessible seats: 1 guest with a Required need, 0 seats available.",
   );
 });
+
+it("counts a guest once when two of their needs share the missing resource (B3-14)", () => {
+  // Step-free entry and Mobility assistance both rely on the accessible entrance.
+  const [gap] = gapsFor([need("STEP_FREE_ENTRANCE", 1), need("MOBILITY_ASSISTANCE", 1)], []);
+  expect(gap.requirements).toHaveLength(2);
+  expect(gap.summary).toBe("Accessible entrance is not set up, but 1 guest needs it.");
+});

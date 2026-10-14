@@ -29,6 +29,13 @@ vi.mock("@/modules/events/attendees/read", () => ({
 }));
 vi.mock("@/modules/events/accessibility/queries", () => ({
   getAttendeeAccessibility: (...args: unknown[]) => getAttendeeAccessibility(...args),
+  getAccessibilityAlerts: async () => ({
+    ok: true,
+    status: "READY",
+    event: null,
+    alerts: [],
+    canManage: false,
+  }),
   getNewRequirementContext: vi.fn(),
   getRequirementForEditing: vi.fn(),
 }));

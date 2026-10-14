@@ -4,7 +4,9 @@
 // there first. Pure and deterministic: no database, clock, network, AI or permission check; the
 // same input always gives the same result in the same order. Never stored.
 import {
+  REQUIREMENT_PRIORITIES,
   REQUIREMENT_TYPES,
+  isRequirementType,
   type RequirementPriority,
   type RequirementType,
 } from "./requirement-type";
@@ -84,7 +86,11 @@ const byGuestThenType = (a: ReadinessRequirement, b: ReadinessRequirement) =>
 const byResourceOrder = (a: ResourceType, b: ResourceType) =>
   RESOURCE_TYPES.indexOf(a) - RESOURCE_TYPES.indexOf(b);
 
-/** Thrown for input the database could never produce (two resources of one type). */
+/**
+ * Thrown for input the database could never produce: two resources of one type, or a requirement
+ * with an unknown type or priority (B3-14). Refused rather than guessed, so an unsupported need is
+ * never silently treated as covered or as advice.
+ */
 export class InvalidReadinessInput extends Error {
   constructor(message: string) {
     super(message);
@@ -144,6 +150,15 @@ export function assessCoverage(input: ReadinessInput): Coverage {
       throw new InvalidReadinessInput(`Two resources of type ${resource.type}.`);
     }
     recorded.set(resource.type, resource);
+  }
+
+  for (const requirement of input.requirements) {
+    if (!isRequirementType(requirement.type)) {
+      throw new InvalidReadinessInput(`Unsupported requirement type ${String(requirement.type)}.`);
+    }
+    if (!(REQUIREMENT_PRIORITIES as readonly string[]).includes(requirement.priority)) {
+      throw new InvalidReadinessInput(`Unsupported priority ${String(requirement.priority)}.`);
+    }
   }
 
   const sorted = [...input.requirements].sort(byGuestThenType);

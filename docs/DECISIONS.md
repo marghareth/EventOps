@@ -76,6 +76,7 @@ Status values:
 | D-063 | Accessibility readiness status                              | Approved | 2026-10-13 |
 | D-064 | Accessibility gap detection                                 | Approved | 2026-10-13 |
 | D-065 | Accessibility readiness view                                | Approved | 2026-10-13 |
+| D-066 | Accessibility alerts                                        | Approved | 2026-10-13 |
 
 ---
 
@@ -1492,7 +1493,12 @@ and 6a). Written in DATA_MODEL.md ("Accessibility readiness") before implementat
 without a seat. Always requiring a ramp (3b) flags single-level venues. Marking some seating needs
 covered when seats run short would pick guests arbitrarily.
 
-**Evidence.** `accessibility/domain/readiness.test.ts`.
+**Amended 2026-10-13 (B3-14, option 5a).** A requirement with a type or priority outside the
+canonical lists is refused as invalid input, like two resources of one type, instead of being
+guessed (an unknown priority would otherwise have counted as advice). The database and validation
+can't produce one; the guard makes the rule explicit.
+
+**Evidence.** `accessibility/domain/readiness.test.ts`, `accessibility/domain/scenarios.test.ts`.
 
 ---
 
@@ -1568,6 +1574,43 @@ Written in DATA_MODEL.md ("Gaps") before implementation.
 `accessibility/application/get-readiness.test.ts`, the readiness tests in
 `accessibility/requirements.db.test.ts`, the overview row of the resource matrix in
 `accessibility/authorization.db.test.ts`, and step 6 of `e2e/lifecycle/accessibility-flow.spec.ts`.
+
+---
+
+## D-066 Accessibility alerts
+
+**Status:** Approved by the technical lead on 2026-10-13 (B3-11 to B3-15 plan, options 1a, 2a, 3a).
+Written in DATA_MODEL.md ("Alerts") before implementation.
+
+**Decision.**
+
+- **Derived, not stored.** `accessibility/domain/alerts.ts` turns the readiness status (D-063) and
+  the gaps (D-064) into alerts on every read. No table, no notifications, no email or SMS, no
+  dismissing or snoozing, no alert history. This is not an alert engine (PROJECT_RULES 2.2); the
+  Critical Alert View (Batch 8) can reuse the same function.
+- **Which gaps alert.** Gaps that make the event Not ready are critical; gaps that keep it Almost
+  ready (being arranged, check by hand) are warnings. Advice from Preferred needs never alerts,
+  and a covered need has no gap, so it can never alert.
+- **Each alert names its reason**: a headline ("Captioning is not set up"), the gap's sentence and
+  what it means for readiness, the resource and the guests it affects.
+- **Event-level alert.** While the status is Not ready or Almost ready, one alert for the event
+  ("Accessibility: Not ready", "2 issues need attention") on the event Overview, listing up to
+  three issues and linking to the Accessibility page.
+- **Guest alerts.** The attendee page shows the alerts about that guest, above the Accessibility
+  section. Owners and Coordinators get the link to set up or edit the resource; Viewers get a link
+  to the Accessibility page.
+- **Who sees them.** Every member (`event.view`), like the readiness view (D-065); never a note.
+  The read (`getAccessibilityAlerts`) authorizes itself and works inside the authorized event, so
+  another event's guest has no alerts.
+- **Accessible, not interrupting.** Severity is a word and an icon, never color alone. Alerts are
+  part of the page, so they don't use `role="alert"`. A failed read says "We couldn't check
+  accessibility alerts" instead of showing nothing.
+
+**Evidence.** `accessibility/domain/alerts.test.ts`, the alert tests in
+`src/app/(app)/events/[eventId]/page.test.tsx` and
+`attendees/[attendeeId]/accessibility/pages.test.tsx`, the alert rows of
+`accessibility/authorization.db.test.ts`, `accessibility/integration.db.test.ts` (B3-15), and step 6
+of `e2e/lifecycle/accessibility-flow.spec.ts`.
 
 ---
 

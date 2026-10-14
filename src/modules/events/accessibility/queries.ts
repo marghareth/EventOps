@@ -1,5 +1,5 @@
 // src/modules/events/accessibility/queries.ts
-// Accessibility reads for pages (B3-03, B3-04). Each one authorizes itself (D-036): every member may
+// Accessibility reads for pages (B3-03, B3-04, B3-10, B3-11). Each one authorizes itself (D-036): every member may
 // read an attendee's requirements (event.view); notes are loaded only for roles with
 // accessibility.private (D-058); the edit and add forms need accessibility.manage. The attendee and
 // the requirement are found only inside the authorized event, so another event's IDs are "not found".
@@ -14,6 +14,8 @@ import type {
 } from "./application/ports";
 import { getReadiness, type Readiness } from "./application/get-readiness";
 import { accessibilityRepository } from "./composition";
+import { alertsForGuest, deriveAlerts, type AccessibilityAlert } from "./domain/alerts";
+import type { ReadinessStatus } from "./domain/readiness-status";
 import type { RequirementType } from "./domain/requirement-type";
 import { RESOURCE_TYPES, resourceTypeFromSlug, type ResourceType } from "./domain/resource";
 
@@ -170,4 +172,45 @@ export async function getResourceForEditing(
   if (!type) return { ok: false, reason: "not-found" };
   const resource = await accessibilityRepository().findResource(auth.event.id, type);
   return { ok: true, type, resource };
+}
+
+// ───────────────────────── Alerts (B3-11) ─────────────────────────
+
+export type AccessibilityAlertsResult =
+  | {
+      ok: true;
+      status: ReadinessStatus;
+      /** The event-level alert; always null when reading for one guest. */
+      event: AccessibilityAlert | null;
+      /** The gap alerts, or only those about the guest when `attendeeId` is given. */
+      alerts: AccessibilityAlert[];
+      /** Whether the reader may fix resources (accessibility.manage): only then show fix links. */
+      canManage: boolean;
+    }
+  | Refused;
+
+/**
+ * The event's accessibility alerts (B3-11, D-066), derived now from the readiness; nothing is
+ * stored. Every member (event.view), like the readiness itself (D-065); never a note. With
+ * `attendeeId`, only that guest's alerts, and a guest of another event has none.
+ */
+export async function getAccessibilityAlerts(
+  eventId: string,
+  options: { attendeeId?: string } = {},
+): Promise<AccessibilityAlertsResult> {
+  const auth = await authorizeEvent(eventId, "event.view", accessibilityPath(eventId));
+  if (!auth.ok) return { ok: false, reason: auth.reason };
+  const { attendeeId } = options;
+  if (attendeeId !== undefined && !idSchema.safeParse(attendeeId).success) {
+    return { ok: false, reason: "not-found" };
+  }
+  const readiness = await getReadiness(accessibilityRepository(), auth.event.id);
+  const alerts = deriveAlerts(readiness.status, readiness.gaps);
+  return {
+    ok: true,
+    status: readiness.status,
+    event: attendeeId === undefined ? alerts.event : null,
+    alerts: attendeeId === undefined ? alerts.gaps : alertsForGuest(alerts, attendeeId),
+    canManage: can(auth.event.role, "accessibility.manage"),
+  };
 }

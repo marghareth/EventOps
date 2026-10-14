@@ -109,15 +109,47 @@ Both run with `npm run test:e2e:lifecycle` and in CI's `e2e` job (D-055).
 | Add, edit, remove; duplicates (also concurrent); stale and unchanged saves; notes not loaded (B3-03)                          | `accessibility/requirements.db.test.ts`                                                                                                                               |
 | Security matrix: seven callers × seven operations through the real actions and reads; refusals change nothing (B3-03)         | `accessibility/authorization.db.test.ts`                                                                                                                              |
 | Activity entries, wording, and the audit registry's copies (B3-03)                                                            | `accessibility/audit.test.ts`                                                                                                                                         |
+| Activity: six actions in order, actor and event, no notes; reads, refusals and no-ops not recorded (B3-12)                    | `accessibility/activity.db.test.ts`                                                                                                                                   |
 | Section, form, remove dialog, notice: states, roles, labels, keyboard-reachable radio groups (B3-04)                          | `accessibility/ui/*.test.tsx`                                                                                                                                         |
 | Add and edit pages, details-page notice and failed-read state (B3-04)                                                         | `attendees/[attendeeId]/accessibility/pages.test.tsx`                                                                                                                 |
 | Resources: set up, concurrent set-up, edit, stale, unchanged, remove, refused roles and events (B3-05)                        | `accessibility/resources.db.test.ts`                                                                                                                                  |
 | Resource security matrix: five callers × five operations; unknown types refused (B3-05)                                       | `accessibility/authorization.db.test.ts`                                                                                                                              |
+| Authorization (B3-13): User B on Event A; alert reads in both matrices; refusals turned away before storage                   | `accessibility/authorization.db.test.ts`                                                                                                                              |
 | Resource list, form, remove dialog, notice; Accessibility and resource pages (B3-05)                                          | `accessibility/ui/Resource*.test.tsx`, `accessibility/pages.test.tsx`                                                                                                 |
 | Readiness coverage: counting, mapping, resource states, seats, edge cases, determinism (B3-07)                                | `accessibility/domain/readiness.test.ts`                                                                                                                              |
 | Readiness status: the four statuses, the rule in order, Preferred never changes it (B3-08)                                    | `accessibility/domain/readiness-status.test.ts`                                                                                                                       |
 | Gaps: identifiable missing resources, no false gaps, several at once, seats, check by hand, consequences, determinism (B3-09) | `accessibility/domain/gaps.test.ts`                                                                                                                                   |
+| Named domain cases through coverage, status, gaps and alerts; unknown type or priority refused (B3-14)                        | `accessibility/domain/scenarios.test.ts`                                                                                                                              |
+| Integration: attendee → need → resource → readiness → gaps → alert from stored data; refusals; Activity (B3-15)               | `accessibility/integration.db.test.ts`                                                                                                                                |
 | Readiness view: status, gaps, needs and resources in order; roles; empty and error states; readiness from stored data (B3-10) | `accessibility/pages.test.tsx`, `accessibility/ui/ReadinessView.test.tsx`, `accessibility/application/get-readiness.test.ts`, `accessibility/requirements.db.test.ts` |
+| Alerts: only real gaps, never covered needs or advice; reasons; event and guest alerts; roles; failed read (B3-11)            | `accessibility/domain/alerts.test.ts`, `[eventId]/page.test.tsx`, `attendees/[attendeeId]/accessibility/pages.test.tsx`                                               |
+
+### Accessibility domain: proof the tests catch a broken rule (B3-14)
+
+`accessibility/domain/scenarios.test.ts` runs each named B3-14 case through the whole pure chain
+(coverage, status, gaps, alerts). No coverage tool is installed (option 4b), so branch coverage was
+checked by mutation instead: on 2026-10-13 each of 35 rules in `readiness.ts`,
+`readiness-status.ts`, `gaps.ts` and `alerts.ts` was broken in turn (a guard removed, a mapping
+swapped, a boundary moved from `<` to `<=`, an order or filter dropped) and the domain tests were
+run. All 35 were caught. The first run let two through, and a test was added for each: a guest
+counted once when two needs share a resource, and the event alert following the status rather
+than the gaps alone. The domain tests run in about a second.
+
+### Accessibility authorization: proof the tests catch a removed check (B3-13)
+
+The matrix in `accessibility/authorization.db.test.ts` calls the server actions and reads directly,
+so hiding a button in the page proves nothing to it. On 2026-10-13 each server-side check was
+removed by hand, the accessibility database tests were run, and the change was reverted:
+
+| Check removed                                                                     | Tests that failed |
+| --------------------------------------------------------------------------------- | ----------------- |
+| Role check at the boundary (`accessibility.manage` and `.private` → `event.view`) | 12 of 168         |
+| Membership and role (`authorizeEvent` grants Owner on any event)                  | 35 of 168         |
+| Role re-check in storage (`managedBy` filter)                                     | 6 of 168          |
+| Authorization in the alerts read (`getAccessibilityAlerts`)                       | 6 of 168          |
+
+Each layer is caught on its own: the boundary by the "refused before storage" tests, storage by the
+role re-check tests in `requirements.db.test.ts` and `resources.db.test.ts`.
 
 ### End-to-end accessibility flow (B3-04)
 
@@ -127,7 +159,9 @@ radio group) and one Other need (refused without a note, then saved); the detail
 with their priority; edit one, remove the other through the confirmation dialog; Activity shows each
 change and never the notes. Step 5 sets up accessible seats (refused without a count, then saved),
 edits the status and count, removes it, and checks Activity. Step 6 adds a Required need with no resource (Not ready, with the gap and its fix link), sets
-the resource up from the gap, and sees Ready with the Preferred need left as advice.
+the resource up from the gap, and sees Ready with the Preferred need left as advice. While Not ready, the Overview shows the
+accessibility alert and the guest's page shows their alert with a fix link; once Ready, neither
+appears (B3-11).
 
 ### Known flaky test
 

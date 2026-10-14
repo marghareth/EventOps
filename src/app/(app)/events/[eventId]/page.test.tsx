@@ -1,5 +1,6 @@
 // src/app/(app)/events/[eventId]/page.test.tsx
-// Event overview (B1-04): checks access itself, shows the details and the section tiles.
+// Event overview (B1-04): checks access itself, shows the details and the section tiles. B3-11: the
+// accessibility alert appears only while the event is Not ready or Almost ready.
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventDetails } from "@/modules/events/public";
@@ -7,6 +8,7 @@ import type { EventDetails } from "@/modules/events/public";
 type MemberRole = EventDetails["role"];
 
 const requireEventAccess = vi.fn();
+const getAccessibilityAlerts = vi.fn();
 
 vi.mock("@/modules/events/access", () => ({
   requireEventAccess: (...args: unknown[]) => requireEventAccess(...args),
@@ -14,8 +16,16 @@ vi.mock("@/modules/events/access", () => ({
 }));
 vi.mock("@/modules/events/actions", () => ({ createEventAction: vi.fn() }));
 vi.mock("@/modules/events/queries", () => ({ getMyEvents: vi.fn() }));
+vi.mock("@/modules/events/accessibility/queries", () => ({
+  getAccessibilityAlerts: (...args: unknown[]) => getAccessibilityAlerts(...args),
+}));
+vi.mock("@/modules/events/accessibility/actions", () => ({}));
 
 const { default: EventOverviewPage } = await import("./page");
+const { deriveAlerts } = await import("@/modules/events/accessibility/domain/alerts");
+const { detectGaps } = await import("@/modules/events/accessibility/domain/gaps");
+const { assessCoverage } = await import("@/modules/events/accessibility/domain/readiness");
+const { readinessStatus } = await import("@/modules/events/accessibility/domain/readiness-status");
 
 const ID = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
 const event = {
@@ -44,6 +54,13 @@ async function renderPage(created?: string) {
 beforeEach(() => {
   vi.resetAllMocks();
   requireEventAccess.mockResolvedValue({ user: {}, access: { kind: "ok", event } });
+  getAccessibilityAlerts.mockResolvedValue({
+    ok: true,
+    status: "NO_REQUIRED_NEEDS",
+    event: null,
+    alerts: [],
+    canManage: true,
+  });
 });
 
 describe("event overview", () => {
@@ -104,5 +121,92 @@ describe("event overview", () => {
     const link = screen.queryByRole("link", { name: "Edit event" });
     if (shown) expect(link).toHaveAttribute("href", `/events/${ID}/settings`);
     else expect(link).not.toBeInTheDocument();
+  });
+});
+describe("event overview: accessibility alert (B3-11, D-066)", () => {
+  const guest = (n: number) => ({
+    id: `a${n}`,
+    number: n,
+    name: `Guest ${n}`,
+    rsvpStatus: "CONFIRMED" as const,
+  });
+  /** Alerts as the server builds them, from the real domain rules. */
+  function alertsFor(
+    types: (
+      "CAPTIONING" | "SIGN_LANGUAGE" | "OTHER" | "STEP_FREE_ENTRANCE" | "ACCESSIBLE_RESTROOM"
+    )[],
+  ) {
+    const coverage = assessCoverage({
+      requirements: types.map((type, i) => ({
+        id: `q${i}`,
+        type,
+        priority: "REQUIRED" as const,
+        attendee: guest(i + 1),
+      })),
+      resources: [],
+    });
+    const status = readinessStatus(coverage);
+    const alerts = deriveAlerts(status, detectGaps(coverage));
+    return { ok: true, status, event: alerts.event, alerts: alerts.gaps, canManage: false };
+  }
+
+  it("shows the alert with its issues and a link to fix them when the event is Not ready", async () => {
+    getAccessibilityAlerts.mockResolvedValue(alertsFor(["CAPTIONING", "OTHER"]));
+    await renderPage();
+    expect(getAccessibilityAlerts).toHaveBeenCalledWith(ID);
+    const region = screen.getByRole("region", { name: "Accessibility alert" });
+    expect(region).toHaveTextContent("Critical: Accessibility: Not ready");
+    expect(region).toHaveTextContent("2 issues need attention.");
+    expect(
+      within(region)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["Captioning is not set up", "A need to check by hand"]);
+    expect(within(region).getByRole("link", { name: "Review accessibility" })).toHaveAttribute(
+      "href",
+      `/events/${ID}/accessibility`,
+    );
+    expect(within(region).queryByRole("alert")).toBeNull();
+  });
+
+  it("lists three issues and counts the rest", async () => {
+    getAccessibilityAlerts.mockResolvedValue(
+      alertsFor([
+        "CAPTIONING",
+        "SIGN_LANGUAGE",
+        "STEP_FREE_ENTRANCE",
+        "ACCESSIBLE_RESTROOM",
+        "OTHER",
+      ]),
+    );
+    await renderPage();
+    const items = within(screen.getByRole("region", { name: "Accessibility alert" })).getAllByRole(
+      "listitem",
+    );
+    expect(items).toHaveLength(4);
+    expect(items[3]).toHaveTextContent("and 2 more");
+  });
+
+  it.each(["READY", "NO_REQUIRED_NEEDS"] as const)(
+    "shows no alert when the status is %s",
+    async (status) => {
+      getAccessibilityAlerts.mockResolvedValue({
+        ok: true,
+        status,
+        event: null,
+        alerts: [],
+        canManage: true,
+      });
+      await renderPage();
+      expect(screen.queryByRole("region", { name: "Accessibility alert" })).toBeNull();
+      expect(screen.queryByText(/couldn't check accessibility/)).toBeNull();
+    },
+  );
+
+  it("says so when the alert can't be read, and keeps the page", async () => {
+    getAccessibilityAlerts.mockRejectedValue(new Error("database down"));
+    await renderPage();
+    expect(screen.getByText("We couldn't check accessibility alerts")).toBeVisible();
+    expect(screen.getByRole("region", { name: "Event details" })).toBeInTheDocument();
   });
 });
