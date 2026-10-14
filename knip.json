@@ -1,4 +1,5 @@
 {
+  "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": ["vitest.server-only-stub.ts", "src/**/*.db.test.ts", "e2e/lifecycle/*.ts"],
   "ignoreExportsUsedInFile": true,
   "ignore": [
@@ -11,9 +12,7 @@
     "src/components/shared/SeverityBadge.tsx",
     "src/lib/storage.ts",
     "src/lib/supabase/browser.ts",
-    "src/modules/events/accessibility/application/get-readiness.ts",
     "src/modules/events/accessibility/domain/estimate-required-seats.ts",
-    "src/modules/events/accessibility/domain/readiness.ts",
     "src/modules/events/budget/**",
     "src/modules/events/checkin/**",
     "src/modules/events/health/**",

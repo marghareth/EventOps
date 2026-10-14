@@ -106,9 +106,11 @@ test("4. Activity records each change, never the notes", async ({ page }) => {
 test("5. set up, edit and remove an event resource", async ({ page }) => {
   const accessibility = attendeePath.replace(/\/attendees\/.*/, "/accessibility");
   await page.goto(accessibility);
-  await expect(page.getByText(/None of the six resources is set up yet\./)).toBeVisible();
+  // The resources section; the gaps above it may offer the same fix links (B3-10).
+  const provides = page.getByRole("region", { name: "What the event provides" });
+  await expect(provides.getByText(/None of the six resources is set up yet\./)).toBeVisible();
 
-  await page.getByRole("link", { name: "Set up Accessible seats" }).click();
+  await provides.getByRole("link", { name: "Set up Accessible seats" }).click();
   await page.getByRole("radio", { name: "Being arranged" }).check();
   await page.getByRole("button", { name: "Set up" }).click();
   // Accessible seats need a count: the server refuses and says so beside the field.
@@ -116,18 +118,18 @@ test("5. set up, edit and remove an event resource", async ({ page }) => {
   await page.getByLabel(/^Number of accessible seats/).fill("6");
   await page.getByRole("button", { name: "Set up" }).click();
   await expect(page.getByText("Accessible seats is up to date.")).toBeVisible();
-  const seats = page.getByRole("listitem").filter({ hasText: "Accessible seats" });
+  const seats = provides.getByRole("listitem").filter({ hasText: "Accessible seats" });
   await expect(seats).toContainText("Being arranged");
   await expect(seats).toContainText("6 seats");
 
-  await page.getByRole("link", { name: "Edit Accessible seats" }).click();
+  await provides.getByRole("link", { name: "Edit Accessible seats" }).click();
   await page.getByRole("radio", { name: "Available", exact: true }).check();
   await page.getByLabel(/^Number of accessible seats/).fill("8");
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(seats).toContainText("Available");
   await expect(seats).toContainText("8 seats");
 
-  await page.getByRole("link", { name: "Edit Accessible seats" }).click();
+  await provides.getByRole("link", { name: "Edit Accessible seats" }).click();
   await page.getByRole("button", { name: "Remove resource" }).click();
   await page
     .getByRole("alertdialog", { name: "Remove this resource?" })
@@ -140,4 +142,35 @@ test("5. set up, edit and remove an event resource", async ({ page }) => {
   await expect(feed).toContainText("Set up Accessible seats: Being arranged, 6 seats");
   await expect(feed).toContainText("Seats: 6 → 8");
   await expect(feed).toContainText("Removed Accessible seats");
+});
+
+test("6. readiness: a Required need without a resource makes the event Not ready", async ({
+  page,
+}) => {
+  const accessibility = attendeePath.replace(/\/attendees\/.*/, "/accessibility");
+  // After step 3 the guest's only need is Preferred seating, which never decides readiness.
+  await page.goto(accessibility);
+  const readiness = page.getByRole("region", { name: "Accessibility readiness" });
+  await expect(readiness).toContainText("No required needs");
+
+  await page.goto(`${attendeePath}/accessibility/new`);
+  await page.getByRole("radio", { name: "Captioning", exact: true }).check();
+  await page.getByRole("button", { name: "Add need" }).click();
+  await expect(page.getByText("Accessibility need added")).toBeVisible();
+
+  await page.goto(accessibility);
+  await expect(readiness).toContainText("Not ready");
+  const gaps = page.getByRole("region", { name: "What's missing" });
+  await expect(gaps).toContainText("Captioning is not set up, but 1 guest needs it.");
+  await expect(gaps).toContainText("Makes the event Not ready.");
+
+  await gaps.getByRole("link", { name: "Set up Captioning" }).click();
+  await page.getByRole("radio", { name: "Available", exact: true }).check();
+  await page.getByRole("button", { name: "Set up" }).click();
+  await expect(page.getByText("Captioning is up to date.")).toBeVisible();
+  // Captioning covered; the Preferred seating need without seats stays as advice only.
+  await expect(readiness).toContainText("Ready");
+  await expect(readiness).not.toContainText("Not ready");
+  await expect(gaps).toContainText("Accessible seats is not set up, but 1 guest needs it.");
+  await expect(gaps).toContainText("Advice only");
 });

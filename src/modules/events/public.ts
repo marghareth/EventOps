@@ -25,6 +25,7 @@ export {
   sampleGetAttendee,
   sampleImportAttendees,
   sampleListAttendees,
+  sampleListEventRequirements,
   sampleListRequirements,
   sampleListResources,
   sampleUpdateAttendee,

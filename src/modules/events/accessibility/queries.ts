@@ -12,6 +12,7 @@ import type {
   RequirementRecord,
   ResourceRecord,
 } from "./application/ports";
+import { getReadiness, type Readiness } from "./application/get-readiness";
 import { accessibilityRepository } from "./composition";
 import type { RequirementType } from "./domain/requirement-type";
 import { RESOURCE_TYPES, resourceTypeFromSlug, type ResourceType } from "./domain/resource";
@@ -119,29 +120,33 @@ export async function getRequirementForEditing(
 const accessibilityPath = (eventId: string) =>
   `/events/${encodeURIComponent(eventId)}/accessibility`;
 
-export type EventResources =
+export type AccessibilityOverview =
   | {
       ok: true;
+      /** Status, counts, coverage and gaps, calculated now (D-062 to D-064). Never stored. */
+      readiness: Readiness;
       /** All six types in definition order; `resource` is null when it is "Not set up". */
       resources: { type: ResourceType; resource: ResourceRecord | null }[];
-      /** Whether the reader may set up, edit and remove (accessibility.manage). */
+      /** Whether the reader may set up, edit and remove resources (accessibility.manage). */
       canManage: boolean;
     }
   | Refused;
 
 /**
- * The event's accessibility resources for the Accessibility page. Every member (event.view):
- * resources describe the venue, not a person, so the whole record is shown to every member.
+ * The Accessibility page (B3-05, B3-10): readiness and resources. Every member (event.view):
+ * resources describe the venue; requirement types and guest names are already visible to every
+ * member (D-058); notes are never loaded. The calculation itself decides no permission.
  */
-export async function getEventResources(eventId: string): Promise<EventResources> {
+export async function getAccessibilityOverview(eventId: string): Promise<AccessibilityOverview> {
   const auth = await authorizeEvent(eventId, "event.view", accessibilityPath(eventId));
   if (!auth.ok) return { ok: false, reason: auth.reason };
-  const stored = await accessibilityRepository().listResources(auth.event.id);
+  const readiness = await getReadiness(accessibilityRepository(), auth.event.id);
   return {
     ok: true,
+    readiness,
     resources: RESOURCE_TYPES.map((type) => ({
       type,
-      resource: stored.find((r) => r.type === type) ?? null,
+      resource: readiness.resources.find((r) => r.type === type) ?? null,
     })),
     canManage: can(auth.event.role, "accessibility.manage"),
   };

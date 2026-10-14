@@ -63,7 +63,7 @@ const {
   getAttendeeAccessibility,
   getNewRequirementContext,
   getRequirementForEditing,
-  getEventResources,
+  getAccessibilityOverview,
   getResourceForEditing,
 } = await import("./queries");
 const { initialRequirementFormState, initialResourceFormState } = await import("./form-state");
@@ -366,7 +366,8 @@ const seatsVersion = async (eventId: string) =>
   )?.updatedAt.toISOString() ?? new Date().toISOString();
 
 const RESOURCE_OPERATIONS = {
-  "read the resources": (eventId: string) => read(() => getEventResources(eventId)),
+  "read the resources and readiness": (eventId: string) =>
+    read(() => getAccessibilityOverview(eventId)),
   "open a resource form": (eventId: string) =>
     read(() => getResourceForEditing(eventId, "accessible-seats")),
   "set up a resource": (eventId: string) =>
@@ -413,7 +414,7 @@ const RESOURCE_ACTORS: {
     name: "Viewer of A on Event A",
     as: (w) => w.viewer,
     event: (w) => w.eventA,
-    allowed: ["read the resources"],
+    allowed: ["read the resources and readiness"],
   },
   { name: "User A on Event B", as: (w) => w.userA, event: (w) => w.eventB, allowed: [] },
   { name: "Signed out on Event A", as: () => null, event: (w) => w.eventA, allowed: [] },
