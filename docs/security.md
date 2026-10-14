@@ -231,6 +231,61 @@ the same: not found.
 - **Headers:** `Content-Disposition: attachment` with a sanitized file name, `no-store`,
   `nosniff`.
 
+## Accessibility (Batch 3)
+
+Attendees' accessibility needs can hold health details, so their free-text notes are protected
+like attendee notes (D-058). Every operation authorizes on the server with `authorizeEvent`, from
+the stored role, then works only inside the authorized event.
+
+| Operation                                                     | Permission              | Owner | Coordinator | Viewer |
+| ------------------------------------------------------------- | ----------------------- | ----- | ----------- | ------ |
+| A guest's need types and priorities; readiness, gaps, alerts  | `event.view`            | Yes   | Yes         | Yes    |
+| The notes on a guest's needs                                  | `accessibility.private` | Yes   | Yes         | No     |
+| Add, edit, remove needs; set up, edit, remove event resources | `accessibility.manage`  | Yes   | Yes         | No     |
+
+- **Notes are never loaded** for roles without `accessibility.private`, and never go into
+  readiness, gaps, alerts or Activity (D-058, D-066).
+- **Two checks for every write:** `authorizeEvent` turns refused callers away before any storage is
+  opened, and the write itself re-checks the role in the same statement (`rolesAllowed`), so a role
+  changed in between changes nothing.
+- **No cross-event links:** a need's attendee must belong to the same event, enforced by a
+  composite foreign key (D-002); another event's attendee, need or resource ID is "not found".
+- **Calculated, never stored:** readiness, gaps and alerts are worked out on the server from the
+  stored needs and resources on every read (D-062 to D-066); the browser never sends a status. No
+  AI is involved.
+- **Addresses carry only known values:** notices after a change are shown only for a known notice
+  and a known type, with the label from the canonical definitions.
+- **Proof:** `accessibility/authorization.db.test.ts` calls every operation directly as each kind
+  of caller (including another event's owner) and checks denials change nothing; removing any of
+  the checks above makes it fail (docs/TESTING.md, B3-13). `activity.db.test.ts` shows no note
+  reaches Activity.
+
+### Security review (B3-19, 2026-10-14)
+
+A focused review of the accessibility context, at commit `c682f35` plus the two fixes below.
+
+| Check                          | Result                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cross-event data access        | Every repository query filters by the authorized event's ID; a need's attendee must be in the same event (composite foreign key, D-002). Another event's IDs are "not found" in every read and write.                                                                                                                                                   |
+| Server-side authorization      | All 6 pages, 6 reads and 5 server actions authorize on the server. Writes are refused before storage and re-checked in the write. Removing a check makes the tests fail (B3-13). Nothing relies on hiding a control.                                                                                                                                    |
+| Input validation               | Every action validates with Zod: IDs as UUIDs, types and statuses against the canonical lists, seat counts 0 to 10,000, notes up to 500 characters, versions as ISO dates. **Fixed:** a note with a NUL character used to reach PostgreSQL, which refuses it, and the user saw a generic "couldn't save"; it is now refused with a clear field message. |
+| Sensitive attendee information | Notes need `accessibility.private` and never reach readiness, gaps, alerts, Activity or any log. Need types and guest names are visible to every member by design (D-058, D-065). **Added:** a test that fails if a role could ever manage accessibility without seeing notes, because the edit form loads the note to keep it on save.                 |
+| Activity and audit integrity   | Six registered actions, written in the same transaction as the change, with the actor from the server session; the audit table is append-only (database trigger, D-037); entries hold no notes (`activity.db.test.ts`). Reads and refused or unchanged saves record nothing.                                                                            |
+| ID enumeration                 | Need and resource IDs are random UUIDs. Guest numbers (`ATT-0001`) are per event and shown only to its members. Resource addresses are the six public type names. Unknown, malformed and other-event IDs all give the same "not found".                                                                                                                 |
+| Client/server trust boundary   | IDs and the resource type bound into actions come back from the browser, so each is validated and authorized again. The form's version is used only to refuse stale saves. Readiness, gaps, alerts and roles are never accepted from the browser. Notices in the address are shown only for known values.                                               |
+| Error-message leakage          | Failures return fixed messages; database errors are caught and never shown. The error screens show only a reference, never `error.message`. Non-members can't tell an existing event from a missing one.                                                                                                                                                |
+
+**Debt, not fixed here:**
+
+- **No rate limiting** on server actions. This is project-wide and needs its own decision.
+- **The same NUL gap exists in Batch 2's attendee text fields** (name, notes, dietary needs). A
+  NUL there gives a generic save error, not a security hole. The fix belongs to the attendees
+  context, in its own task.
+- **CSRF protection for server actions** comes from Next.js's built-in Origin check and isn't tested
+  separately.
+- **Real Supabase sign-in** is still checked by hand (see "Manual check against the real Supabase
+  project"); tests use the dev stand-in (D-024).
+
 ## Event isolation
 
 - **Event list (B1-03, D-026).** `listEventsForUser` in `src/modules/events/queries.ts` is the

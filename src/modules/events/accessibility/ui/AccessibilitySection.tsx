@@ -78,7 +78,7 @@ export function AccessibilitySection({ attendeeHref, attendeeName, data }: Props
                     <Link
                       href={`${attendeeHref}/accessibility/${requirement.id}/edit`}
                       aria-label={`Edit ${label}`}
-                      className="self-start text-sm font-semibold text-blue underline-offset-2 hover:underline sm:mt-1"
+                      className="-my-2.5 inline-flex min-h-11 min-w-11 items-center self-start text-sm font-semibold text-blue underline-offset-2 hover:underline sm:-mt-1.5"
                     >
                       Edit
                     </Link>

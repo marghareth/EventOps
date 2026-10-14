@@ -14,7 +14,7 @@ batches PROJECT_RULES names are filled in.
 **Status values.** Not started · In progress · In review (built and tested, awaiting the technical
 lead) · Done (accepted) · Blocked.
 
-_Last updated: 2026-10-13._
+_Last updated: 2026-10-14._
 
 ## Tier 1: required baseline
 
@@ -90,7 +90,12 @@ _Last updated: 2026-10-13._
 | **B3-13 Accessibility Authorization Tests**: owner, coordinator, viewer, other-event user and signed out against the real actions and reads; refusals turned away before storage                                                 | B3      | In review: matrix passes; removing each check makes it fail                                                                                         |
 | **B3-14 Accessibility Domain Unit Tests**: every named case through coverage, status, gaps and alerts; unknown requirement type or priority refused                                                                              | B3      | In review: 35 of 35 rule mutations caught                                                                                                           |
 | **B3-15 Accessibility Integration Tests**: attendee → need → resource → readiness → gaps → alert from stored data, with refusals and Activity checked at each step                                                               | B3      | In review: database test passes                                                                                                                     |
-| Accessibility requirements per attendee                                                                                                                                                                                          | B3      | In review: B3-01 to B3-05; readiness is a later Batch 3 task                                                                                        |
+| **B3-16 Accessibility E2E Flow**: sign in, open event and guest, add a need, set up a resource, Not ready gap, add the missing resource, Almost ready then Ready, Activity, Viewer                                               | B3      | In review: 8 browser steps pass; 40 of 40 over 5 runs                                                                                               |
+| **B3-17 Accessibility UX & Responsive Polish**: in-text links underlined, 44 px action targets; keyboard, headings, form errors, states and 375/768/1280 audited                                                                 | B3      | In review: 0 axe violations on 7 screens at 3 widths                                                                                                |
+| **B3-18 Accessibility Documentation**: ARCHITECTURE.md accessibility context, ACCEPTANCE_CRITERIA.md for Batch 3, test strategy, DATA_MODEL status, D-067                                                                        | B3      | In review                                                                                                                                           |
+| **B3-19 Accessibility Security Review**: eight checks recorded in SECURITY.md; NUL in notes now refused clearly; guard that managers can see notes; four debt items                                                              | B3      | In review: review recorded; new tests pass                                                                                                          |
+| **B3-20 Accessibility Batch Verification**: full local verification set and gate record (docs/gates/BATCH-3.md); CI and prisma migrate deploy not yet run                                                                        | B3      | Partial: all local checks pass; CI blocked (gate record)                                                                                            |
+| Accessibility requirements per attendee                                                                                                                                                                                          | B3      | In review: B3-01 to B3-06, B3-12 to B3-15                                                                                                           |
 | **Live Attendance Count** (approved Tier 2 → Tier 1 addition)                                                                                                                                                                    | Batch 2 | Blocked: plus-one counting not defined (DECISIONS open item 4)                                                                                      |
 
 ### Resources and money
@@ -121,15 +126,15 @@ _Last updated: 2026-10-13._
 
 ### Engineering
 
-| Item                                                                                                    | Batch | Status                                                                                                           |
-| ------------------------------------------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
-| Unit tests: impact engine, accessibility, budget, authorization, import validation                      |       | Not started                                                                                                      |
-| GitHub Actions CI: lint → typecheck → knip → test → build                                               |       | In progress: build passes, including without Supabase settings; test and knip still fail on empty scaffold files |
-| ESLint, Prettier, commitlint, Prisma migrations                                                         |       | In progress: tooling configured; import-boundary rules verified                                                  |
-| Shared UI states: loading, empty, error, success, not found, no access                                  |       | Done: built and tested (51 tests)                                                                                |
-| Deployed on Vercel with seeded demo data                                                                |       | Not started                                                                                                      |
-| Documentation set (README, docs/, CONTRIBUTING, SECURITY, CHANGELOG, ROADMAP, LICENSE, CODE_OF_CONDUCT) |       | In progress                                                                                                      |
-| Mobile-responsive layouts                                                                               |       | Not started                                                                                                      |
+| Item                                                                                                    | Batch | Status                                                                                              |
+| ------------------------------------------------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------- |
+| Unit tests: impact engine, accessibility, budget, authorization, import validation                      |       | In progress: accessibility, authorization and CSV import done; impact engine and budget not started |
+| GitHub Actions CI: lint → typecheck → knip → test → build                                               |       | In progress: every step passes locally (2026-10-14); a run on GitHub not yet seen                   |
+| ESLint, Prettier, commitlint, Prisma migrations                                                         |       | In progress: tooling configured; import-boundary rules verified                                     |
+| Shared UI states: loading, empty, error, success, not found, no access                                  |       | Done: built and tested (51 tests)                                                                   |
+| Deployed on Vercel with seeded demo data                                                                |       | Not started                                                                                         |
+| Documentation set (README, docs/, CONTRIBUTING, SECURITY, CHANGELOG, ROADMAP, LICENSE, CODE_OF_CONDUCT) |       | In progress                                                                                         |
+| Mobile-responsive layouts                                                                               |       | Not started                                                                                         |
 
 ## Tier 2: only after Tier 1 is accepted and advancement is authorized
 

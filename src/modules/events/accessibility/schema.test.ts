@@ -65,6 +65,19 @@ describe("requirementFormSchema", () => {
     );
   });
 
+  it("refuses a NUL character in a note with a clear message (B3-19)", () => {
+    const message = "Remove the invisible character this note contains, then try again.";
+    expect(errorFor(requirement({ note: "Near\u0000 an exit" }), "note")).toBe(message);
+    const resource = resourceFormSchema("CAPTIONING").safeParse({
+      status: "AVAILABLE",
+      quantity: "",
+      note: "Live\u0000 captions",
+    });
+    expect(resource.success ? undefined : resource.error.issues[0].message).toBe(message);
+    // Other control characters are stored and shown as plain text.
+    expect(requirement({ note: "Line one\nLine two\ttabbed" }).success).toBe(true);
+  });
+
   it("round-trips stored values through the edit form", () => {
     const stored = {
       type: "OTHER" as const,

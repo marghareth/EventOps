@@ -77,6 +77,7 @@ Status values:
 | D-064 | Accessibility gap detection                                 | Approved | 2026-10-13 |
 | D-065 | Accessibility readiness view                                | Approved | 2026-10-13 |
 | D-066 | Accessibility alerts                                        | Approved | 2026-10-13 |
+| D-067 | Batch 3 verification approach                               | Approved | 2026-10-14 |
 
 ---
 
@@ -1611,6 +1612,34 @@ Written in DATA_MODEL.md ("Alerts") before implementation.
 `attendees/[attendeeId]/accessibility/pages.test.tsx`, the alert rows of
 `accessibility/authorization.db.test.ts`, `accessibility/integration.db.test.ts` (B3-15), and step 6
 of `e2e/lifecycle/accessibility-flow.spec.ts`.
+
+---
+
+## D-067 Batch 3 verification approach
+
+**Status:** Approved by the technical lead on 2026-10-14 (B3-16 to B3-20 plan, options 1a, 2a, 3a,
+4b, 5a).
+
+**Decision.**
+
+- **Browser test data (1a).** The accessibility browser workflow builds its realistic event through
+  the app: create the event, import a twelve-guest list with the CSV import, then add needs and
+  resources through the pages. No test data is written straight to the database. The only direct
+  step is changing the demo user's role, which stands in for member screens that don't exist yet
+  (D-034).
+- **Accessibility checks (2a).** No new dependency. The screens are scanned with axe-core
+  (already installed by ESLint's accessibility plugin) from a script outside the repository, and
+  checked by keyboard, with the results recorded in TESTING.md. The scan is not part of CI.
+- **Formatting gate (3a).** Every file a batch touches must pass Prettier. The 255 older files that
+  don't are recorded as debt, not reformatted in a feature batch.
+- **CI evidence (4b).** The batch is pushed as its own branch to the GitHub repository, so CI can
+  run the real `prisma migrate deploy` and the full job set; nothing is merged without review.
+- **Documentation (5a).** ARCHITECTURE.md starts with the accessibility context.
+  ACCEPTANCE_CRITERIA.md is created for Batch 3. The Batch 2 documents recorded as written by B2-25
+  but missing from the repository are reported, not recreated.
+
+**Evidence.** `e2e/lifecycle/accessibility-readiness.spec.ts`, TESTING.md (B3-16, B3-17),
+ARCHITECTURE.md, ACCEPTANCE_CRITERIA.md.
 
 ---
 

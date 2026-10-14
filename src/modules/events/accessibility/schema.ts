@@ -25,10 +25,18 @@ export const ACCESSIBILITY_LIMITS = { note: 500, seats: MAX_ACCESSIBLE_SEATS } a
 /** Characters as Postgres counts them (code points), so emoji count once, like varchar(n). */
 const charCount = (value: string) => Array.from(value).length;
 
-/** Optional note: trimmed, empty becomes null (the database refuses blank notes). */
+/**
+ * Optional note: trimmed, empty becomes null (the database refuses blank notes). A NUL character
+ * can't be stored in PostgreSQL text, so it is refused here with a clear message (B3-19) instead of
+ * failing the save.
+ */
 const note = z
   .string()
   .trim()
+  .refine(
+    (value) => !value.includes("\u0000"),
+    "Remove the invisible character this note contains, then try again.",
+  )
   .refine(
     (value) => charCount(value) <= ACCESSIBILITY_LIMITS.note,
     `Use ${ACCESSIBILITY_LIMITS.note} characters or fewer.`,

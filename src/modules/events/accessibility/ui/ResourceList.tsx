@@ -50,7 +50,7 @@ export function ResourceList({ basePath, resources, canManage }: Props) {
                   </p>
                 ) : null}
                 {resource?.note ? (
-                  <p className="mt-2 break-words whitespace-pre-wrap text-ink">
+                  <p className="mt-2 wrap-break-word whitespace-pre-wrap text-ink">
                     <span className="sr-only">Note: </span>
                     {resource.note}
                   </p>
@@ -60,7 +60,7 @@ export function ResourceList({ basePath, resources, canManage }: Props) {
                 <Link
                   href={`${basePath}/${resourceSlug(type)}/edit`}
                   aria-label={`${resource ? "Edit" : "Set up"} ${definition.label}`}
-                  className="self-start text-sm font-semibold text-blue underline-offset-2 hover:underline sm:mt-1"
+                  className="-my-2.5 inline-flex min-h-11 min-w-11 items-center self-start text-sm font-semibold text-blue underline-offset-2 hover:underline sm:-mt-1.5"
                 >
                   {resource ? "Edit" : "Set up"}
                 </Link>
