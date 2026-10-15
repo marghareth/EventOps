@@ -79,7 +79,7 @@ actions and saves that change nothing record nothing.
 
 ### Placeholder tests
 
-Six test files from the scaffold (D-019) belong to features not built yet (accessibility readiness, the seventh, got real tests in B3-07). Each holds one
+Five test files from the scaffold (D-019) belong to features not built yet (accessibility readiness got real tests in B3-07, supplier actions in B4-03). Each holds one
 `it.todo` naming its feature, so `npm test` passes and reports them as to-do (D-054).
 
 ### End-to-end attendee flow (B2-24)
@@ -99,6 +99,50 @@ against a reset test database:
 
 It resets the demo data before and after, so it can run before or after the event lifecycle spec.
 Both run with `npm run test:e2e:lifecycle` and in CI's `e2e` job (D-055).
+
+## Supplier tests (Batch 4)
+
+| Area                                                                                                                                                                                            | Tests                                                                                                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Table: fields, numbering per event, duplicates, constraints, limits, cascade, indexes (B4-01)                                                                                                   | `suppliers/suppliers-table.db.test.ts`                                                                                                                                          |
+| Categories equal the database enum; Other's description; validation (B4-02)                                                                                                                     | `suppliers/categories.test.ts`                                                                                                                                                  |
+| Form validation: required fields, formats, limits, ignored extra fields (B4-03)                                                                                                                 | `suppliers/schema.test.ts`                                                                                                                                                      |
+| Adding: numbering (also concurrent), role re-checked in the database, Activity (B4-03)                                                                                                          | `suppliers/suppliers.db.test.ts`                                                                                                                                                |
+| Security matrix through the real actions and reads; refusals change nothing (B4-03)                                                                                                             | `suppliers/authorization.db.test.ts`                                                                                                                                            |
+| Activity entries and wording; the audit registry's category copy (B4-03)                                                                                                                        | `suppliers/audit.test.ts`                                                                                                                                                       |
+| Activity: one entry per supplier, quote and payment change, right action and actor; refusals and no-ops none; no contact details; status-led summaries (B4-20)                                  | `suppliers/activity.db.test.ts`, `suppliers/audit.test.ts`                                                                                                                      |
+| Form and list components; list and add pages (B4-03)                                                                                                                                            | `suppliers/ui/*.test.tsx`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`                                                                                            |
+| Editing: what changed for Activity; saves, stale and unchanged saves, refusals in the database (B4-04)                                                                                          | `suppliers/schema.test.ts`, `suppliers/suppliers.db.test.ts`                                                                                                                    |
+| Edit form and edit links in the matrix, plus another event's supplier for every caller (B4-04)                                                                                                  | `suppliers/authorization.db.test.ts`                                                                                                                                            |
+| Edit mode of the form; Edit supplier page (B4-04)                                                                                                                                               | `suppliers/ui/SupplierForm.test.tsx`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`                                                                                 |
+| Removing: permanent, Activity kept, numbers not reused, refusals and other events (B4-05)                                                                                                       | `suppliers/suppliers.db.test.ts`, `suppliers/authorization.db.test.ts`                                                                                                          |
+| Remove confirmation: nothing removed without confirming, Cancel and Escape, errors (B4-05)                                                                                                      | `suppliers/ui/RemoveSupplierSection.test.tsx`                                                                                                                                   |
+| Browser flow: add (Other needs a description), edit, remove, Activity, Viewer read-only (B4-03 to B4-05)                                                                                        | `e2e/lifecycle/supplier-flow.spec.ts`                                                                                                                                           |
+| Contact fields and formats; contacts event-scoped and never in Activity through add, edit and remove (B4-06)                                                                                    | `suppliers/schema.test.ts`, `suppliers/suppliers.db.test.ts`, `suppliers/ui/SupplierForm.test.tsx`                                                                              |
+| Detail page: matrix row, another event's supplier, Activity only for audit.view and only about the supplier (B4-07)                                                                             | `suppliers/authorization.db.test.ts`                                                                                                                                            |
+| Detail page sections and page states: contacts, recent activity, Viewer view, not found (B4-07)                                                                                                 | `suppliers/ui/SupplierContactSection.test.tsx`, `suppliers/ui/SupplierActivitySection.test.tsx`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`                      |
+| Peso amounts: accepted inputs, canonical form, refusals (negative, zero, decimals, too large, ambiguous), display (B4-08)                                                                       | `suppliers/money.test.ts`                                                                                                                                                       |
+| Quotes table: exact amounts, numbering, same-event supplier link, CHECKs, statuses, cascades, indexes (B4-08)                                                                                   | `suppliers/supplier-quotes-table.db.test.ts`                                                                                                                                    |
+| Payments table: exact amounts, date-only dates, numbering, same-event supplier link, paid-date rule, date range, kinds and statuses, cascades, indexes (B4-12)                                  | `suppliers/supplier-payments-table.db.test.ts`                                                                                                                                  |
+| Supplier payment status: each status, one centavo short, exact and over, unpaid rows ignored, exact centavo sums, order independence; the badge (B4-13)                                         | `suppliers/payment-status.test.ts`, `suppliers/money.test.ts`, `suppliers/ui/PaymentStatusBadge.test.tsx`                                                                       |
+| Due rules: Overdue, Due today, Upcoming, Paid; paid never overdue; the Manila midnight boundary (16:00 UTC), new year, leap day; impossible dates; next due; the badge (B4-15)                  | `suppliers/payment-due.test.ts`, `suppliers/ui/PaymentDueBadge.test.tsx`                                                                                                        |
+| Payment form validation: amounts, real dates in range, past due dates allowed, paid date required for Paid and not after the given day; canonical lists equal the enums (B4-14)                 | `suppliers/payment-schema.test.ts`                                                                                                                                              |
+| Adding and editing payments: numbering (also concurrent), exact amounts and dates, stale and unchanged saves, refusals, wrong event or supplier, statuses from stored records (B4-14)           | `suppliers/payments.db.test.ts`                                                                                                                                                 |
+| Payment matrix rows; wrong supplier or event; invalid amounts and dates and a future paid date refused on the server; statuses on the supplier page (B4-14)                                     | `suppliers/authorization.db.test.ts`                                                                                                                                            |
+| Payment form, payments section, Add and Edit payment pages, payment notices (B4-14)                                                                                                             | `suppliers/ui/PaymentForm.test.tsx`, `suppliers/ui/SupplierPaymentsSection.test.tsx`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`                                 |
+| Supplier list overview: accepted quote, pending quotes, payment status, next due; each event's own rows for every member (B4-16)                                                                | `suppliers/supplier-overview.test.ts`, `suppliers/ui/SupplierList.test.tsx`, `suppliers/authorization.db.test.ts`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`    |
+| Supplier search: cleaning the address, what matches and what never does, order; another event's suppliers never found; page states (B4-17)                                                      | `suppliers/supplier-list-query.test.ts`, `suppliers/authorization.db.test.ts`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`                                        |
+| Supplier filters: parsing and address round trip, quote groups, AND composition, clearing; Event B never shown; phone-width reload, back and clear (B4-18)                                      | `suppliers/supplier-list-query.test.ts`, `suppliers/authorization.db.test.ts`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`, `e2e/lifecycle/supplier-flow.spec.ts` |
+| Whole workflow against seeded data: keyboard-only add, stored values read back, look-alike suppliers in another event, Viewer (B4-22)                                                           | `e2e/lifecycle/supplier-workflow.spec.ts`, `e2e/lifecycle/db.ts` (`seedSuppliers`)                                                                                              |
+| Every form problem listed at once; supplier loading and error screens (B4-23)                                                                                                                   | `suppliers/schema.test.ts`, `suppliers/payment-schema.test.ts`, `src/app/(app)/events/[eventId]/suppliers/states.test.tsx`                                                      |
+| Quote statuses equal the database enum; labels; the lifecycle rule; the badge (B4-11)                                                                                                           | `suppliers/quote-statuses.test.ts`, `suppliers/ui/QuoteStatusBadge.test.tsx`                                                                                                    |
+| Quote form validation: canonical amounts, refusals, statuses, description (B4-09)                                                                                                               | `suppliers/quote-schema.test.ts`                                                                                                                                                |
+| Adding quotes: numbering (also concurrent), exact amounts, one Accepted per supplier (also concurrent), refusals in the database, other events, Activity (B4-09)                                | `suppliers/quotes.db.test.ts`                                                                                                                                                   |
+| Quote matrix row, IDs in the form ignored, invalid input and second Accepted refused on the server (B4-09)                                                                                      | `suppliers/authorization.db.test.ts`                                                                                                                                            |
+| Quote form, quotes section, Add quote page, quote notice (B4-09)                                                                                                                                | `suppliers/ui/QuoteForm.test.tsx`, `suppliers/ui/SupplierQuotesSection.test.tsx`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`                                     |
+| Editing quotes: what changed, statusChangedAt only on status changes, stale and unchanged saves, one Accepted per supplier (also two saved together), refusals, wrong event or supplier (B4-10) | `suppliers/quote-schema.test.ts`, `suppliers/quotes.db.test.ts`                                                                                                                 |
+| Quote edit matrix rows, quotes through the wrong supplier or event, edit/stale/unchanged through the action (B4-10)                                                                             | `suppliers/authorization.db.test.ts`                                                                                                                                            |
+| Quote form edit mode, Edit links, Edit quote page, saved notice (B4-10)                                                                                                                         | `suppliers/ui/QuoteForm.test.tsx`, `suppliers/ui/SupplierQuotesSection.test.tsx`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`                                     |
 
 ## Accessibility tests (Batch 3)
 
@@ -150,6 +194,128 @@ swapped, a boundary moved from `<` to `<=`, an order or filter dropped) and the 
 run. All 35 were caught. The first run let two through, and a test was added for each: a guest
 counted once when two needs share a resource, and the event alert following the status rather
 than the gaps alone. The domain tests run in about a second.
+
+### Supplier authorization: the required cases and proof they catch a removed check (B4-19)
+
+`suppliers/authorization.db.test.ts` has a block for the seven required cases, each run through
+the real server actions and reads (never the pages) in a fresh world per operation, checking that
+a denial leaves both events unchanged:
+
+| Case                                                   | What the test does                                                                                  |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| 1. User A → Event A supplier: allowed                  | Owner of A reads the list and details, edits the supplier, adds a quote                             |
+| 2. User A → Event B supplier: denied                   | Owner of A tries all 13 operations on Event B's supplier, quote and payment                         |
+| 3. User B → Event A supplier: denied                   | Owner of B tries all 13 operations on Event A                                                       |
+| 4. Viewer supplier write: denied                       | Reads allowed; every write and form refused, with the role message from the action boundary         |
+| 5. Coordinator permitted operations: allowed           | All 13 operations                                                                                   |
+| 6. Owner permitted operations: allowed                 | All 13 operations                                                                                   |
+| 7. Unauthorized quote/payment access: denied           | Viewer, User B, signed out, Event B's IDs, and Event B's quote and payment under Event A's supplier |
+| 8. Member of both events (added by the mutation check) | Event B's supplier through Event A's address: not found, nothing saved                              |
+
+On 2026-10-14 each server-side check was removed by hand, the supplier database tests (252) were
+run, and the change was reverted:
+
+| Check removed                                                                                       | Tests that failed                         |
+| --------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Role check at the action boundary (`suppliers.manage` → `event.view` in every action and form read) | 6                                         |
+| Role re-check in the database: the supplier lock (quotes, payments)                                 | 4                                         |
+| Role re-check in the database: add, edit, remove supplier                                           | 3                                         |
+| Event scoping of the supplier lock                                                                  | 1 (case 8; before case 8 was added, none) |
+| Event scoping of supplier reads (`getSupplier`)                                                     | 9                                         |
+| Supplier scoping of quote and payment reads and edits                                               | 5                                         |
+
+Each layer is caught on its own: the boundary by case 4's role messages, the database re-checks by
+the use-case tests in `suppliers.db.test.ts`, `quotes.db.test.ts` and `payments.db.test.ts`, and
+scoping by the cross-event cases.
+
+### Supplier workflow against seeded data (B4-22)
+
+`e2e/lifecycle/supplier-workflow.spec.ts` runs the whole supplier workflow in Chromium from a reset
+test database. Step 1 signs in, creates the event through the app and seeds it with eight suppliers
+of a Cebu wedding through `seedSuppliers` in `e2e/lifecycle/db.ts` (test database only): quotes
+Accepted, Pending and Declined, deposits paid, due today and overdue, an Other supplier and
+accented names. Due dates are relative to today in Manila, so the statuses are the same on any day.
+Seeded rows have no Activity entries; the test's own changes go through the screens. It also
+creates a second event, gives it to another Owner and leaves it, with look-alike suppliers (same
+name, an overdue deposit) that would show up if a search or filter leaked.
+
+| Step | What it checks                                                                                              |
+| ---- | ----------------------------------------------------------------------------------------------------------- |
+| 1-2  | Sign in; open the event from the event list (the other event isn't listed); the seeded list's statuses      |
+| 3    | Add a supplier with category and contact using the keyboard only (Tab order, typing into the select, Enter) |
+| 4    | Add a quote with the keyboard, then accept it                                                               |
+| 5    | Add a deposit with its due date                                                                             |
+| 6    | After a reload, and read from the database: amounts and dates exactly as stored                             |
+| 7    | The list card: accepted quote, Unpaid, due date, Upcoming                                                   |
+| 8    | Search by accent-free text, contact person and SUP ID; no match; clear                                      |
+| 9    | Filters combined with each other and the search; overdue only                                               |
+| 10   | Edit the supplier                                                                                           |
+| 11   | Activity: each change, status-led summaries, no phone, email or contact person                              |
+| 12   | The other event's supplier by its address, and by swapping its ID into this event's address: Page not found |
+| 13   | As a Viewer: everything readable, no Add or Edit links, every form address refused                          |
+
+### Supplier screens audit (B4-23)
+
+On 2026-10-15 every supplier screen was checked at 375 and 1280 px in Chromium, in sample-data
+mode: the list (all, no match, filtered), add and edit supplier with and without errors, the detail
+page, add and edit quote and payment with and without errors, and Activity. Each was scanned with
+axe-core (WCAG 2.0 to 2.2 A and AA plus best practices, from a scratch script; axe-core is not a
+project dependency), checked for sideways scrolling, small targets, heading order, and walked with
+Tab at 1280 px.
+
+| Finding                                                                                                           | Outcome                                                                               |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| No accessibility violations; no sideways scrolling; visible focus on every stop; focus moves to the error summary | Kept                                                                                  |
+| A missing paid date (Paid) or Other description was reported only after the other errors were fixed               | Fixed: checked together with every field (`payment-schema.test.ts`, `schema.test.ts`) |
+| Supplier names on the list were 18 px tall tap targets                                                            | Fixed: 44 px tap area without moving the layout                                       |
+| Loading and error screens had no tests                                                                            | Added `suppliers/states.test.tsx`                                                     |
+| The filter form fills the first phone screen before the list                                                      | Kept: same as the guest list; a collapsible filter would be a shared change           |
+
+### Supplier coverage map and rule mutation check (B4-21)
+
+Each supplier rule is tested as a pure function first, without rendering a page or opening a
+database; the database and UI layers then check that the same rule is wired in. No coverage tool is
+installed (adding one needs approval), so this map comes from reading each rule file against its
+tests.
+
+| Rule area                               | Rule file                | Pure rule tests (no UI, no database) | Database tests                                                                           | UI and browser tests                                                |
+| --------------------------------------- | ------------------------ | ------------------------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Supplier validation, contacts, changes  | `schema.ts`              | `schema.test.ts`                     | `suppliers.db.test.ts`, `suppliers-table.db.test.ts`                                     | `SupplierForm.test.tsx`, `pages.test.tsx`, browser steps 1, 2 and 6 |
+| Categories                              | `categories.ts`          | `categories.test.ts`                 | `suppliers-table.db.test.ts` (enum)                                                      | `SupplierForm.test.tsx`                                             |
+| Peso amounts and centavo arithmetic     | `money.ts`               | `money.test.ts`                      | `supplier-quotes-table.db.test.ts`, `supplier-payments-table.db.test.ts` (exact Decimal) | `QuoteForm.test.tsx`, `PaymentForm.test.tsx`                        |
+| Quote validation and changes            | `quote-schema.ts`        | `quote-schema.test.ts`               | `quotes.db.test.ts`                                                                      | `QuoteForm.test.tsx`, browser step 3                                |
+| Quote lifecycle (one Accepted)          | `quote-statuses.ts`      | `quote-statuses.test.ts`             | `quotes.db.test.ts` (also concurrent accepts)                                            | `QuoteStatusBadge.test.tsx`, browser steps 3 and 4                  |
+| Payment validation and changes          | `payment-schema.ts`      | `payment-schema.test.ts`             | `payments.db.test.ts`, `authorization.db.test.ts` (server refusals)                      | `PaymentForm.test.tsx`, browser step 5                              |
+| Payment status (paid vs accepted quote) | `payment-status.ts`      | `payment-status.test.ts`             | `payments.db.test.ts` (from stored records)                                              | `PaymentStatusBadge.test.tsx`, `SupplierPaymentsSection.test.tsx`   |
+| Due and overdue (Manila calendar day)   | `payment-due.ts`         | `payment-due.test.ts`                | `payments.db.test.ts`                                                                    | `PaymentDueBadge.test.tsx`, browser step 5                          |
+| List overview                           | `supplier-overview.ts`   | `supplier-overview.test.ts`          | `authorization.db.test.ts` (each event's own rows)                                       | `SupplierList.test.tsx`, browser step 5                             |
+| Search and filters                      | `supplier-list-query.ts` | `supplier-list-query.test.ts`        | `authorization.db.test.ts` (scoping, stored data)                                        | `pages.test.tsx`, browser step 9                                    |
+| Activity wording, no contact details    | `audit/describe.ts`      | `audit.test.ts`                      | `activity.db.test.ts`                                                                    | `SupplierActivitySection.test.tsx`, browser steps 4, 5 and 7        |
+| Authorization and event isolation       | (use cases, actions)     | none (it needs the database)         | `authorization.db.test.ts`, use-case tests                                               | browser step 8                                                      |
+
+Financial results are deterministic: amounts are strings and centavo BigInts, never JavaScript
+numbers; nothing is rounded (more than two decimals is refused); and today's date is passed in, so
+the rules read no clock. `payment-status.test.ts` checks the result is the same in any payment
+order, and `money.test.ts` checks sums where floating point would drift (0.10 + 0.20).
+
+On 2026-10-14, 44 changes were made one at a time to the rule files above (a boundary moved from
+`<` to `<=`, a guard removed, a limit raised by one, a filter or mapping swapped), the supplier,
+audit and page unit tests (601) were run, and each change was reverted:
+
+| Rule file                | Changes | Caught | Not caught                                                                                                                  |
+| ------------------------ | ------- | ------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `money.ts`               | 11      | 11     |                                                                                                                             |
+| `payment-status.ts`      | 5       | 5      |                                                                                                                             |
+| `payment-due.ts`         | 6       | 5      | Day check in `isCalendarDate` removed: equivalent, since an impossible day always changes the month, which is still checked |
+| `quote-statuses.ts`      | 2       | 2      |                                                                                                                             |
+| `payment-schema.ts`      | 7       | 6      | Last allowed date (Dec 31, 2100) refused: a test was added; now caught                                                      |
+| `quote-schema.ts`        | 3       | 3      |                                                                                                                             |
+| `schema.ts`              | 7       | 6      | 6-digit phone accepted: a test was added (7 and 15 digits accepted, 6 and 16 refused); now caught                           |
+| `supplier-overview.ts`   | 2       | 2      |                                                                                                                             |
+| `supplier-list-query.ts` | 4       | 4      |                                                                                                                             |
+
+After the two tests were added, 43 of 44 are caught; the one left changes no behaviour. No change
+found a bug in the code.
 
 ### Accessibility authorization: proof the tests catch a removed check (B3-13)
 
@@ -206,6 +372,42 @@ authorization. Two stand-ins remain:
 
 Stability: on 2026-10-14 it passed five runs in a row (`--repeat-each=5`, 40 of 40). It waits only
 on what the page shows, never on fixed delays.
+
+### End-to-end supplier flow (B4-03 to B4-18)
+
+`e2e/lifecycle/supplier-flow.spec.ts` runs in Chromium as the demo user, against a reset test
+database:
+
+1. A new event shows "No suppliers yet". Add a supplier as Other: refused without saying what they
+   provide (the typed name is kept), then saved as SUP-0001.
+2. Edit it: new name, category changed to Sound and lights (the "What they provide" field goes
+   away), new phone. The list shows "is up to date". The detail page shows the new phone and the
+   supplier's own Activity, without the phone number.
+3. Add quotes from the detail page: `165,000.505` is refused (two decimals at most), then
+   ₱165,000.50 Accepted is saved as QUO-0001; a second Accepted quote is refused naming QUO-0001,
+   and saved as Pending (QUO-0002). The supplier's Activity shows the quote.
+4. Edit quotes: accepting QUO-0002 is refused while QUO-0001 is Accepted; QUO-0001 is changed to
+   ₱170,000.00 and Declined; then QUO-0002 is accepted. The supplier's Activity shows each change
+   old → new.
+5. Deposits and payments: Unpaid against the accepted ₱45,000.00 quote; a paid ₱20,000 deposit makes
+   it Partially paid; a ₱25,000 balance due on 2026-01-15 shows as overdue; a paid date in 2099 is
+   refused by the server; once the balance is recorded as paid the supplier is Paid with nothing
+   overdue, and Activity has the edit. The supplier list shows the same: "₱45,000.00 accepted",
+   Partially paid and the overdue Jan 15, 2026 while it is owed, then "Nothing due" (B4-16).
+6. Remove the supplier: Cancel in the confirmation keeps it; confirming removes it (and its quotes)
+   and the list is empty.
+7. Activity shows the add, the edit (category old → new, "Phone changed"), the quotes, the payments
+   and the removal, and never the phone number.
+8. Add a second supplier, which becomes SUP-0002, and a quote, which becomes QUO-0003 (numbers are
+   not reused). As a Viewer (role set in the database, D-034): the list has no phone, email or
+   notes and no Add or Edit links; the detail page shows the email link and the quote, with no
+   Edit, no Add quote, no quote Edit links, no payment links and no Activity; the edit and
+   add-quote addresses say "You don't have access".
+   The list card shows "None accepted, 1 pending", No accepted quote and "Nothing due" (B4-16).
+9. At 375 px wide (B4-17, B4-18): add a Venue supplier with an accepted quote; search "grand"
+   ("1 of 2 suppliers match"); filter by Venue and "Quote accepted"; reload keeps the filters; adding
+   "overdue only" shows "No suppliers match"; back restores the previous filters; "Clear search and
+   filters" shows both suppliers again. No sideways scrolling.
 
 ### Accessibility screens: accessibility and responsive audit (B3-17)
 

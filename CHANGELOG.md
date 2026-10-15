@@ -9,6 +9,114 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B4-25 Supplier documentation.**
+  - DATA_MODEL.md now has one Suppliers section with the rules for categories, quote and payment
+    statuses, money, deletion, due dates and authorization. The money notes no longer say there is
+    no arithmetic (centavo sums since B4-13).
+
+- **B4-22 Supplier workflow test.**
+  - A browser test runs the whole supplier workflow against a realistic seeded Cebu wedding:
+    sign in, add a supplier and quote with the keyboard only, accept the quote, add a deposit
+    with a due date, then list, search, filter, edit and Activity. Stored amounts and dates are
+    read back from the database, another event's look-alike supplier is never reachable, and a
+    Viewer can't open any form.
+
+- **B4-23 Supplier screens polish.**
+  - The supplier and payment forms now list every problem at once: a missing paid date or an
+    Other supplier without a description is reported together with other errors, not on the next
+    try. Supplier names on the list have a 44 px tap area on phones.
+
+- **B4-21 Supplier tests.**
+  - A coverage map of the supplier rules and a rule mutation check (44 changes, 43 caught, the
+    other changes no behaviour). Two boundary tests were added: the last allowed payment date and
+    the shortest phone number.
+
+- **B4-20 Supplier activity.**
+  - Quote and payment status changes now lead their Activity line ("Accepted the quote QUO-0002 for
+    SUP-0001", "Marked the payment PAY-0002 for SUP-0001 as paid (Oct 2, 2026)"). Each supplier,
+    quote and payment change is tested to write exactly one entry and never a contact detail.
+
+- **B4-19 Supplier authorization tests.**
+  - The seven required access cases for suppliers, quotes and payments are tested through the real
+    server actions, and each server-side check was shown to be caught when removed.
+
+- **B4-18 Supplier filters (D-083).**
+  - Filter suppliers by category, quote, payment status and overdue payments, together with the
+    search. Filters stay in the address, so reload, back and sharing keep them.
+
+- **B4-17 Supplier search (D-082).**
+  - Find suppliers by name, contact person, what they provide or ID. Accents and capitals don't
+    matter; "No suppliers match" says what was searched and how to clear it.
+
+- **B4-16 Supplier list overview (D-081).**
+  - Each supplier on the list now shows its accepted quote, its payment status and its next due
+    date, marked Overdue or Due today when that applies.
+
+- **B4-14 Managing deposits and payments (D-080).**
+  - Owners and Coordinators can add and edit a supplier's deposits and payments: amount, due date,
+    and whether and when it was paid. The supplier's page shows the payment status, anything
+    overdue, and each payment.
+
+- **B4-15 Payment due status (D-079).**
+  - Each payment shows Overdue, Due today, Upcoming or Paid, by Philippine calendar day. A paid
+    payment is never overdue.
+
+- **B4-13 Supplier payment status (D-078).**
+  - A supplier is No accepted quote, Unpaid, Partially paid or Paid, comparing what has been paid
+    with the accepted quote, to the centavo.
+
+- **B4-12 Supplier payments data model (D-077).**
+  - Each supplier can hold its deposits and other payments (PAY-0001): an amount in pesos, a due
+    date, and whether it has been paid and when. Tracking only; no payment processing.
+
+- **B4-10 Editing quotes (D-075, D-076).**
+  - Owners and Coordinators can change a quote's amount, status and description. If someone else
+    saved it first, the save is refused. Activity shows each change.
+
+- **B4-09 Adding quotes (D-075).**
+  - Owners and Coordinators can add a quote to a supplier from its page: an amount in pesos, a
+    status and an optional description. Every member sees the supplier's quotes; Activity records
+    each one.
+
+- **B4-11 Quote statuses (D-076).**
+  - A quote is Pending, Accepted or Declined. A supplier can have one Accepted quote at a time;
+    accepting another is refused until the first is changed.
+
+- **B4-08 Supplier quotes data model (D-075).**
+  - Each supplier can hold several quotes (QUO-0001), each with an amount in pesos stored exactly to
+    the centavo, a status and an optional description.
+
+- **B4-07 Supplier detail page (D-074).**
+  - Each supplier's name opens a page with its category and contact details. Owners and
+    Coordinators also see Edit supplier and the supplier's recent Activity.
+
+- **B4-06 Supplier contacts (D-073).**
+  - A supplier's contact person, phone and email are defined, checked and kept to business
+    details. The form says every member can see them; Activity never shows them.
+
+- **B4-05 Removing suppliers (D-072).**
+  - Owners and Coordinators can remove a supplier after confirming. Removal is permanent; Activity
+    keeps the supplier's number and name, and numbers are never reused.
+
+- **B4-04 Editing suppliers (D-071).**
+  - Owners and Coordinators can edit a supplier from the Suppliers page. If someone else saved the
+    supplier first, the save is refused so nothing is overwritten. Activity shows what changed,
+    without contact details.
+
+- **B4-03 Adding suppliers (D-070).**
+  - Owners and Coordinators can add a supplier with its name, category, contact person, phone,
+    email and notes. Every member sees the event's suppliers on the Suppliers page, with phone and
+    email as links. Each addition appears in Activity.
+
+- **B4-02 Supplier categories (D-069).**
+  - Suppliers are grouped by a fixed list of thirteen categories, from Venue and Catering to
+    Printing and stationery. "Other" asks what the supplier provides, for example "Fireworks".
+
+- **B4-01 Supplier data model (D-068).**
+  - Each event can now store its own suppliers: a readable number (SUP-0001), name, category,
+    contact person, email, phone and notes. Suppliers belong to one event only and are deleted with
+    it.
+
 - **B3-20 Accessibility batch verification.**
   - Every local check passes and is recorded in docs/gates/BATCH-3.md. CI and the first
     `prisma migrate deploy` of the accessibility migration have not run yet.

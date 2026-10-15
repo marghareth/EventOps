@@ -121,7 +121,7 @@ describe("migrations", () => {
     expect(applied).toEqual(onDisk);
   });
 
-  it("creates exactly the expected tables (B0-08; audit_logs B1-11; attendees B2-01; accessibility B3-01)", async () => {
+  it("creates exactly the expected tables (B0-08; audit_logs B1-11; attendees B2-01; accessibility B3-01; suppliers B4-01)", async () => {
     const rows = await db.$queryRaw<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name <> '_prisma_migrations'
@@ -134,6 +134,9 @@ describe("migrations", () => {
       "event_members",
       "event_reference_counters",
       "events",
+      "supplier_payments",
+      "supplier_quotes",
+      "suppliers",
       "users",
     ]);
   });

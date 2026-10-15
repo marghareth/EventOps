@@ -28,6 +28,13 @@ describe("audit action registry", () => {
       "accessibility_resource.created",
       "accessibility_resource.updated",
       "accessibility_resource.deleted",
+      "supplier.created",
+      "supplier.updated",
+      "supplier.deleted",
+      "quote.created",
+      "quote.updated",
+      "payment.created",
+      "payment.updated",
     ]);
     for (const action of Object.keys(AUDIT_ACTIONS)) expect(action).toMatch(/^[a-z_]+\.[a-z_]+$/);
   });

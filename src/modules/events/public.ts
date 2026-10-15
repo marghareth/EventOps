@@ -13,24 +13,39 @@ export { ROLE_SUMMARY, can, rolesAllowed } from "./permissions";
 export { toEventFormValues } from "./schema";
 export { MEMBER_ROLE_LABEL, groupEvents } from "./list";
 export { getMyEvents } from "./queries";
-// Dev-only sample data (D-041), for the attendees and accessibility contexts' stand-ins.
+// Dev-only sample data (D-041), for the attendees, accessibility and suppliers contexts' stand-ins.
 export {
   sampleCreateAttendee,
+  sampleCreatePayment,
+  sampleCreateQuote,
   sampleCreateRequirement,
   sampleCreateResource,
+  sampleCreateSupplier,
   sampleDeleteAttendee,
   sampleDeleteRequirement,
   sampleDeleteResource,
+  sampleDeleteSupplier,
   sampleExportAttendees,
   sampleGetAttendee,
+  sampleGetPayment,
+  sampleGetQuote,
+  sampleGetSupplier,
   sampleImportAttendees,
   sampleListAttendees,
+  sampleListAuditEntries,
+  sampleListEventPayments,
   sampleListEventRequirements,
+  sampleListPayments,
+  sampleListQuotes,
   sampleListRequirements,
   sampleListResources,
+  sampleListSuppliers,
   sampleUpdateAttendee,
+  sampleUpdatePayment,
+  sampleUpdateQuote,
   sampleUpdateRequirement,
   sampleUpdateResource,
+  sampleUpdateSupplier,
 } from "./sample-data";
 export { isEventReference } from "./reference";
 export { CreateEventForm } from "./ui/CreateEventForm";

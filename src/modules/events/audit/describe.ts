@@ -7,6 +7,7 @@ import type {
   EventChanges,
   RequirementChanges,
   ResourceChanges,
+  SupplierChanges,
 } from "./actions";
 import type { AuditEntryView } from "./queries";
 
@@ -90,6 +91,96 @@ export const RESOURCE_STATUS_LABEL: Record<string, string> = {
   ARRANGING: "Being arranged",
   AVAILABLE: "Available",
 };
+
+/**
+ * Supplier category labels (B4-02). The audit context keeps its own copy because it can't import
+ * the suppliers context; a test keeps them equal to the canonical definitions (D-069).
+ */
+export const SUPPLIER_CATEGORY_LABEL: Record<string, string> = {
+  VENUE: "Venue",
+  CATERING: "Catering",
+  CAKE_AND_DESSERTS: "Cake and desserts",
+  PHOTO_AND_VIDEO: "Photo and video",
+  SOUND_AND_LIGHTS: "Sound and lights",
+  ENTERTAINMENT: "Entertainment",
+  FLOWERS_AND_STYLING: "Flowers and styling",
+  HAIR_AND_MAKEUP: "Hair and makeup",
+  ATTIRE: "Attire",
+  RENTALS: "Rentals",
+  TRANSPORT: "Transport",
+  PRINTING_AND_STATIONERY: "Printing and stationery",
+  OTHER: "Other",
+};
+
+/** "Catering", or for Other what the supplier provides: "Other: Fireworks". */
+function supplierCategoryText(category: string, detail: string | null): string {
+  const label = SUPPLIER_CATEGORY_LABEL[category] ?? category;
+  return category === "OTHER" && detail ? `${label}: ${detail}` : label;
+}
+
+/**
+ * Quote status labels (B4-11, D-076). The audit context's own copy; a test keeps them equal to the
+ * canonical definitions.
+ */
+export const QUOTE_STATUS_LABEL: Record<string, string> = {
+  PENDING: "Pending",
+  ACCEPTED: "Accepted",
+  DECLINED: "Declined",
+};
+
+/**
+ * "₱120,000.50" from a stored amount ("120000.50"), string-based like the suppliers context's
+ * formatPeso (D-075); a test keeps the two equal.
+ */
+export function formatAuditPeso(amount: string): string {
+  const [whole, centavos] = amount.split(".");
+  return `₱${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${centavos}`;
+}
+
+/** Payment kind labels (B4-14). The audit context's own copy; a test keeps them equal. */
+export const PAYMENT_KIND_LABEL: Record<string, string> = {
+  DEPOSIT: "Deposit",
+  PAYMENT: "Payment",
+};
+/** Recorded payment status labels (B4-14). The audit context's own copy; a test keeps them equal. */
+export const PAYMENT_RECORD_STATUS_LABEL: Record<string, string> = {
+  UNPAID: "Not paid yet",
+  PAID: "Paid",
+};
+
+/** "Nov 15, 2026" from "2026-11-15", as the suppliers context shows dates (D-079). */
+function auditDate(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00.000Z`));
+}
+
+const SUPPLIER_CONTACT_LABEL = {
+  contactName: "Contact person",
+  email: "Email",
+  phone: "Phone",
+  notes: "Notes",
+} as const;
+
+function supplierChangeLines(changes: SupplierChanges): string[] {
+  const lines: string[] = [];
+  if (changes.name) lines.push(`Name: “${changes.name.from}” → “${changes.name.to}”`);
+  if (changes.category) {
+    const { from, to } = changes.category;
+    lines.push(
+      `Category: ${supplierCategoryText(from.category, from.detail)} → ${supplierCategoryText(to.category, to.detail)}`,
+    );
+  }
+  for (const field of Object.keys(
+    SUPPLIER_CONTACT_LABEL,
+  ) as (keyof typeof SUPPLIER_CONTACT_LABEL)[]) {
+    if (changes[field]) lines.push(`${SUPPLIER_CONTACT_LABEL[field]} changed`);
+  }
+  return lines;
+}
 
 function resourceChangeLines(changes: ResourceChanges): string[] {
   const lines: string[] = [];
@@ -209,6 +300,116 @@ export function describeAuditEntry(entry: Pick<AuditEntryView, "action" | "detai
   if (entry.action === "accessibility_resource.deleted") {
     const { type } = entry.details as AuditDetails<"accessibility_resource.deleted">;
     return { summary: `Removed ${RESOURCE_TYPE_LABEL[type]}`, lines: [] };
+  }
+  if (entry.action === "supplier.created") {
+    const { reference, name, category, categoryDetail } =
+      entry.details as AuditDetails<"supplier.created">;
+    return {
+      summary: `Added the supplier ${name} (${reference}): ${supplierCategoryText(category, categoryDetail)}`,
+      lines: [],
+    };
+  }
+  if (entry.action === "supplier.updated") {
+    const { reference, changes } = entry.details as AuditDetails<"supplier.updated">;
+    return { summary: `Edited the supplier ${reference}`, lines: supplierChangeLines(changes) };
+  }
+  if (entry.action === "supplier.deleted") {
+    const { reference, name } = entry.details as AuditDetails<"supplier.deleted">;
+    return { summary: `Removed the supplier ${name} (${reference})`, lines: [] };
+  }
+  if (entry.action === "quote.created") {
+    const { reference, supplierReference, amount, status, description } =
+      entry.details as AuditDetails<"quote.created">;
+    return {
+      summary: `Added the quote ${reference} for ${supplierReference}: ${formatAuditPeso(amount)} (${QUOTE_STATUS_LABEL[status]})`,
+      lines: description ? [`Description: ${description}`] : [],
+    };
+  }
+  if (entry.action === "quote.updated") {
+    const { reference, supplierReference, changes } =
+      entry.details as AuditDetails<"quote.updated">;
+    const lines: string[] = [];
+    if (changes.amount) {
+      lines.push(
+        `Amount: ${formatAuditPeso(changes.amount.from)} → ${formatAuditPeso(changes.amount.to)}`,
+      );
+    }
+    if (changes.status) {
+      lines.push(
+        `Status: ${QUOTE_STATUS_LABEL[changes.status.from]} → ${QUOTE_STATUS_LABEL[changes.status.to]}`,
+      );
+    }
+    if (changes.description) {
+      const text = (value: string | null) => (value === null ? "none" : `“${value}”`);
+      lines.push(
+        `Description: ${text(changes.description.from)} → ${text(changes.description.to)}`,
+      );
+    }
+    // A status change leads the summary, so Activity says what happened to the quote (B4-20).
+    const quote = `the quote ${reference} for ${supplierReference}`;
+    const summary =
+      changes.status?.to === "ACCEPTED"
+        ? `Accepted ${quote}`
+        : changes.status?.to === "DECLINED"
+          ? `Declined ${quote}`
+          : changes.status?.to === "PENDING"
+            ? `Set ${quote} back to Pending`
+            : `Edited ${quote}`;
+    return { summary, lines };
+  }
+  if (entry.action === "payment.created") {
+    const d = entry.details as AuditDetails<"payment.created">;
+    const lines = [
+      d.status === "PAID" && d.paidOn ? `Paid on ${auditDate(d.paidOn)}` : "Not paid yet",
+    ];
+    if (d.description) lines.push(`Description: ${d.description}`);
+    return {
+      summary: `Added the ${PAYMENT_KIND_LABEL[d.kind].toLowerCase()} ${d.reference} for ${d.supplierReference}: ${formatAuditPeso(d.amount)}, due ${auditDate(d.dueDate)}`,
+      lines,
+    };
+  }
+  if (entry.action === "payment.updated") {
+    const { reference, supplierReference, changes } =
+      entry.details as AuditDetails<"payment.updated">;
+    const text = (value: string | null) => (value === null ? "none" : `“${value}”`);
+    const day = (value: string | null) => (value === null ? "none" : auditDate(value));
+    const lines: string[] = [];
+    if (changes.kind) {
+      lines.push(
+        `Kind: ${PAYMENT_KIND_LABEL[changes.kind.from]} → ${PAYMENT_KIND_LABEL[changes.kind.to]}`,
+      );
+    }
+    if (changes.amount) {
+      lines.push(
+        `Amount: ${formatAuditPeso(changes.amount.from)} → ${formatAuditPeso(changes.amount.to)}`,
+      );
+    }
+    if (changes.dueDate) {
+      lines.push(`Due date: ${day(changes.dueDate.from)} → ${day(changes.dueDate.to)}`);
+    }
+    if (changes.status) {
+      lines.push(
+        `Status: ${PAYMENT_RECORD_STATUS_LABEL[changes.status.from]} → ${PAYMENT_RECORD_STATUS_LABEL[changes.status.to]}`,
+      );
+    }
+    if (changes.paidOn) {
+      lines.push(`Paid on: ${day(changes.paidOn.from)} → ${day(changes.paidOn.to)}`);
+    }
+    if (changes.description) {
+      lines.push(
+        `Description: ${text(changes.description.from)} → ${text(changes.description.to)}`,
+      );
+    }
+    // A status change leads the summary (B4-20): "Marked ... as paid (Oct 2, 2026)".
+    const payment = `the payment ${reference} for ${supplierReference}`;
+    const paidOn = changes.paidOn?.to;
+    const summary =
+      changes.status?.to === "PAID"
+        ? `Marked ${payment} as paid${paidOn ? ` (${auditDate(paidOn)})` : ""}`
+        : changes.status?.to === "UNPAID"
+          ? `Marked ${payment} as not paid yet`
+          : `Edited ${payment}`;
+    return { summary, lines };
   }
   if (entry.action === "attendees.exported") {
     const { count } = entry.details as AuditDetails<"attendees.exported">;

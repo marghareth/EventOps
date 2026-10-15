@@ -113,6 +113,108 @@ export const resourceChangesSchema = z
 
 export type ResourceChanges = z.infer<typeof resourceChangesSchema>;
 
+/**
+ * Supplier categories as stored (B4-02, D-069). The audit registry keeps its own copy (it can't
+ * import the suppliers context); tests keep it equal to the canonical list and the database enum.
+ */
+export const SUPPLIER_CATEGORIES = [
+  "VENUE",
+  "CATERING",
+  "CAKE_AND_DESSERTS",
+  "PHOTO_AND_VIDEO",
+  "SOUND_AND_LIGHTS",
+  "ENTERTAINMENT",
+  "FLOWERS_AND_STYLING",
+  "HAIR_AND_MAKEUP",
+  "ATTIRE",
+  "RENTALS",
+  "TRANSPORT",
+  "PRINTING_AND_STATIONERY",
+  "OTHER",
+] as const;
+/** The supplier's readable ID, for example SUP-0001 (D-068). */
+const supplierReference = z.string().regex(/^SUP-\d{4,}$/);
+const supplierCategory = z.enum(SUPPLIER_CATEGORIES);
+/** A category with, for Other, what the supplier provides: compared and shown together. */
+const supplierCategoryValue = z
+  .object({ category: supplierCategory, detail: z.string().nullable() })
+  .strict();
+
+/**
+ * Supplier fields as recorded in "supplier.updated" (B4-04, D-071). Name and category are business
+ * values, recorded old → new; contact person, email, phone and notes only as "changed".
+ */
+export const supplierChangesSchema = z
+  .object({
+    name: fromTo(z.string()),
+    category: fromTo(supplierCategoryValue),
+    contactName: changedOnly,
+    email: changedOnly,
+    phone: changedOnly,
+    notes: changedOnly,
+  })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, "An update must change something.");
+
+export type SupplierChanges = z.infer<typeof supplierChangesSchema>;
+
+/**
+ * Quote statuses as stored (B4-11, D-076). The audit registry's own copy; tests keep it equal to
+ * the canonical list and the database enum.
+ */
+export const QUOTE_STATUSES = ["PENDING", "ACCEPTED", "DECLINED"] as const;
+/** The quote's readable ID, for example QUO-0001 (D-075). */
+const quoteReference = z.string().regex(/^QUO-\d{4,}$/);
+/** A canonical peso amount as stored, for example "120000.50" (D-075). */
+const pesoAmount = z.string().regex(/^(?:0|[1-9]\d{0,9})\.\d{2}$/);
+const quoteStatus = z.enum(QUOTE_STATUSES);
+
+/**
+ * Quote fields as recorded in "quote.updated" (B4-10, D-076). All business facts, recorded
+ * old → new.
+ */
+export const quoteChangesSchema = z
+  .object({
+    amount: fromTo(pesoAmount),
+    status: fromTo(quoteStatus),
+    description: fromTo(z.string().nullable()),
+  })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, "An update must change something.");
+
+export type QuoteChanges = z.infer<typeof quoteChangesSchema>;
+
+/**
+ * Payment kinds and recorded statuses as stored (B4-12, D-077). The audit registry's own copies;
+ * tests keep them equal to the canonical lists and the database enums.
+ */
+export const PAYMENT_KINDS = ["DEPOSIT", "PAYMENT"] as const;
+export const PAYMENT_RECORD_STATUSES = ["UNPAID", "PAID"] as const;
+/** The payment's readable ID, for example PAY-0001 (D-077). */
+const paymentReference = z.string().regex(/^PAY-\d{4,}$/);
+const paymentKind = z.enum(PAYMENT_KINDS);
+const paymentRecordStatus = z.enum(PAYMENT_RECORD_STATUSES);
+/** A calendar date, "2026-11-15" (D-079). */
+const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+/** Payment fields as recorded in "payment.updated" (B4-14, D-077). Business facts, old → new. */
+export const paymentChangesSchema = z
+  .object({
+    kind: fromTo(paymentKind),
+    amount: fromTo(pesoAmount),
+    dueDate: fromTo(calendarDate),
+    status: fromTo(paymentRecordStatus),
+    paidOn: fromTo(calendarDate.nullable()),
+    description: fromTo(z.string().nullable()),
+  })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, "An update must change something.");
+
+export type PaymentChanges = z.infer<typeof paymentChangesSchema>;
+
 /** Who an attendee entry is about: the readable ID and the name at that moment. */
 const attendeeIdentity = z.object({ reference: attendeeReference, name: z.string() }).strict();
 
@@ -200,6 +302,83 @@ export const AUDIT_ACTIONS = {
   "accessibility_resource.deleted": {
     entityType: "accessibility_resource",
     details: z.object({ type: resourceType }).strict(),
+  },
+  /**
+   * A supplier was added (B4-03, D-070): its readable ID, name and category. Contact details and
+   * notes are never copied into the log.
+   */
+  "supplier.created": {
+    entityType: "supplier",
+    details: z
+      .object({
+        reference: supplierReference,
+        name: z.string(),
+        category: supplierCategory,
+        categoryDetail: z.string().nullable(),
+      })
+      .strict(),
+  },
+  /** A supplier's details were edited (B4-04, D-071). Only changed fields; contacts as "changed". */
+  "supplier.updated": {
+    entityType: "supplier",
+    details: z.object({ reference: supplierReference, changes: supplierChangesSchema }).strict(),
+  },
+  /**
+   * A supplier was removed (B4-05, D-072). The entry keeps the readable ID and the name; the record
+   * is gone.
+   */
+  "supplier.deleted": {
+    entityType: "supplier",
+    details: z.object({ reference: supplierReference, name: z.string() }).strict(),
+  },
+  /**
+   * A quote was added to a supplier (B4-09, D-075): its readable ID, the supplier's, the amount in
+   * pesos, the status and the description. Quotes hold business facts only, never contact details.
+   */
+  "quote.created": {
+    entityType: "quote",
+    details: z
+      .object({
+        reference: quoteReference,
+        supplierReference,
+        amount: pesoAmount,
+        status: quoteStatus,
+        description: z.string().nullable(),
+      })
+      .strict(),
+  },
+  /** A quote was edited (B4-10, D-076). Only changed fields, old → new. */
+  "quote.updated": {
+    entityType: "quote",
+    details: z
+      .object({ reference: quoteReference, supplierReference, changes: quoteChangesSchema })
+      .strict(),
+  },
+  /**
+   * A payment was added to a supplier (B4-14, D-077): its readable ID, the supplier's, kind,
+   * amount, due date, recorded status, paid date and description. Business facts only.
+   */
+  "payment.created": {
+    entityType: "payment",
+    details: z
+      .object({
+        reference: paymentReference,
+        supplierReference,
+        kind: paymentKind,
+        amount: pesoAmount,
+        dueDate: calendarDate,
+        status: paymentRecordStatus,
+        paidOn: calendarDate.nullable(),
+        description: z.string().nullable(),
+      })
+      .strict(),
+  },
+  /** A payment was edited (B4-14, D-077). Only changed fields, old → new. */
+  "payment.updated": {
+    entityType: "payment",
+    details: z
+      .object({ reference: paymentReference, supplierReference, changes: paymentChangesSchema })
+      .strict(),
   },
 } as const;
 
