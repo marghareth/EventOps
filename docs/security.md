@@ -291,15 +291,26 @@ A focused review of the accessibility context, at commit `c682f35` plus the two 
 Suppliers are strictly event-specific (D-068). Every operation authorizes on the server with
 `authorizeEvent`, from the stored role, and works only inside the authorized event.
 
-| Operation                                    | Permission         | Owner | Coordinator | Viewer |
-| -------------------------------------------- | ------------------ | ----- | ----------- | ------ |
-| The supplier list, contact details and notes | `event.view`       | Yes   | Yes         | Yes    |
-| Add a supplier                               | `suppliers.manage` | Yes   | Yes         | No     |
-| Open the edit form and edit a supplier       | `suppliers.manage` | Yes   | Yes         | No     |
-| Remove a supplier                            | `suppliers.manage` | Yes   | Yes         | No     |
+| Operation                                                              | Permission         | Owner | Coordinator | Viewer |
+| ---------------------------------------------------------------------- | ------------------ | ----- | ----------- | ------ |
+| The supplier list, contact details and notes                           | `event.view`       | Yes   | Yes         | Yes    |
+| The supplier list's quote and payment overview                         | `event.view`       | Yes   | Yes         | Yes    |
+| Search the supplier list (`?q=`)                                       | `event.view`       | Yes   | Yes         | Yes    |
+| Filter the supplier list (category, quote, payment status, overdue)    | `event.view`       | Yes   | Yes         | Yes    |
+| A supplier's detail page (identity, contacts, notes)                   | `event.view`       | Yes   | Yes         | Yes    |
+| A supplier's recent Activity on its detail page                        | `audit.view`       | Yes   | Yes         | No     |
+| Add a supplier                                                         | `suppliers.manage` | Yes   | Yes         | No     |
+| Open the edit form and edit a supplier                                 | `suppliers.manage` | Yes   | Yes         | No     |
+| Remove a supplier                                                      | `suppliers.manage` | Yes   | Yes         | No     |
+| Add a quote to a supplier                                              | `suppliers.manage` | Yes   | Yes         | No     |
+| Open the quote edit form and edit a quote                              | `suppliers.manage` | Yes   | Yes         | No     |
+| Open the add-payment and edit-payment forms; add and edit a payment    | `suppliers.manage` | Yes   | Yes         | No     |
+| See a supplier's payments, payment status and due status (on its page) | `event.view`       | Yes   | Yes         | Yes    |
+| See a supplier's quotes (on its detail page)                           | `event.view`       | Yes   | Yes         | Yes    |
 
-- **Contact details are visible to every member** (D-068, option 3a): they are business contacts.
-  The form says notes are visible to every member.
+- **Contact details are visible to every member** (D-068, option 3a): they are business contacts,
+  and only contact person, phone and email are collected (D-073). The form says so. The supplier
+  list shows only the contact person; phone, email and notes are on the detail page.
 - **Two checks for every write:** `authorizeEvent` before anything is opened, and the database
   statement re-checks the role (while taking the next supplier number when adding; in the
   condition of the update or delete when editing or removing), so a refused user changes nothing.
@@ -307,13 +318,33 @@ Suppliers are strictly event-specific (D-068). Every operation authorizes on the
   event, so an ID from another event, an unknown ID and a malformed ID give the same answer and
   change nothing (D-071, D-072). Stale edits are refused (D-032). Removing is permanent, asks for
   confirmation first, and Activity keeps the readable ID and name.
+- **Filters (D-083):** values must match fixed lists exactly; anything else is ignored. They run on
+  the server over this event's authorized suppliers only.
+- **Search (D-082):** runs on the server over the suppliers already authorized and loaded for the
+  event; the text is cleaned (control characters removed, 100 characters at most) and only compared
+  with stored text, never used to build a query.
+- **Quotes (D-075, D-076):** a quote is added only to a supplier found inside the authorized event,
+  locked for the transaction with the role re-checked in the same statement. Amounts are validated
+  as strings and never rounded; a second Accepted quote is refused, also when two arrive together.
+  A quote is edited only through its own supplier in its own event; any other combination is "not
+  found" and changes nothing. Stale quote edits are refused (D-032).
+- **Payments (D-077 to D-080):** the same pattern as quotes. Amounts and dates are validated on the
+  server with today's date in Manila from the server's clock, so a paid date "in the future" can't be
+  slipped past by a browser with a wrong clock. Payment and due statuses are calculated on the
+  server for every read and never accepted from the browser. Status tracking only: no payment data
+  beyond amounts and dates is collected.
 - **The event comes from the address only.** An `eventId` in the form is ignored; the action uses
   the authorized event.
 - **Activity** records the supplier's number, name and category (and, for edits, which other fields
   changed), never contact details or notes.
 - **Proof:** `suppliers/authorization.db.test.ts` calls every operation directly as each kind of
   caller and checks that denials change nothing, and sends Event B's supplier through Event A's
-  address for every caller.
+  address for every caller. Its B4-19 block covers the seven required cases, and removing each of
+  six server-side checks made at least one test fail (`docs/TESTING.md`).
+  `suppliers/activity.db.test.ts` (B4-20) proves no contact detail reaches Activity. In the browser,
+  `e2e/lifecycle/supplier-workflow.spec.ts` (B4-22) shows another event's look-alike suppliers are
+  never found or filtered in, their addresses are "Page not found" either way, and a Viewer can
+  open no supplier, quote or payment form.
 
 ## Event isolation
 

@@ -83,6 +83,17 @@ Status values:
 | D-070 | Adding suppliers and the supplier list                      | Approved | 2026-10-14 |
 | D-071 | Editing suppliers                                           | Approved | 2026-10-14 |
 | D-072 | Removing suppliers and what happens to their records        | Approved | 2026-10-14 |
+| D-073 | Supplier contact details                                    | Approved | 2026-10-14 |
+| D-074 | Supplier detail page                                        | Approved | 2026-10-14 |
+| D-075 | Supplier quotes and money                                   | Approved | 2026-10-14 |
+| D-076 | Quote statuses and lifecycle                                | Approved | 2026-10-14 |
+| D-077 | Supplier payment records                                    | Approved | 2026-10-14 |
+| D-078 | Supplier payment status                                     | Approved | 2026-10-14 |
+| D-079 | Payment due dates and overdue                               | Approved | 2026-10-14 |
+| D-080 | Managing supplier payments                                  | Approved | 2026-10-14 |
+| D-081 | The supplier list                                           | Approved | 2026-10-14 |
+| D-082 | Supplier search                                             | Approved | 2026-10-14 |
+| D-083 | Supplier filters                                            | Approved | 2026-10-14 |
 
 ---
 
@@ -172,7 +183,12 @@ independently editable derived totals.
 **Decision.**
 
 - **Paid** to a supplier = the sum of its `SupplierPayment` rows. Nothing else stores it.
+  _Amended 2026-10-14 by D-077 (approved):_ payment rows also record payments that are scheduled
+  but not paid yet, so paid = the sum of the rows recorded as Paid.
 - **Committed** to a supplier = `quoteAmount` while `quoteStatus` is `ACCEPTED`, otherwise zero.
+  _Amended 2026-10-14 by D-075 (approved):_ quotes are their own rows, a supplier can have several
+  and at most one is Accepted, so committed = the amount of the supplier's Accepted quote, otherwise
+  zero. The meaning is unchanged.
 - **Payment status** is computed, not stored. `Supplier.paymentStatus` and the `PaymentStatus`
   database enum were removed.
 - A budget line linked to a supplier takes its committed and paid amounts from that supplier and
@@ -187,7 +203,9 @@ independently editable derived totals.
 **Schema state.** Since D-008, the supplier and budget tables are not in the schema yet. The
 supplier and budget tasks create them following this decision.
 
-**Not decided yet.** The exact rule that maps a paid amount to a status (for example unpaid,
+**Decided 2026-10-14 by D-078 (approved).** The rule below is now defined; D-078 records it.
+
+**Not decided yet (before D-078).** The exact rule that maps a paid amount to a status (for example unpaid,
 deposit paid, partially paid, paid) is a financial rule. It must be defined in the approved budget
 domain contract before it is implemented (PROJECT_RULES section 6.1).
 
@@ -1789,9 +1807,10 @@ money side, and D-002 says optional links must be cleared before the delete.
   only grows).
 - **Related records, when their tables arrive** (none exist yet, so today only the supplier is
   removed). Each later task adds its step to the same transaction, before the delete:
-  - Supplier payments and deposits: deleted with the supplier (cascade, D-003).
-  - Quote: the quote amount and status are fields of the supplier itself (D-003), so they go with
-    it.
+  - Supplier payments and deposits: deleted with the supplier (cascade, D-003). They exist from
+    B4-12 (D-077).
+  - Quotes: _amended 2026-10-14 by D-075 (approved):_ quotes are their own rows and are deleted
+    with the supplier (cascade). They exist from B4-08.
   - Budget line linked to the supplier: unlinked, and the supplier's committed and paid totals are
     copied onto it, so the budget keeps its totals (D-003).
   - Task links to the supplier: cleared, and the tasks stay (D-002).
@@ -1803,6 +1822,385 @@ money side, and D-002 says optional links must be cleared before the delete.
 `suppliers/authorization.db.test.ts` (matrix row "remove a supplier", Event B's supplier in Event
 A's address), `suppliers/audit.test.ts`, `suppliers/ui/RemoveSupplierSection.test.tsx`,
 `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`, `e2e/lifecycle/supplier-flow.spec.ts`.
+
+---
+
+## D-073 Supplier contact details
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-06 to B4-11 plan, option 5a).
+
+**Decision.**
+
+- **The contact fields are contact person, phone and email** (`SUPPLIER_CONTACT_FIELDS`), all
+  optional, plus free-text notes. Nothing else personal is collected: no address, ID numbers,
+  birthdays or social accounts. The form asks for the supplier's business contact details and says
+  every member of the event can see them.
+- **Validation** (one schema for the form and the server, D-070): contact person up to 120
+  characters; phone with digits, spaces, dashes, brackets and one leading "+", 7 to 15 digits, up to
+  32 characters; email in a valid format, stored in lower case, up to 254 characters; NUL
+  characters refused; empty means none.
+- **Event-scoped:** contacts are columns of the supplier, which belongs to one event (D-068), so
+  they are read and written only through that event.
+- **Where they show:** every member may see them (D-068, option 3a), on the supplier's detail page
+  (B4-07). The supplier list shows only the contact person; phone, email and notes stay off the
+  list.
+- **Activity never holds their values:** edits record only that a contact field or the notes
+  changed (D-071).
+
+**Evidence.** `suppliers/schema.test.ts` (contact fields and formats),
+`suppliers/suppliers.db.test.ts` ("contact details": event-scoped, never in Activity through add,
+edit and remove), `suppliers/ui/SupplierForm.test.tsx`, `suppliers/authorization.db.test.ts`.
+
+---
+
+## D-074 Supplier detail page
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-06 to B4-11 plan, option 6a).
+
+**Decision.**
+
+- **Where:** `/events/<id>/suppliers/<supplierId>`, opened from the supplier's name on the list.
+- **What every member sees** (`event.view`): readable ID, name, category, and contacts (contact
+  person, phone and email as links, notes; D-073). Quotes are added to this page by B4-09 as their
+  own section.
+- **What Owners and Coordinators also get:** Edit supplier (`suppliers.manage`) and the supplier's
+  recent Activity (`audit.view`): the latest 10 entries about the supplier and, from B4-09, its
+  quotes, with a link to the event's Activity. Viewers never get these entries (D-035); the read
+  doesn't load them for a Viewer.
+- **Deposits and payments** are not shown until the tasks that record them build their own
+  section, so the page never suggests a status that isn't tracked. _Since B4-14 (D-080) they have
+  their section._
+- **Scope and states:** the supplier is found only inside the authorized event; an unknown
+  supplier, a malformed ID or another event's supplier is "not found". The page has loading and
+  error states, and plain wording for anything not recorded ("Not recorded", "No changes recorded
+  for this supplier yet").
+- The audit log read can be limited to given records (`entityId`), used here; callers still
+  authorize first with `audit.view`.
+
+**Evidence.** `suppliers/authorization.db.test.ts` (matrix row "open the supplier's details",
+another event's supplier, Activity for Owners and Coordinators only and only about this supplier),
+`suppliers/ui/SupplierContactSection.test.tsx`, `suppliers/ui/SupplierActivitySection.test.tsx`,
+`src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`, `e2e/lifecycle/supplier-flow.spec.ts`.
+
+---
+
+## D-075 Supplier quotes and money
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-06 to B4-11 plan, options 1a, 3a and
+4a). Amends D-003 and D-072 in wording only.
+
+**Context.** The frozen Tier 1 scope says "quote amount and status", and D-003 kept them as fields
+of the supplier. B4-08 asks for quote records that can tell several quotes apart. The technical
+lead chose separate quote rows with at most one Accepted per supplier.
+
+**Decision.**
+
+- **Quote rows** (`supplier_quotes`): a supplier can have several quotes. Each belongs to one
+  supplier of one event through the composite key `(eventId, supplierId)` (D-002) and is deleted
+  with its supplier (D-072) and its event (D-004).
+- **Identity:** a readable ID per event, `QUO-0001`, from `events.lastQuoteNumber`, never reused,
+  plus an optional description (up to 120 characters) such as "Package B, 200 guests".
+- **Timestamps:** `createdAt`; `updatedAt`, which is also the edit version (stale saves are
+  refused, D-032); `statusChangedAt`, set on create and on every status change.
+- **Money:** Philippine pesos only, no currency column; `numeric(12, 2)`, exactly two decimals,
+  more than ₱0.00 and at most ₱9,999,999,999.99. Amounts travel as strings, never JavaScript
+  numbers. Input `120000`, `120,000` or `120,000.50` (optional "₱"); negative, zero, more than two
+  decimals (never rounded), too large and ambiguous formats are refused with a clear message. Zero
+  is refused because a quote is a price; a complimentary service needs no quote.
+- **Committed money (D-003, unchanged meaning):** the amount of the supplier's Accepted quote,
+  otherwise zero. At most one Accepted quote per supplier (D-076) keeps it counted once. No totals
+  are computed in Batch 4's quote tasks.
+- **Permissions:** `suppliers.manage` (Owner, Coordinator) adds and edits quotes, as the matrix
+  already says. Every member sees quotes and amounts on the supplier's page.
+- **Adding a quote (B4-09):** from the supplier's page ("Add quote", Owners and Coordinators). The
+  server action authorizes with `authorizeEvent`, validates with the shared quote schema, and in
+  one transaction locks the supplier (found only inside the event, with the role re-checked in the
+  same statement), applies the one-Accepted rule (D-076), takes the next quote number, inserts the
+  quote and records `quote.created`. The event and supplier come only from the address; IDs in the
+  form are ignored. The supplier's page then shows a "Quote added" notice.
+- **Editing a quote (B4-10):** an Edit link per quote on the supplier's page (Owners and
+  Coordinators). Amount, status and description can change; the supplier, event and number never
+  do. The same transaction shape as adding: the supplier is locked (found only inside the event,
+  role re-checked), the quote is found only for that supplier, a stale save is refused (D-032), the
+  one-Accepted rule applies (D-076), and a status change moves `statusChangedAt`. A save that
+  changes nothing writes nothing and says "No changes to save."
+- **Activity:** `quote.created` keeps the quote and supplier IDs, the amount, the status and the
+  description; `quote.updated` keeps what changed, old → new. The supplier's page shows these
+  entries with the supplier's own.
+
+**Evidence.** `suppliers/money.test.ts`, `suppliers/supplier-quotes-table.db.test.ts`,
+`suppliers/quote-schema.test.ts`, `suppliers/quotes.db.test.ts`, `suppliers/authorization.db.test.ts`
+(matrix rows "add a quote", "open the quote edit form", "edit a quote"; another event's supplier
+and quote; a quote under the wrong supplier), `suppliers/audit.test.ts`,
+`suppliers/ui/QuoteForm.test.tsx`, `suppliers/ui/SupplierQuotesSection.test.tsx`,
+`src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`, `e2e/lifecycle/supplier-flow.spec.ts`.
+
+---
+
+## D-076 Quote statuses and lifecycle
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-06 to B4-11 plan, option 2a). Defined
+before the quote screens were built.
+
+**Decision.**
+
+- **Three statuses**, one canonical list (`suppliers/quote-statuses.ts`) followed by the form, the
+  server, the badge, the audit registry's copy and the database enum `quote_status`:
+
+  | Value      | Label    | Meaning                                                         |
+  | ---------- | -------- | --------------------------------------------------------------- |
+  | `PENDING`  | Pending  | Received, no decision yet. The default for a new quote.         |
+  | `ACCEPTED` | Accepted | Taken. Its amount is what is committed to the supplier (D-003). |
+  | `DECLINED` | Declined | Not taken.                                                      |
+
+- **Transitions:** Owners and Coordinators may set any status from any status, so a mistake can be
+  corrected. Every change is recorded in Activity (old → new) and moves `statusChangedAt`.
+- **At most one Accepted quote per supplier.** Accepting a quote, on create or edit, is refused
+  while another quote of the same supplier is Accepted; the message names that quote ("QUO-0002 is
+  already accepted for this supplier. Change it to Pending or Declined first."). Nothing changes on
+  its own: other quotes are never declined automatically. The quote use cases check this in a
+  transaction that locks the supplier row, so two accepts at the same moment can't both succeed.
+- Not chosen: automatically declining the other quotes (option 2b); more statuses such as expired
+  or withdrawn (not in scope).
+- The badge shows the label with an icon, never color alone.
+
+**Evidence.** `suppliers/quote-statuses.test.ts`, `suppliers/ui/QuoteStatusBadge.test.tsx`; status
+changes persisted and the one-Accepted rule under concurrency in `suppliers/quotes.db.test.ts`
+(B4-09, B4-10).
+
+---
+
+## D-077 Supplier payment records
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-12 to B4-16 plan, option 1a). Amends
+D-003 in wording only. _Timing:_ the code was written and committed before this approval (17:57
+Manila time) and audited line by line after it; see the B4-12 to B4-16 completion report.
+
+**Context.** Tier 1 tracks a supplier's deposit, payment status and due date. This is status
+tracking, never payment processing: no gateway, online collection, receipts or accounting.
+
+**Decision.**
+
+- **One row per expected payment** (`supplier_payments`): a deposit or another payment (a balance
+  or an instalment) that the organizer owes a supplier. A supplier can have several.
+- **Fields:** a kind (`DEPOSIT` or `PAYMENT`); a readable ID per event, `PAY-0001`, from
+  `events.lastPaymentNumber`, never reused; an optional description (up to 120 characters); an
+  amount with the same money rules as quotes (D-075: pesos, `numeric(12, 2)`, more than ₱0.00,
+  never rounded); a required due date; the recorded state, `UNPAID` or `PAID` with the date it was
+  paid (`paidOn`, required for Paid and empty otherwise, CHECK); `createdAt`, and `updatedAt` as
+  the edit version (D-032).
+- **Dates** are calendar dates in Philippine time (D-025), stored as `DATE` with no time, from
+  2000-01-01 to 2100-12-31 (CHECK). "Not in the future" for the paid date depends on today, so the
+  application checks it (D-079).
+- **Belongs to its supplier** in the same event through the composite key `(eventId, supplierId)`
+  (D-002); deleted with the supplier (D-072) and the event (D-004).
+- **Paid (D-003, amended):** the sum of the supplier's rows recorded as Paid. Whether an unpaid row
+  is upcoming, due today or overdue is calculated, never stored (D-079).
+- Not chosen: deposit fields on the supplier itself (option 1b), which would contradict D-003.
+
+**Evidence.** `suppliers/supplier-payments-table.db.test.ts`.
+
+---
+
+## D-078 Supplier payment status
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-12 to B4-16 plan, option 2a). This is
+the paid-amount-to-status rule D-003 left open. _Timing:_ the code was written and committed
+before this approval (17:57 Manila time) and audited line by line after it; see the B4-12 to B4-16
+completion report.
+
+**Decision.**
+
+- **Inputs:** committed = the amount of the supplier's Accepted quote, or none (D-003, D-075); paid =
+  the sum of its payments recorded as Paid (D-077). Unpaid rows don't count towards paid.
+- **Statuses** (one canonical list, `suppliers/payment-status.ts`, used by the server and the badge):
+
+  | Value               | Label             | When                                                                      |
+  | ------------------- | ----------------- | ------------------------------------------------------------------------- |
+  | `NO_ACCEPTED_QUOTE` | No accepted quote | No quote is Accepted, whatever has been paid: the amount owed is unknown. |
+  | `UNPAID`            | Unpaid            | A quote is Accepted and nothing has been paid.                            |
+  | `PARTIALLY_PAID`    | Partially paid    | More than ₱0.00 and less than the Accepted quote has been paid.           |
+  | `PAID`              | Paid              | At least the Accepted quote has been paid.                                |
+
+- **Paying more than the Accepted quote** is still Paid, with a note giving how much more
+  ("₱0.01 more than the accepted quote").
+- **Overdue is not a status here.** It is a separate flag from the due rules (D-079), shown beside
+  the status, because a partly paid supplier can also be overdue.
+- **Arithmetic:** whole centavos as BigInt from the canonical stored strings (`toCentavos`,
+  `fromCentavos`); never floating point, never rounded. A non-canonical amount throws rather than
+  being guessed. The status is calculated on the server from stored records for every read, never
+  stored and never taken from the browser.
+
+**Evidence.** `suppliers/payment-status.test.ts` (each status, one centavo short, exact and over,
+unpaid rows ignored, floating-point traps, order independence), `suppliers/money.test.ts`
+(centavos), `suppliers/ui/PaymentStatusBadge.test.tsx`.
+
+---
+
+## D-079 Payment due dates and overdue
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-12 to B4-16 plan, options 3a and 4a).
+_Timing:_ the code was written and committed before this approval (17:57 Manila time) and
+audited line by line after it; see the B4-12 to B4-16 completion report.
+
+**Decision.**
+
+- **Calendar dates in Philippine time.** Due and paid dates are days, not instants: `DATE` columns,
+  "YYYY-MM-DD" in code, shown as written ("Nov 15, 2026") with no time zone shift. "Today" is the
+  current day in Asia/Manila (UTC+8 all year, no daylight saving; D-025): it changes at 16:00 UTC.
+- **Today is worked out on the server once per request** (`manilaToday(new Date())`) and passed to
+  the rules, so the rules never read a clock and tests fix the day. Nothing in the browser decides
+  a due status.
+- **Due status of one payment** (canonical list, `suppliers/payment-due.ts`, used by the server and
+  the badge):
+
+  | Value       | Label     | When                                                                  |
+  | ----------- | --------- | --------------------------------------------------------------------- |
+  | `PAID`      | Paid      | Recorded as paid. Never overdue, whether paid early, on time or late. |
+  | `OVERDUE`   | Overdue   | Not paid, and the due date is before today.                           |
+  | `DUE_TODAY` | Due today | Not paid, and due today.                                              |
+  | `UPCOMING`  | Upcoming  | Not paid, and due on a later day.                                     |
+
+- **A supplier's due summary:** how many of its payments are overdue, and its next unpaid payment
+  (the earliest due date, so an overdue one comes first). The supplier list and page show it
+  beside the payment status (D-078).
+- **Date rules for input (D-077):** the due date is any real calendar date from 2000-01-01 to
+  2100-12-31; a past due date is allowed and simply shows as Overdue. The paid date is required when
+  the payment is Paid, must be a real date in the same range, and can't be after today in Manila.
+  The database enforces the range and the paid-date rule; the application also enforces "not in the
+  future".
+
+**Evidence.** `suppliers/payment-due.test.ts` (each status; the day before, of and after; paid
+payments never overdue; 23:59:59.999 and 00:00 in Manila; the new year and a leap day; impossible
+dates refused; next due and overdue count; order independence),
+`suppliers/ui/PaymentDueBadge.test.tsx`.
+
+---
+
+## D-080 Managing supplier payments
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-12 to B4-16 plan, options 4a and 5a).
+_Timing:_ the code was written and committed before this approval (17:57 Manila time) and
+audited line by line after it; see the B4-12 to B4-16 completion report.
+
+**Decision.**
+
+- **Where:** a "Deposits and payments" section on the supplier's page shows the payment status
+  against the Accepted quote (D-078), an overpaid note, the overdue count and each payment with its
+  kind, description, amount, due date, paid date and due status (D-079). Every member sees it;
+  Owners and Coordinators (`suppliers.manage`) get Add payment and an Edit link per payment.
+- **Adding and editing:** kind, amount, due date, status (Not paid yet or Paid), the paid date for
+  Paid, and an optional description. One schema checks the form and, authoritatively, the server,
+  for today's date in Manila worked out on the server (D-079); no financial or date rule lives only
+  in the browser. The use cases lock the supplier (found only inside the event, role re-checked in
+  the same statement), take the next payment number, refuse stale edits (D-032) and record
+  `payment.created` or `payment.updated` (business facts, old → new). A save that changes nothing
+  writes nothing. The event, supplier and payment come only from the address.
+- **Statuses are calculated on every read** on the server from stored records; nothing calculated
+  is stored or taken from the browser.
+- **Removing a payment** is not included (option 5a): the task asks for create and edit; a mistake
+  is corrected by editing. Payments are removed with their supplier (D-072).
+- **Not included (out of Tier 1):** payment gateways, online collection, payment processing,
+  receipts and accounting integration.
+
+**Evidence.** `suppliers/payment-schema.test.ts`, `suppliers/payments.db.test.ts`,
+`suppliers/authorization.db.test.ts` (matrix rows for the add and edit forms and actions; another
+event's supplier and payment; a payment under the wrong supplier; invalid amounts and dates on the
+server), `suppliers/audit.test.ts`, `suppliers/ui/PaymentForm.test.tsx`,
+`suppliers/ui/SupplierPaymentsSection.test.tsx`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`,
+`e2e/lifecycle/supplier-flow.spec.ts`.
+
+---
+
+## D-081 The supplier list
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-12 to B4-16 plan, option 6a). Part of
+the code was written before this approval (17:57 Manila time) and finished and audited after it.
+
+**Decision.**
+
+- **One card per supplier**, for every member (`event.view`): readable ID, name (opening the
+  supplier's page), category, contact person, and a short money overview:
+  - **Quote:** "₱165,000.00 accepted", "None accepted, 2 pending" or "No quotes yet".
+  - **Payment:** the payment status badge (D-078); with more than one overdue payment, "N overdue".
+  - **Next due:** the earliest unpaid due date with its due badge (Overdue, Due today or Upcoming;
+    D-079), or "Nothing due".
+- **Same rules as the supplier's page:** the overview is calculated on the server, for every read,
+  from stored quotes and payments and today's date in Manila (`supplier-overview.ts`, built on
+  `payment-status.ts` and `payment-due.ts`). Nothing new is calculated for the list.
+- **One database query** loads the event's suppliers with their quotes' and payments' amounts,
+  statuses and due dates (filtered by the event at every level).
+- **Not an overloaded dashboard:** no totals, charts or filters. Phone, email and notes stay off the
+  list (D-073). Add supplier and the Edit links stay for Owners and Coordinators; loading, empty and
+  error states are unchanged (D-070).
+
+**Evidence.** `suppliers/supplier-overview.test.ts`, `suppliers/ui/SupplierList.test.tsx`,
+`suppliers/authorization.db.test.ts` (each event's own overview, for every member),
+`src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`, `e2e/lifecycle/supplier-flow.spec.ts`
+(steps 5 and 8).
+
+---
+
+## D-082 Supplier search
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-17 to B4-21 plan, option 1a).
+
+**Decision.**
+
+- **What it searches:** supplier name, contact person and what an Other supplier provides
+  (partial, ignoring case and accents: "pena" finds "Peña"), and the readable ID ("SUP-0004",
+  "sup4" or "4" find number 4; "sup-00" finds IDs starting that way). Email, phone and notes are
+  not searched.
+- **Server-safe:** the search runs on the server inside the authorized supplier read
+  (`getEventSuppliers`), only over the suppliers already loaded for this event (D-081). The search
+  text is only compared with stored text; it never builds a database query.
+- **Input:** read from the address (`?q=`) only; control characters (including NUL) removed,
+  trimmed, at most 100 characters; empty means no search; unknown parameters are ignored. A plain
+  GET form, so it works without JavaScript and survives refresh, back and sharing.
+- **Results:** "N of M suppliers match" while searching; no match gives "No suppliers match" with
+  the search shown and "Clear search and filters", which restores the full list. With no suppliers
+  at all, the search box is not shown and the "No suppliers yet" empty state stays.
+- The supplier context keeps its own copy of the guest list's text folding so the two contexts stay
+  independent (D-001).
+
+**Evidence.** `suppliers/supplier-list-query.test.ts`, `suppliers/authorization.db.test.ts`
+(another event's suppliers never found; non-members refused),
+`src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`.
+
+---
+
+## D-083 Supplier filters
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-17 to B4-21 plan, option 2a).
+
+**Decision.**
+
+- **Dimensions** (only what the domain model supports):
+  - **Category:** the 13 canonical categories (D-069).
+  - **Quote:** one value per supplier, so every supplier is in exactly one: "Quote accepted" (it
+    has an Accepted quote), "Pending only" (none accepted, at least one Pending) and "No accepted
+    or pending quote" (no quotes, or only Declined ones). The plan's "No quotes" was widened to
+    include suppliers with only Declined quotes, which would otherwise match no option.
+  - **Payment status:** No accepted quote, Unpaid, Partially paid, Paid (D-078).
+  - **Overdue only:** suppliers with at least one overdue payment (D-079); a separate checkbox
+    because overdue is a flag, not a payment status.
+- **Composition:** search and every filter combine with AND. Values come from the address only
+  (`category=VENUE&quote=accepted&payment=partially-paid&overdue=yes`) and must match a fixed list
+  exactly; anything else is ignored (no filter). Empty selects send empty values, also ignored.
+- **Server-side and event-scoped:** filtering runs on the server inside the authorized read, over
+  this event's suppliers, using the same quote, payment and due rules as the list and the
+  supplier's page (D-081). It cannot reach another event's suppliers.
+- **Clearing:** "Clear search and filters" goes back to the plain list address and shows every
+  supplier the reader may see. "N of M suppliers match" while narrowed; "No suppliers match" lists
+  the active search and filters.
+- **On a phone:** the state lives in the address (a plain GET form), so reload, back and sharing
+  keep it; fields stack in one column with 44 px controls and nothing scrolls sideways. No
+  sorting (not requested).
+
+**Evidence.** `suppliers/supplier-list-query.test.ts` (parsing, address round trip, quote groups,
+composition, clearing, wording), `suppliers/authorization.db.test.ts` (Event B's matching supplier
+never shown; composition on stored data), `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`,
+`e2e/lifecycle/supplier-flow.spec.ts` step 9 (375 px: reload, back, no match, clear).
 
 ---
 

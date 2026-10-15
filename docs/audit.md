@@ -39,6 +39,10 @@ has a strict schema, so unlisted fields are refused, not silently stored.
 | `supplier.created`                  | A supplier is added (B4-03)                                            | `supplier`                  | Readable ID (`SUP-0001`), name, category and, for Other, what they provide. No contact details or notes                                 |
 | `supplier.updated`                  | A supplier's details are saved with at least one change (B4-04, D-071) | `supplier`                  | Readable ID and what changed: name and category old → new; contact person, phone, email and notes only as "changed", never their values |
 | `supplier.deleted`                  | A supplier is removed (B4-05, D-072)                                   | `supplier`                  | Readable ID and name at that moment. The supplier record is gone                                                                        |
+| `quote.created`                     | A quote is added to a supplier (B4-09, D-075)                          | `quote`                     | Quote and supplier readable IDs, amount in pesos ("165000.50"), status and description. Shown on the supplier's page too                |
+| `quote.updated`                     | A quote is saved with at least one change (B4-10, D-075)               | `quote`                     | Quote and supplier readable IDs and what changed: amount, status and description, old → new                                             |
+| `payment.created`                   | A deposit or payment is added to a supplier (B4-14, D-080)             | `payment`                   | Payment and supplier readable IDs, kind, amount, due date, recorded status, paid date and description                                   |
+| `payment.updated`                   | A payment is saved with at least one change (B4-14, D-080)             | `payment`                   | Payment and supplier readable IDs and what changed: kind, amount, due date, status, paid date and description, old → new                |
 
 Not recorded:
 
@@ -73,6 +77,29 @@ Refused actions and saves that change nothing record nothing. Proved by
 
 Resources (B3-05, D-061) describe the venue, not a person, so their status and seat count are kept
 old → new; their free-text note is recorded only as "changed", like the event description.
+
+### Supplier, quote and payment actions (B4-20)
+
+Suppliers use the same audit log and Activity page as every other module; there is no separate
+supplier history.
+
+| Action          | Entry              | What is kept                                          | What is never kept                                  |
+| --------------- | ------------------ | ----------------------------------------------------- | --------------------------------------------------- |
+| Add supplier    | `supplier.created` | ID, name, category, what an Other supplier provides   | Contact person, email, phone, notes                 |
+| Edit supplier   | `supplier.updated` | Name and category old → new                           | Contact person, email, phone, notes: "changed" only |
+| Remove supplier | `supplier.deleted` | ID and name                                           | Everything else                                     |
+| Add quote       | `quote.created`    | Quote and supplier IDs, amount, status, description   | Nothing about the supplier's contacts               |
+| Edit quote      | `quote.updated`    | Amount, status and description old → new              | Nothing about the supplier's contacts               |
+| Add payment     | `payment.created`  | Payment and supplier IDs, kind, amount, dates, status | Nothing about the supplier's contacts               |
+| Edit payment    | `payment.updated`  | Kind, amount, due date, status, paid date, old → new  | Nothing about the supplier's contacts               |
+
+A status change leads the Activity summary, so it reads at a glance: "Accepted the quote QUO-0002
+for SUP-0001", "Declined …", "Set the quote … back to Pending"; "Marked the payment PAY-0002 for
+SUP-0001 as paid (Oct 2, 2026)" or "… as not paid yet". Other edits read "Edited the quote …" or
+"Edited the payment …". The detail lines (old → new) are unchanged. Refused, stale and unchanged
+saves record nothing. Proved by `suppliers/activity.db.test.ts`, which makes each change in turn,
+checks exactly one entry each, and scans every stored entry and its wording for the contact details
+it used.
 
 The requirement note can hold health details, so it is never copied into the log. When an attendee is removed,
 their requirements go with them; the `attendee.deleted` entry covers it, with no separate entry per
