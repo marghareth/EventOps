@@ -20,7 +20,6 @@
     "src/modules/events/members/actions.ts",
     "src/modules/events/members/queries.ts",
     "src/modules/events/members/schema.ts",
-    "src/modules/events/suppliers/**",
     "src/modules/events/tasks/**",
     "src/modules/events/timeline/**",
     "src/modules/events/volunteers/**",

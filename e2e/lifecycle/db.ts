@@ -54,3 +54,158 @@ export function removeDemoMembership(eventId: string): Promise<void> {
     ]);
   });
 }
+// Supplier seed for the supplier workflow test (B4-22). A realistic Cebu wedding's suppliers,
+// written straight to the test database the way the app stores them: SUP, QUO and PAY numbers
+// continue from the event's counters, amounts are exact two-decimal strings, dates are calendar
+// days relative to "today" in Manila, and at most one quote per supplier is Accepted. This stands in
+// for months of planning so search and filters have something real to work on; the test's own
+// changes still go through the screens. No audit entries are written for seeded rows.
+
+type SeedQuote = {
+  amount: string;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  description?: string;
+};
+type SeedPayment = {
+  kind: "DEPOSIT" | "PAYMENT";
+  amount: string;
+  /** Days from today (negative is in the past). */
+  dueIn: number;
+  /** Days from today it was paid, or undefined when unpaid. */
+  paidIn?: number;
+  description?: string;
+};
+export type SeedSupplier = {
+  name: string;
+  category: string;
+  categoryDetail?: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  quotes?: SeedQuote[];
+  payments?: SeedPayment[];
+};
+
+/** "YYYY-MM-DD" a number of days from a calendar day. */
+export function addDays(day: string, days: number): string {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** Adds suppliers to an event; returns each supplier's id by name. */
+export function seedSuppliers(
+  eventId: string,
+  today: string,
+  suppliers: readonly SeedSupplier[],
+): Promise<Record<string, string>> {
+  return withClient(async (client) => {
+    const ids: Record<string, string> = {};
+    await client.query("BEGIN");
+    try {
+      for (const supplier of suppliers) {
+        const id = randomUUID();
+        ids[supplier.name] = id;
+        const { rows } = await client.query<{ n: number }>(
+          `UPDATE events SET "lastSupplierNumber" = "lastSupplierNumber" + 1 WHERE id = $1
+           RETURNING "lastSupplierNumber" AS n`,
+          [eventId],
+        );
+        await client.query(
+          `INSERT INTO suppliers (id, "eventId", number, name, category, "categoryDetail",
+             "contactName", phone, email, "updatedAt")
+           VALUES ($1, $2, $3, $4, $5::supplier_category, $6, $7, $8, $9, now())`,
+          [
+            id,
+            eventId,
+            rows[0].n,
+            supplier.name,
+            supplier.category,
+            supplier.categoryDetail ?? null,
+            supplier.contactName ?? null,
+            supplier.phone ?? null,
+            supplier.email ?? null,
+          ],
+        );
+        for (const quote of supplier.quotes ?? []) {
+          const { rows: q } = await client.query<{ n: number }>(
+            `UPDATE events SET "lastQuoteNumber" = "lastQuoteNumber" + 1 WHERE id = $1
+             RETURNING "lastQuoteNumber" AS n`,
+            [eventId],
+          );
+          await client.query(
+            `INSERT INTO supplier_quotes (id, "eventId", "supplierId", number, amount, status,
+               description, "updatedAt")
+             VALUES ($1, $2, $3, $4, $5::numeric, $6::quote_status, $7, now())`,
+            [
+              randomUUID(),
+              eventId,
+              id,
+              q[0].n,
+              quote.amount,
+              quote.status,
+              quote.description ?? null,
+            ],
+          );
+        }
+        for (const payment of supplier.payments ?? []) {
+          const { rows: p } = await client.query<{ n: number }>(
+            `UPDATE events SET "lastPaymentNumber" = "lastPaymentNumber" + 1 WHERE id = $1
+             RETURNING "lastPaymentNumber" AS n`,
+            [eventId],
+          );
+          const paid = payment.paidIn !== undefined;
+          await client.query(
+            `INSERT INTO supplier_payments (id, "eventId", "supplierId", number, kind, amount,
+               "dueDate", status, "paidOn", description, "updatedAt")
+             VALUES ($1, $2, $3, $4, $5::payment_kind, $6::numeric, $7::date,
+               $8::payment_record_status, $9::date, $10, now())`,
+            [
+              randomUUID(),
+              eventId,
+              id,
+              p[0].n,
+              payment.kind,
+              payment.amount,
+              addDays(today, payment.dueIn),
+              paid ? "PAID" : "UNPAID",
+              paid ? addDays(today, payment.paidIn!) : null,
+              payment.description ?? null,
+            ],
+          );
+        }
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
+    return ids;
+  });
+}
+
+/** A supplier's quotes and payments exactly as stored (amounts and dates as text), for checking. */
+export function storedSupplierMoney(eventId: string, supplierName: string) {
+  return withClient(async (client) => {
+    const quotes = await client.query<{ number: number; amount: string; status: string }>(
+      `SELECT q.number, q.amount::text AS amount, q.status::text AS status
+         FROM supplier_quotes q JOIN suppliers s ON s.id = q."supplierId"
+        WHERE q."eventId" = $1 AND s.name = $2 ORDER BY q.number`,
+      [eventId, supplierName],
+    );
+    const payments = await client.query<{
+      kind: string;
+      amount: string;
+      dueDate: string;
+      status: string;
+      paidOn: string | null;
+    }>(
+      `SELECT p.kind::text AS kind, p.amount::text AS amount, p."dueDate"::text AS "dueDate",
+              p.status::text AS status, p."paidOn"::text AS "paidOn"
+         FROM supplier_payments p JOIN suppliers s ON s.id = p."supplierId"
+        WHERE p."eventId" = $1 AND s.name = $2 ORDER BY p.number`,
+      [eventId, supplierName],
+    );
+    return { quotes: quotes.rows, payments: payments.rows };
+  });
+}

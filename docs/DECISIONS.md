@@ -78,6 +78,11 @@ Status values:
 | D-065 | Accessibility readiness view                                | Approved | 2026-10-13 |
 | D-066 | Accessibility alerts                                        | Approved | 2026-10-13 |
 | D-067 | Batch 3 verification approach                               | Approved | 2026-10-14 |
+| D-068 | Supplier data model                                         | Approved | 2026-10-14 |
+| D-069 | Supplier categories                                         | Approved | 2026-10-14 |
+| D-070 | Adding suppliers and the supplier list                      | Approved | 2026-10-14 |
+| D-071 | Editing suppliers                                           | Approved | 2026-10-14 |
+| D-072 | Removing suppliers and what happens to their records        | Approved | 2026-10-14 |
 
 ---
 
@@ -1640,6 +1645,164 @@ of `e2e/lifecycle/accessibility-flow.spec.ts`.
 
 **Evidence.** `e2e/lifecycle/accessibility-readiness.spec.ts`, TESTING.md (B3-16, B3-17),
 ARCHITECTURE.md, ACCEPTANCE_CRITERIA.md.
+
+---
+
+## D-068 Supplier data model
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-01 to B4-05 plan, options 1a, 3a, 4a).
+Written in DATA_MODEL.md ("suppliers") with the migration.
+
+**Decision.**
+
+- **Strictly event-specific (1a).** A supplier belongs to exactly one event and is deleted with it
+  (D-004). The same business used for two events is two rows. A directory shared between events
+  needs an owner above events, which Tier 1 doesn't have; it belongs in ROADMAP.md.
+- **Fields.** Required: name (120) and category (D-069). Optional: contact person (120), email
+  (254, stored lower case), phone (32), notes (2,000). `createdAt`, and `updatedAt` as the edit
+  version (D-032). Quotes, deposits, payments and due dates are added by later Batch 4 tasks,
+  following D-003, not here.
+- **Readable ID.** `SUP-0001`, numbered per event from `events.lastSupplierNumber`, incremented in
+  the creating transaction and never reused, like attendees (D-042).
+- **Duplicates allowed (4a).** Two suppliers in one event may share a name; the number tells them
+  apart.
+- **Who sees what (3a).** Every member sees every supplier field, including contact details, which
+  are business contacts (`event.view`). Changes need `suppliers.manage` (Owner, Coordinator). No
+  permission is added.
+- **Integrity.** Unique `(eventId, number)`; unique `(eventId, id)` as the target of later composite
+  foreign keys (D-002); indexes `(eventId, name)` and `(eventId, category)`; CHECK constraints for a
+  non-blank name, a positive number, the category detail and non-blank optional text.
+
+**Evidence.** `suppliers/suppliers-table.db.test.ts`, the expected-tables test in
+`src/lib/db.db.test.ts`, and the cascade check in `delete-event.db.test.ts`.
+
+---
+
+## D-069 Supplier categories
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-01 to B4-05 plan, option 2a, list as
+proposed).
+
+**Decision.**
+
+- **Controlled values, not free text (2a).** Thirteen categories in one canonical list
+  (`suppliers/categories.ts`), in this order: Venue, Catering, Cake and desserts, Photo and video,
+  Sound and lights, Entertainment, Flowers and styling, Hair and makeup, Attire, Rentals,
+  Transport, Printing and stationery, Other. Stored as the database enum `supplier_category`.
+- **Other needs a description** of what the supplier provides (up to 60 characters), so a supplier
+  that fits no category keeps its meaning. Other categories store none (CHECK).
+- **One list everywhere.** The form, the server's Zod validation, labels in lists and Activity, the
+  audit registry's copy and the database enum follow the canonical list; tests keep them equal.
+  Values are accepted only exactly as listed.
+- **Extensible.** A new category is one list entry plus a migration adding the enum value. Category
+  sets per event type are the Tier 3 event templates, not built now.
+
+**Alternatives not chosen.** Free text with suggestions (2b) would let one kind of supplier appear
+under several spellings, which breaks grouping and later budget views.
+
+**Evidence.** `suppliers/categories.test.ts`, the category CHECK in
+`suppliers/suppliers-table.db.test.ts`.
+
+---
+
+## D-070 Adding suppliers and the supplier list
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-01 to B4-05 plan).
+
+**Decision.**
+
+- **Required fields:** name and category (and, for Other, what the supplier provides, D-069).
+  Contact person, phone, email and notes are optional; empty means none. The same Zod schema
+  (`suppliers/schema.ts`) checks the form and, again, the server: trimming, limits matching the
+  columns, email and phone formats, NUL characters refused.
+- **Adding:** an "Add supplier" page for Owners and Coordinators (`suppliers.manage`); Viewers get
+  "You don't have access", even by address. The server action authorizes with `authorizeEvent`,
+  validates, and in one transaction takes the event's next supplier number (re-checking the role in
+  the same statement), inserts the supplier and records `supplier.created`. The event comes only
+  from the address; an `eventId` in the form is ignored.
+- **The supplier list:** every member sees all suppliers of the event as cards (readable ID, name,
+  category, contact person, phone and email as links, notes), by name then number, with loading,
+  empty and error states. After adding, a notice names the new supplier from the stored list, never
+  from the address. Search, filters and money columns come with later tasks.
+- **Activity:** `supplier.created` keeps the readable ID, name and category; never contact details
+  or notes.
+- **Sample data:** the dev sample store (D-041) has four wedding suppliers and the same rules.
+
+**Evidence.** `suppliers/schema.test.ts`, `suppliers/suppliers.db.test.ts`,
+`suppliers/authorization.db.test.ts`, `suppliers/audit.test.ts`, `suppliers/ui/*.test.tsx`,
+`src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`.
+
+---
+
+## D-071 Editing suppliers
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-01 to B4-05 plan).
+
+**Decision.**
+
+- **Who:** Owners and Coordinators (`suppliers.manage`). The supplier list shows an "Edit" link
+  on each card for them only. A Viewer who opens the edit address gets "You don't have access"
+  and nothing is loaded; the server action refuses them too, and the database statement re-checks
+  the role (`rolesAllowed`).
+- **What can change:** name, category (with what an Other supplier provides), contact person,
+  phone, email and notes, checked by the same schema as adding (D-070). The event and the readable
+  ID never change: the update writes an explicit list of fields, and an `eventId` in the form is
+  ignored.
+- **Which supplier:** the event comes from the address and the supplier is looked up only inside
+  it. An unknown supplier, a malformed ID or another event's supplier are all "not found", so a
+  substituted ID tells the caller nothing.
+- **Conflicts:** the form carries the supplier's `updatedAt`; a save made after someone else's is
+  refused with "This supplier changed since you opened it" and changes nothing (as D-032 for
+  events).
+- **Activity:** `supplier.updated` with the readable ID and what changed. Name and category are
+  recorded old → new; contact person, phone, email and notes only as "changed", never their
+  values. A save that changes nothing says "No changes to save." and records nothing.
+- After saving, the supplier list opens with a "Changes saved" notice naming the stored supplier.
+
+**Evidence.** `suppliers/schema.test.ts` (`supplierChanges`), `suppliers/suppliers.db.test.ts`
+("editing a supplier"), `suppliers/authorization.db.test.ts` (matrix rows "open the edit form" and
+"edit a supplier", plus Event B's supplier in Event A's address for every caller),
+`suppliers/audit.test.ts`, `suppliers/ui/SupplierForm.test.tsx` (edit mode),
+`src/app/(app)/events/[eventId]/suppliers/pages.test.tsx` (Edit supplier page).
+
+---
+
+## D-072 Removing suppliers and what happens to their records
+
+**Status:** Approved by the technical lead on 2026-10-14 (B4-05, option 5a: keep D-003 as
+approved).
+
+**Context.** B4-05 asks for an explicit choice between cascade, restrict and soft delete for a
+supplier's quotes and payment or deposit records. D-003 (approved 2026-10-09) already decided the
+money side, and D-002 says optional links must be cleared before the delete.
+
+**Decision.**
+
+- **Permanent delete, no soft delete.** Removing a supplier deletes its row. There is no archive
+  or undo; the confirmation says so.
+- **Who:** Owners and Coordinators (`suppliers.manage`), behind a confirmation dialog on the edit
+  page. Viewers never see it; the server action and the database statement check the role again.
+- **Only inside the event:** the delete is scoped to the authorized event. Another event's
+  supplier, an unknown supplier and a malformed ID are all "not found" and nothing is removed.
+- **Activity keeps the history:** a `supplier.deleted` entry keeps the readable ID and the name.
+  Earlier entries about the supplier stay. Readable IDs are never reused (`lastSupplierNumber`
+  only grows).
+- **Related records, when their tables arrive** (none exist yet, so today only the supplier is
+  removed). Each later task adds its step to the same transaction, before the delete:
+  - Supplier payments and deposits: deleted with the supplier (cascade, D-003).
+  - Quote: the quote amount and status are fields of the supplier itself (D-003), so they go with
+    it.
+  - Budget line linked to the supplier: unlinked, and the supplier's committed and paid totals are
+    copied onto it, so the budget keeps its totals (D-003).
+  - Task links to the supplier: cleared, and the tasks stay (D-002).
+- Not chosen: **restrict** (blocks removing a supplier the coordinator no longer uses, and D-003
+  already keeps the budget totals) and **soft delete** (a hidden second state every list, count
+  and impact rule would need to filter; not in scope).
+
+**Evidence.** `suppliers/suppliers.db.test.ts` ("removing a supplier"),
+`suppliers/authorization.db.test.ts` (matrix row "remove a supplier", Event B's supplier in Event
+A's address), `suppliers/audit.test.ts`, `suppliers/ui/RemoveSupplierSection.test.tsx`,
+`src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`, `e2e/lifecycle/supplier-flow.spec.ts`.
 
 ---
 

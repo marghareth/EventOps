@@ -286,6 +286,35 @@ A focused review of the accessibility context, at commit `c682f35` plus the two 
 - **Real Supabase sign-in** is still checked by hand (see "Manual check against the real Supabase
   project"); tests use the dev stand-in (D-024).
 
+## Suppliers (Batch 4)
+
+Suppliers are strictly event-specific (D-068). Every operation authorizes on the server with
+`authorizeEvent`, from the stored role, and works only inside the authorized event.
+
+| Operation                                    | Permission         | Owner | Coordinator | Viewer |
+| -------------------------------------------- | ------------------ | ----- | ----------- | ------ |
+| The supplier list, contact details and notes | `event.view`       | Yes   | Yes         | Yes    |
+| Add a supplier                               | `suppliers.manage` | Yes   | Yes         | No     |
+| Open the edit form and edit a supplier       | `suppliers.manage` | Yes   | Yes         | No     |
+| Remove a supplier                            | `suppliers.manage` | Yes   | Yes         | No     |
+
+- **Contact details are visible to every member** (D-068, option 3a): they are business contacts.
+  The form says notes are visible to every member.
+- **Two checks for every write:** `authorizeEvent` before anything is opened, and the database
+  statement re-checks the role (while taking the next supplier number when adding; in the
+  condition of the update or delete when editing or removing), so a refused user changes nothing.
+- **Another event's supplier is "not found".** A supplier is looked up only inside the authorized
+  event, so an ID from another event, an unknown ID and a malformed ID give the same answer and
+  change nothing (D-071, D-072). Stale edits are refused (D-032). Removing is permanent, asks for
+  confirmation first, and Activity keeps the readable ID and name.
+- **The event comes from the address only.** An `eventId` in the form is ignored; the action uses
+  the authorized event.
+- **Activity** records the supplier's number, name and category (and, for edits, which other fields
+  changed), never contact details or notes.
+- **Proof:** `suppliers/authorization.db.test.ts` calls every operation directly as each kind of
+  caller and checks that denials change nothing, and sends Event B's supplier through Event A's
+  address for every caller.
+
 ## Event isolation
 
 - **Event list (B1-03, D-026).** `listEventsForUser` in `src/modules/events/queries.ts` is the

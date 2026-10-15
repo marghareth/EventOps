@@ -1,15 +1,15 @@
 // src/modules/events/permissions.test.ts
 // @vitest-environment node
-// The permission matrix (D-035): the code must match docs/PERMISSIONS.md cell by cell, and the
+// The permission matrix (D-035): the code must match docs/permissions.md cell by cell, and the
 // approved role boundaries hold.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MEMBER_ROLES, PERMISSIONS, ROLE_SUMMARY, can, rolesAllowed } from "./permissions";
 
-/** Rows of the "## Matrix" table in docs/PERMISSIONS.md: permission -> [Owner, Coordinator, Viewer]. */
+/** Rows of the "## Matrix" table in docs/permissions.md: permission -> [Owner, Coordinator, Viewer]. */
 function documentedMatrix(): Record<string, boolean[]> {
-  const doc = readFileSync(join(process.cwd(), "docs/PERMISSIONS.md"), "utf8");
+  const doc = readFileSync(join(process.cwd(), "docs/permissions.md"), "utf8");
   const section = doc.split("## Matrix")[1].split("\n## ")[0];
   const rows: Record<string, boolean[]> = {};
   for (const line of section.split("\n")) {
@@ -21,7 +21,7 @@ function documentedMatrix(): Record<string, boolean[]> {
 }
 
 describe("permission matrix", () => {
-  it("matches docs/PERMISSIONS.md exactly, permission by permission and role by role", () => {
+  it("matches docs/permissions.md exactly, permission by permission and role by role", () => {
     const documented = documentedMatrix();
     expect(Object.keys(documented).sort()).toEqual([...PERMISSIONS].sort());
     for (const permission of PERMISSIONS) {

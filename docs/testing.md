@@ -79,7 +79,7 @@ actions and saves that change nothing record nothing.
 
 ### Placeholder tests
 
-Six test files from the scaffold (D-019) belong to features not built yet (accessibility readiness, the seventh, got real tests in B3-07). Each holds one
+Five test files from the scaffold (D-019) belong to features not built yet (accessibility readiness got real tests in B3-07, supplier actions in B4-03). Each holds one
 `it.todo` naming its feature, so `npm test` passes and reports them as to-do (D-054).
 
 ### End-to-end attendee flow (B2-24)
@@ -99,6 +99,24 @@ against a reset test database:
 
 It resets the demo data before and after, so it can run before or after the event lifecycle spec.
 Both run with `npm run test:e2e:lifecycle` and in CI's `e2e` job (D-055).
+
+## Supplier tests (Batch 4)
+
+| Area                                                                                                     | Tests                                                                                           |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Table: fields, numbering per event, duplicates, constraints, limits, cascade, indexes (B4-01)            | `suppliers/suppliers-table.db.test.ts`                                                          |
+| Categories equal the database enum; Other's description; validation (B4-02)                              | `suppliers/categories.test.ts`                                                                  |
+| Form validation: required fields, formats, limits, ignored extra fields (B4-03)                          | `suppliers/schema.test.ts`                                                                      |
+| Adding: numbering (also concurrent), role re-checked in the database, Activity (B4-03)                   | `suppliers/suppliers.db.test.ts`                                                                |
+| Security matrix through the real actions and reads; refusals change nothing (B4-03)                      | `suppliers/authorization.db.test.ts`                                                            |
+| Activity entries and wording; the audit registry's category copy (B4-03)                                 | `suppliers/audit.test.ts`                                                                       |
+| Form and list components; list and add pages (B4-03)                                                     | `suppliers/ui/*.test.tsx`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`            |
+| Editing: what changed for Activity; saves, stale and unchanged saves, refusals in the database (B4-04)   | `suppliers/schema.test.ts`, `suppliers/suppliers.db.test.ts`                                    |
+| Edit form and edit links in the matrix, plus another event's supplier for every caller (B4-04)           | `suppliers/authorization.db.test.ts`                                                            |
+| Edit mode of the form; Edit supplier page (B4-04)                                                        | `suppliers/ui/SupplierForm.test.tsx`, `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx` |
+| Removing: permanent, Activity kept, numbers not reused, refusals and other events (B4-05)                | `suppliers/suppliers.db.test.ts`, `suppliers/authorization.db.test.ts`                          |
+| Remove confirmation: nothing removed without confirming, Cancel and Escape, errors (B4-05)               | `suppliers/ui/RemoveSupplierSection.test.tsx`                                                   |
+| Browser flow: add (Other needs a description), edit, remove, Activity, Viewer read-only (B4-03 to B4-05) | `e2e/lifecycle/supplier-flow.spec.ts`                                                           |
 
 ## Accessibility tests (Batch 3)
 
@@ -206,6 +224,24 @@ authorization. Two stand-ins remain:
 
 Stability: on 2026-10-14 it passed five runs in a row (`--repeat-each=5`, 40 of 40). It waits only
 on what the page shows, never on fixed delays.
+
+### End-to-end supplier flow (B4-03 to B4-05)
+
+`e2e/lifecycle/supplier-flow.spec.ts` runs in Chromium as the demo user, against a reset test
+database:
+
+1. A new event shows "No suppliers yet". Add a supplier as Other: refused without saying what they
+   provide (the typed name is kept), then saved as SUP-0001.
+2. Edit it: new name, category changed to Sound and lights (the "What they provide" field goes
+   away), new phone. The list shows "is up to date".
+3. Remove it: Cancel in the confirmation keeps it; confirming removes it and the list is empty.
+4. Activity shows the add, the edit (category old → new, "Phone changed") and the removal, and
+   never the phone number.
+5. Add a second supplier, which becomes SUP-0002 (numbers are not reused). As a Viewer (role set
+   in the database, D-034): the list and email link are visible, with no Add or Edit links, and
+   the edit address says "You don't have access".
+
+On 2026-10-14 the whole lifecycle suite passed, 35 of 35, with the font stand-in.
 
 ### Accessibility screens: accessibility and responsive audit (B3-17)
 

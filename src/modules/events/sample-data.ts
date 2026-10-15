@@ -10,7 +10,10 @@
 //   - every create and edit records an audit entry through the audit registry's schemas (D-037).
 // Since B2-02 it also holds sample attendees: adding (B2-02), editing (B2-03) and removing (B2-04)
 // work like the database (members with attendees.manage only, per-event ATT numbers that are never
-// reused, stale edits refused, audit entries).
+// reused, stale edits refused, audit entries). Since B4-03 it also holds sample suppliers, with
+// per-event SUP numbers that are never reused (D-068), and since B4-09 their quotes (D-075), with
+// amounts kept as canonical strings and at most one Accepted quote per supplier (D-076), and since
+// B4-14 their payments (D-077), with dates as calendar-day strings.
 // Changes live in memory only and reset when `npm run dev` restarts. Never used in a build:
 // isSampleDataMode() needs NODE_ENV=development and `next build` refuses DEV_DEMO_AUTH=true.
 import "server-only";
@@ -20,7 +23,11 @@ import type {
   EventStatus,
   MemberRole,
   RequirementPriority,
+  PaymentKind,
+  PaymentRecordStatus,
+  QuoteStatus,
   ResourceStatus,
+  SupplierCategory,
 } from "@/generated/prisma/client";
 import { DEMO_USER } from "@/lib/demo-auth";
 import {
@@ -46,6 +53,8 @@ type SampleAudit = {
   action: AuditAction;
   details: unknown;
   createdAt: Date;
+  /** The record the entry is about; optional, like the database's nullable entityId. */
+  entityId?: string | null;
 };
 /** An attendee's editable fields, as the attendees context validates them (D-042). */
 export type SampleAttendeeInput = {
@@ -88,6 +97,50 @@ export type SampleResource = SampleResourceInput & {
 };
 type StoredResource = SampleResource & { eventId: string };
 
+/** A supplier's editable values (B4-03, D-068), as the suppliers context validates them. */
+export type SampleSupplierInput = {
+  name: string;
+  category: SupplierCategory;
+  categoryDetail: string | null;
+  contactName: string | null;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+};
+/** One stored supplier (same shape as the suppliers context's records). */
+export type SampleSupplier = SampleSupplierInput & { id: string; number: number; updatedAt: Date };
+type StoredSupplier = SampleSupplier & { eventId: string };
+/** A quote's editable values (B4-09, D-075): the amount is a canonical string, "120000.50". */
+export type SampleQuoteInput = { amount: string; status: QuoteStatus; description: string | null };
+/** One stored quote (same shape as the suppliers context's quote records). */
+export type SampleQuote = SampleQuoteInput & {
+  id: string;
+  supplierId: string;
+  number: number;
+  statusChangedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+type StoredQuote = SampleQuote & { eventId: string };
+/** A payment's editable values (B4-14, D-077): amount and dates are canonical strings. */
+export type SamplePaymentInput = {
+  kind: PaymentKind;
+  amount: string;
+  dueDate: string;
+  status: PaymentRecordStatus;
+  paidOn: string | null;
+  description: string | null;
+};
+/** One stored payment (same shape as the suppliers context's payment records). */
+export type SamplePayment = SamplePaymentInput & {
+  id: string;
+  supplierId: string;
+  number: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+type StoredPayment = SamplePayment & { eventId: string };
+
 type SampleStore = {
   users: Map<string, string>;
   events: SampleEvent[];
@@ -100,6 +153,18 @@ type SampleStore = {
   requirements: StoredRequirement[];
   /** Event accessibility resources (B3-05); at most one per type per event; removed with the event. */
   resources: StoredResource[];
+  /** Suppliers (B4-03); removed with the event, like the cascade. */
+  suppliers: StoredSupplier[];
+  /** Last supplier number issued per event, like events.lastSupplierNumber: never reused. */
+  lastSupplierNumber: Map<string, number>;
+  /** Supplier quotes (B4-09); removed with their supplier or event, like the cascade. */
+  quotes: StoredQuote[];
+  /** Last quote number issued per event, like events.lastQuoteNumber: never reused. */
+  lastQuoteNumber: Map<string, number>;
+  /** Supplier payments (B4-14); removed with their supplier or event, like the cascade. */
+  payments: StoredPayment[];
+  /** Last payment number issued per event, like events.lastPaymentNumber: never reused. */
+  lastPaymentNumber: Map<string, number>;
 };
 
 const MIKA = "5e000000-0000-4000-8000-0000000000a1";
@@ -296,7 +361,97 @@ function seed(): SampleStore {
     lastAttendeeNumber,
     requirements: seedRequirements(),
     resources: seedResources(),
+    suppliers: seedSuppliers(),
+    lastSupplierNumber: new Map([[SAMPLE_EVENT_IDS.wedding, 4]]),
+    quotes: seedQuotes(),
+    lastQuoteNumber: new Map([[SAMPLE_EVENT_IDS.wedding, 3]]),
+    payments: seedPayments(),
+    lastPaymentNumber: new Map([[SAMPLE_EVENT_IDS.wedding, 3]]),
   };
+}
+
+/**
+ * Three payments (B4-14): the caterer's deposit paid and balance not yet, and the sound supplier's
+ * deposit unpaid with an early due date, so the pages show Paid, Upcoming and Overdue.
+ */
+function seedPayments(): StoredPayment[] {
+  const rows: [number, number, PaymentKind, string, string, string | null, string | null][] = [
+    [1, 1, "DEPOSIT", "49500.00", "2026-10-05", "2026-10-03", "30% deposit"],
+    [1, 2, "PAYMENT", "115500.00", "2026-12-05", null, "Balance"],
+    [2, 3, "DEPOSIT", "15000.00", "2026-10-10", null, null],
+  ];
+  return rows.map(([supplier, number, kind, amount, dueDate, paidOn, description]) => ({
+    id: `5e000000-0000-4000-8000-5c0${String(number).padStart(9, "0")}`,
+    eventId: SAMPLE_EVENT_IDS.wedding,
+    supplierId: `5e000000-0000-4000-8000-5a0${String(supplier).padStart(9, "0")}`,
+    number,
+    kind,
+    amount,
+    dueDate,
+    status: paidOn ? "PAID" : "UNPAID",
+    paidOn,
+    description,
+    createdAt: at("2026-10-01T04:00:00Z"),
+    updatedAt: at("2026-10-03T04:00:00Z"),
+  }));
+}
+
+/** Three quotes: two from the caterer (one Accepted), one Pending from the sound supplier (B4-09). */
+function seedQuotes(): StoredQuote[] {
+  const rows: [number, number, string, QuoteStatus, string | null][] = [
+    [1, 1, "180000.00", "DECLINED", "Plated dinner, 220 guests"],
+    [1, 2, "165000.00", "ACCEPTED", "Buffet, 220 guests"],
+    [2, 3, "45000.00", "PENDING", null],
+  ];
+  return rows.map(([supplier, number, amount, status, description]) => ({
+    id: `5e000000-0000-4000-8000-5b0${String(number).padStart(9, "0")}`,
+    eventId: SAMPLE_EVENT_IDS.wedding,
+    supplierId: `5e000000-0000-4000-8000-5a0${String(supplier).padStart(9, "0")}`,
+    number,
+    amount,
+    status,
+    description,
+    statusChangedAt: at("2026-10-11T04:00:00Z"),
+    createdAt: at("2026-10-10T04:00:00Z"),
+    updatedAt: at("2026-10-11T04:00:00Z"),
+  }));
+}
+
+/** Four of the wedding's suppliers, so the supplier list has something to show (B4-03). */
+function seedSuppliers(): StoredSupplier[] {
+  const rows: [
+    string,
+    SupplierCategory,
+    string | null,
+    string | null,
+    string | null,
+    string | null,
+  ][] = [
+    [
+      "Garden Kitchen",
+      "CATERING",
+      "Liza Tan",
+      "0917 555 0101",
+      "hello@gardenkitchen.ph",
+      "Tasting on Nov 3",
+    ],
+    ["Loud Studio", "SOUND_AND_LIGHTS", "Rico Mendoza", "0918 555 0102", null, null],
+    ["Bloom Co.", "FLOWERS_AND_STYLING", null, null, "orders@bloomco.ph", "Peonies if in season"],
+    ["Sparkle Lights", "OTHER", "Joy Aquino", "0919 555 0104", null, null],
+  ];
+  return rows.map(([name, category, contactName, phone, email, notes], index) => ({
+    id: `5e000000-0000-4000-8000-5a0${String(index + 1).padStart(9, "0")}`,
+    eventId: SAMPLE_EVENT_IDS.wedding,
+    number: index + 1,
+    name,
+    category,
+    categoryDetail: category === "OTHER" ? "Fireworks" : null,
+    contactName,
+    email,
+    phone,
+    notes,
+    updatedAt: at("2026-10-10T04:00:00Z"),
+  }));
 }
 
 /** Some of the wedding's resources set up, so the Accessibility page shows each status. */
@@ -393,16 +548,16 @@ function seedAttendees(): StoredAttendee[] {
 // reloads share one store.
 // The key has a version: a dev server still holding an older store shape after a code update
 // starts a fresh one instead of failing.
-const globalStore = globalThis as typeof globalThis & { __eventopsSampleDataV3?: SampleStore };
+const globalStore = globalThis as typeof globalThis & { __eventopsSampleDataV6?: SampleStore };
 
 function store(): SampleStore {
-  globalStore.__eventopsSampleDataV3 ??= seed();
-  return globalStore.__eventopsSampleDataV3;
+  globalStore.__eventopsSampleDataV6 ??= seed();
+  return globalStore.__eventopsSampleDataV6;
 }
 
 /** Back to the seeded samples. For tests. */
 export function resetSampleData(): void {
-  globalStore.__eventopsSampleDataV3 = seed();
+  globalStore.__eventopsSampleDataV6 = seed();
 }
 
 function roleOf(s: SampleStore, eventId: string, userId: string): MemberRole | null {
@@ -436,7 +591,15 @@ function toDetails(event: SampleEvent, role: MemberRole): EventDetails {
 
 function addAudit<A extends AuditAction>(
   s: SampleStore,
-  entry: { eventId: string; actorId: string; action: A; details: unknown; now: Date },
+  entry: {
+    eventId: string;
+    actorId: string;
+    action: A;
+    details: unknown;
+    now: Date;
+    /** The record the entry is about, like the database's entityId (B4-07). */
+    entityId?: string;
+  },
 ): void {
   // The same strict schemas as the database writer: an invalid entry throws.
   const details = AUDIT_ACTIONS[entry.action].details.parse(entry.details);
@@ -447,6 +610,7 @@ function addAudit<A extends AuditAction>(
     action: entry.action,
     details,
     createdAt: entry.now,
+    entityId: entry.entityId ?? null,
   });
 }
 
@@ -545,6 +709,9 @@ export function sampleDeleteEvent(args: { eventId: string; userId: string }): De
   s.attendees = s.attendees.filter((a) => a.eventId !== args.eventId);
   s.requirements = s.requirements.filter((r) => r.eventId !== args.eventId);
   s.resources = s.resources.filter((r) => r.eventId !== args.eventId);
+  s.suppliers = s.suppliers.filter((x) => x.eventId !== args.eventId);
+  s.quotes = s.quotes.filter((x) => x.eventId !== args.eventId);
+  s.payments = s.payments.filter((x) => x.eventId !== args.eventId);
   return { ok: true };
 }
 
@@ -1017,11 +1184,456 @@ export function sampleDeleteResource(args: {
   return { ok: true };
 }
 
+// ───────────────────────── Suppliers (B4-03, D-068) ─────────────────────────
+
+const supplierReference = (number: number) => `SUP-${String(number).padStart(4, "0")}`;
+
+function mayManageSuppliers(s: SampleStore, eventId: string, userId: string): boolean {
+  const role = roleOf(s, eventId, userId);
+  return role !== null && rolesAllowed("suppliers.manage").includes(role);
+}
+
+function copySupplier(x: StoredSupplier): SampleSupplier {
+  return {
+    id: x.id,
+    number: x.number,
+    name: x.name,
+    category: x.category,
+    categoryDetail: x.categoryDetail,
+    contactName: x.contactName,
+    email: x.email,
+    phone: x.phone,
+    notes: x.notes,
+    updatedAt: new Date(x.updatedAt),
+  };
+}
+
+/** Stand-in for listing an event's suppliers: this event only, by name, then number. Copies. */
+export function sampleListSuppliers(eventId: string): SampleSupplier[] {
+  return store()
+    .suppliers.filter((x) => x.eventId === eventId)
+    .sort((a, b) => a.name.localeCompare(b.name) || a.number - b.number)
+    .map(copySupplier);
+}
+
+/** Stand-in for getSupplier: only if it belongs to this event. Null otherwise. A copy. */
+export function sampleGetSupplier(eventId: string, supplierId: string): SampleSupplier | null {
+  const found = store().suppliers.find((x) => x.id === supplierId && x.eventId === eventId);
+  return found ? copySupplier(found) : null;
+}
+
+/**
+ * Stand-in for updateSupplier: suppliers.manage re-checked here, stale versions refused (D-032),
+ * and a supplier.updated entry. `changes` is the audit diff the caller computed with the suppliers
+ * context's rules; it is validated by the audit registry like every entry.
+ */
+export function sampleUpdateSupplier(args: {
+  eventId: string;
+  supplierId: string;
+  editorId: string;
+  version: Date;
+  details: SampleSupplierInput;
+  changes: Record<string, unknown>;
+  now: Date;
+}): { ok: true } | { ok: false; reason: "stale" | "not-found" } {
+  const s = store();
+  const supplier = s.suppliers.find((x) => x.id === args.supplierId && x.eventId === args.eventId);
+  if (!supplier || !mayManageSuppliers(s, args.eventId, args.editorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  if (supplier.updatedAt.getTime() !== args.version.getTime())
+    return { ok: false, reason: "stale" };
+  // Never the same millisecond as the version the form holds, so the next save is not "stale".
+  const now = new Date(Math.max(args.now.getTime(), supplier.updatedAt.getTime() + 1));
+  if (Object.keys(args.changes).length > 0) {
+    addAudit(s, {
+      eventId: args.eventId,
+      actorId: args.editorId,
+      entityId: supplier.id,
+      action: "supplier.updated",
+      details: { reference: supplierReference(supplier.number), changes: args.changes },
+      now,
+    });
+  }
+  const { name, category, categoryDetail, contactName, email, phone, notes } = args.details;
+  Object.assign(supplier, {
+    name,
+    category,
+    categoryDetail,
+    contactName,
+    email,
+    phone,
+    notes,
+    updatedAt: now,
+  });
+  return { ok: true };
+}
+
+/**
+ * Stand-in for deleteSupplier (B4-05, D-072): members with suppliers.manage only, inside the event
+ * only. The audit entry keeps the readable ID and name; the number is never reused.
+ */
+export function sampleDeleteSupplier(args: {
+  eventId: string;
+  supplierId: string;
+  userId: string;
+  now: Date;
+}): { ok: true; reference: string } | { ok: false } {
+  const s = store();
+  const supplier = s.suppliers.find((x) => x.id === args.supplierId && x.eventId === args.eventId);
+  if (!supplier || !mayManageSuppliers(s, args.eventId, args.userId)) return { ok: false };
+  const reference = supplierReference(supplier.number);
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.userId,
+    entityId: supplier.id,
+    action: "supplier.deleted",
+    details: { reference, name: supplier.name },
+    now: args.now,
+  });
+  s.suppliers = s.suppliers.filter((x) => x !== supplier);
+  // Like the composite foreign key's cascade (D-072, D-075): the supplier's quotes go with it.
+  s.quotes = s.quotes.filter((q) => q.supplierId !== supplier.id);
+  s.payments = s.payments.filter((p) => p.supplierId !== supplier.id);
+  return { ok: true, reference };
+}
+
+/**
+ * Stand-in for createSupplier: members with suppliers.manage only (re-checked here, like the
+ * database), the event's next SUP number, and a supplier.created entry.
+ */
+export function sampleCreateSupplier(args: {
+  eventId: string;
+  creatorId: string;
+  supplier: SampleSupplierInput;
+  now: Date;
+}): { ok: true; supplier: { id: string; reference: string } } | { ok: false } {
+  const s = store();
+  if (!s.events.some((e) => e.id === args.eventId)) return { ok: false };
+  if (!mayManageSuppliers(s, args.eventId, args.creatorId)) return { ok: false };
+  // Only counts up, so a removed supplier's number is never given out again (D-068).
+  const number = (s.lastSupplierNumber.get(args.eventId) ?? 0) + 1;
+  s.lastSupplierNumber.set(args.eventId, number);
+  const reference = supplierReference(number);
+  const id = crypto.randomUUID();
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.creatorId,
+    entityId: id,
+    action: "supplier.created",
+    details: {
+      reference,
+      name: args.supplier.name,
+      category: args.supplier.category,
+      categoryDetail: args.supplier.categoryDetail,
+    },
+    now: args.now,
+  });
+  s.suppliers.push({ ...args.supplier, id, eventId: args.eventId, number, updatedAt: args.now });
+  return { ok: true, supplier: { id, reference } };
+}
+
+// ───────────────────────── Quotes (B4-09, D-075, D-076) ─────────────────────────
+
+const quoteReference = (number: number) => `QUO-${String(number).padStart(4, "0")}`;
+
+function copyQuote(q: StoredQuote): SampleQuote {
+  return {
+    id: q.id,
+    supplierId: q.supplierId,
+    number: q.number,
+    amount: q.amount,
+    status: q.status,
+    description: q.description,
+    statusChangedAt: new Date(q.statusChangedAt),
+    createdAt: new Date(q.createdAt),
+    updatedAt: new Date(q.updatedAt),
+  };
+}
+
+/** Stand-in for listSupplierQuotes: this event's supplier only, by number. Copies. */
+export function sampleListQuotes(eventId: string, supplierId: string): SampleQuote[] {
+  return store()
+    .quotes.filter((q) => q.eventId === eventId && q.supplierId === supplierId)
+    .sort((a, b) => a.number - b.number)
+    .map(copyQuote);
+}
+
+/** Stand-in for getQuote: only if it belongs to this supplier of this event. A copy. */
+export function sampleGetQuote(
+  eventId: string,
+  supplierId: string,
+  quoteId: string,
+): SampleQuote | null {
+  const found = store().quotes.find(
+    (q) => q.id === quoteId && q.eventId === eventId && q.supplierId === supplierId,
+  );
+  return found ? copyQuote(found) : null;
+}
+
+/** The supplier's Accepted quote other than `exceptId`, as its readable ID, or null (D-076). */
+function sampleAcceptedQuote(s: SampleStore, supplierId: string, exceptId?: string) {
+  const accepted = s.quotes.find(
+    (q) => q.supplierId === supplierId && q.status === "ACCEPTED" && q.id !== exceptId,
+  );
+  return accepted ? quoteReference(accepted.number) : null;
+}
+
+/**
+ * Stand-in for createQuote: suppliers.manage re-checked here, this event's supplier only, at most
+ * one Accepted quote per supplier (D-076), the event's next QUO number, and a quote.created entry.
+ */
+export function sampleCreateQuote(args: {
+  eventId: string;
+  supplierId: string;
+  creatorId: string;
+  quote: SampleQuoteInput;
+  now: Date;
+}):
+  | { ok: true; quote: { id: string; reference: string } }
+  | { ok: false; reason: "not-found" }
+  | { ok: false; reason: "another-accepted"; reference: string } {
+  const s = store();
+  const supplier = s.suppliers.find((x) => x.id === args.supplierId && x.eventId === args.eventId);
+  if (!supplier || !mayManageSuppliers(s, args.eventId, args.creatorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  const accepted = args.quote.status === "ACCEPTED" ? sampleAcceptedQuote(s, supplier.id) : null;
+  if (accepted) return { ok: false, reason: "another-accepted", reference: accepted };
+  // Only counts up, so a number is never given out again (D-075).
+  const number = (s.lastQuoteNumber.get(args.eventId) ?? 0) + 1;
+  s.lastQuoteNumber.set(args.eventId, number);
+  const reference = quoteReference(number);
+  const id = crypto.randomUUID();
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.creatorId,
+    entityId: id,
+    action: "quote.created",
+    details: {
+      reference,
+      supplierReference: supplierReference(supplier.number),
+      amount: args.quote.amount,
+      status: args.quote.status,
+      description: args.quote.description,
+    },
+    now: args.now,
+  });
+  s.quotes.push({
+    ...args.quote,
+    id,
+    eventId: args.eventId,
+    supplierId: supplier.id,
+    number,
+    statusChangedAt: args.now,
+    createdAt: args.now,
+    updatedAt: args.now,
+  });
+  return { ok: true, quote: { id, reference } };
+}
+
+/**
+ * Stand-in for updateQuote: suppliers.manage re-checked here, this supplier's quote in this event
+ * only, stale versions refused (D-032), at most one Accepted quote per supplier (D-076), and a
+ * quote.updated entry when something changed. `changes` is the audit diff the caller computed with
+ * the suppliers context's rules.
+ */
+export function sampleUpdateQuote(args: {
+  eventId: string;
+  supplierId: string;
+  quoteId: string;
+  editorId: string;
+  version: Date;
+  quote: SampleQuoteInput;
+  changes: Record<string, unknown>;
+  now: Date;
+}):
+  | { ok: true; changed: boolean; reference: string }
+  | { ok: false; reason: "not-found" | "stale" }
+  | { ok: false; reason: "another-accepted"; reference: string } {
+  const s = store();
+  const supplier = s.suppliers.find((x) => x.id === args.supplierId && x.eventId === args.eventId);
+  const quote = s.quotes.find(
+    (q) => q.id === args.quoteId && q.eventId === args.eventId && q.supplierId === args.supplierId,
+  );
+  if (!supplier || !quote || !mayManageSuppliers(s, args.eventId, args.editorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  if (quote.updatedAt.getTime() !== args.version.getTime()) return { ok: false, reason: "stale" };
+  const reference = quoteReference(quote.number);
+  if (Object.keys(args.changes).length === 0) return { ok: true, changed: false, reference };
+  const statusChanged = quote.status !== args.quote.status;
+  if (statusChanged && args.quote.status === "ACCEPTED") {
+    const accepted = sampleAcceptedQuote(s, supplier.id, quote.id);
+    if (accepted) return { ok: false, reason: "another-accepted", reference: accepted };
+  }
+  // Never the same millisecond as the version the form holds, so the next save is not "stale".
+  const now = new Date(Math.max(args.now.getTime(), quote.updatedAt.getTime() + 1));
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.editorId,
+    entityId: quote.id,
+    action: "quote.updated",
+    details: {
+      reference,
+      supplierReference: supplierReference(supplier.number),
+      changes: args.changes,
+    },
+    now,
+  });
+  Object.assign(quote, {
+    amount: args.quote.amount,
+    status: args.quote.status,
+    description: args.quote.description,
+    updatedAt: now,
+    ...(statusChanged ? { statusChangedAt: now } : {}),
+  });
+  return { ok: true, changed: true, reference };
+}
+
+// ───────────────────────── Payments (B4-14, D-077) ─────────────────────────
+
+const paymentReference = (number: number) => `PAY-${String(number).padStart(4, "0")}`;
+
+function copyPayment(p: StoredPayment): SamplePayment {
+  return {
+    id: p.id,
+    supplierId: p.supplierId,
+    number: p.number,
+    kind: p.kind,
+    amount: p.amount,
+    dueDate: p.dueDate,
+    status: p.status,
+    paidOn: p.paidOn,
+    description: p.description,
+    createdAt: new Date(p.createdAt),
+    updatedAt: new Date(p.updatedAt),
+  };
+}
+
+/** Stand-in for listSupplierPayments: this event's supplier only, by due date then number. */
+export function sampleListPayments(eventId: string, supplierId: string): SamplePayment[] {
+  return store()
+    .payments.filter((p) => p.eventId === eventId && p.supplierId === supplierId)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.number - b.number)
+    .map(copyPayment);
+}
+
+/** Every payment of the event's suppliers (for the supplier list, B4-16). Copies. */
+export function sampleListEventPayments(eventId: string): SamplePayment[] {
+  return store()
+    .payments.filter((p) => p.eventId === eventId)
+    .map(copyPayment);
+}
+
+/** Stand-in for getPayment: only if it belongs to this supplier of this event. A copy. */
+export function sampleGetPayment(
+  eventId: string,
+  supplierId: string,
+  paymentId: string,
+): SamplePayment | null {
+  const found = store().payments.find(
+    (p) => p.id === paymentId && p.eventId === eventId && p.supplierId === supplierId,
+  );
+  return found ? copyPayment(found) : null;
+}
+
+/**
+ * Stand-in for createPayment: suppliers.manage re-checked here, this event's supplier only, the
+ * event's next PAY number, and a payment.created entry.
+ */
+export function sampleCreatePayment(args: {
+  eventId: string;
+  supplierId: string;
+  creatorId: string;
+  payment: SamplePaymentInput;
+  now: Date;
+}): { ok: true; payment: { id: string; reference: string } } | { ok: false; reason: "not-found" } {
+  const s = store();
+  const supplier = s.suppliers.find((x) => x.id === args.supplierId && x.eventId === args.eventId);
+  if (!supplier || !mayManageSuppliers(s, args.eventId, args.creatorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  const number = (s.lastPaymentNumber.get(args.eventId) ?? 0) + 1;
+  s.lastPaymentNumber.set(args.eventId, number);
+  const reference = paymentReference(number);
+  const id = crypto.randomUUID();
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.creatorId,
+    entityId: id,
+    action: "payment.created",
+    details: { reference, supplierReference: supplierReference(supplier.number), ...args.payment },
+    now: args.now,
+  });
+  s.payments.push({
+    ...args.payment,
+    id,
+    eventId: args.eventId,
+    supplierId: supplier.id,
+    number,
+    createdAt: args.now,
+    updatedAt: args.now,
+  });
+  return { ok: true, payment: { id, reference } };
+}
+
+/**
+ * Stand-in for updatePayment: suppliers.manage re-checked here, this supplier's payment in this
+ * event only, stale versions refused (D-032), and a payment.updated entry when something changed.
+ * `changes` is the audit diff the caller computed with the suppliers context's rules.
+ */
+export function sampleUpdatePayment(args: {
+  eventId: string;
+  supplierId: string;
+  paymentId: string;
+  editorId: string;
+  version: Date;
+  payment: SamplePaymentInput;
+  changes: Record<string, unknown>;
+  now: Date;
+}):
+  { ok: true; changed: boolean; reference: string } | { ok: false; reason: "not-found" | "stale" } {
+  const s = store();
+  const supplier = s.suppliers.find((x) => x.id === args.supplierId && x.eventId === args.eventId);
+  const payment = s.payments.find(
+    (p) =>
+      p.id === args.paymentId && p.eventId === args.eventId && p.supplierId === args.supplierId,
+  );
+  if (!supplier || !payment || !mayManageSuppliers(s, args.eventId, args.editorId)) {
+    return { ok: false, reason: "not-found" };
+  }
+  if (payment.updatedAt.getTime() !== args.version.getTime()) return { ok: false, reason: "stale" };
+  const reference = paymentReference(payment.number);
+  if (Object.keys(args.changes).length === 0) return { ok: true, changed: false, reference };
+  // Never the same millisecond as the version the form holds, so the next save is not "stale".
+  const now = new Date(Math.max(args.now.getTime(), payment.updatedAt.getTime() + 1));
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.editorId,
+    entityId: payment.id,
+    action: "payment.updated",
+    details: {
+      reference,
+      supplierReference: supplierReference(supplier.number),
+      changes: args.changes,
+    },
+    now,
+  });
+  Object.assign(payment, { ...args.payment, updatedAt: now });
+  return { ok: true, changed: true, reference };
+}
+
 /** Stand-in for listAuditEntries. Not an access check: callers authorize first. */
-export function sampleListAuditEntries(eventId: string, limit = 100): AuditEntryView[] {
+export function sampleListAuditEntries(
+  eventId: string,
+  limit = 100,
+  entityIds?: readonly string[],
+): AuditEntryView[] {
   const s = store();
   return s.audit
     .filter((a) => a.eventId === eventId)
+    .filter((a) => !entityIds || (a.entityId != null && entityIds.includes(a.entityId)))
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, limit)
     .map((a) => ({

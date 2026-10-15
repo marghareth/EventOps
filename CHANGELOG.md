@@ -9,6 +9,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B4-05 Removing suppliers (D-072).**
+  - Owners and Coordinators can remove a supplier after confirming. Removal is permanent; Activity
+    keeps the supplier's number and name, and numbers are never reused.
+
+- **B4-04 Editing suppliers (D-071).**
+  - Owners and Coordinators can edit a supplier from the Suppliers page. If someone else saved the
+    supplier first, the save is refused so nothing is overwritten. Activity shows what changed,
+    without contact details.
+
+- **B4-03 Adding suppliers (D-070).**
+  - Owners and Coordinators can add a supplier with its name, category, contact person, phone,
+    email and notes. Every member sees the event's suppliers on the Suppliers page, with phone and
+    email as links. Each addition appears in Activity.
+
+- **B4-02 Supplier categories (D-069).**
+  - Suppliers are grouped by a fixed list of thirteen categories, from Venue and Catering to
+    Printing and stationery. "Other" asks what the supplier provides, for example "Fireworks".
+
+- **B4-01 Supplier data model (D-068).**
+  - Each event can now store its own suppliers: a readable number (SUP-0001), name, category,
+    contact person, email, phone and notes. Suppliers belong to one event only and are deleted with
+    it.
+
 - **B3-20 Accessibility batch verification.**
   - Every local check passes and is recorded in docs/gates/BATCH-3.md. CI and the first
     `prisma migrate deploy` of the accessibility migration have not run yet.

@@ -6,12 +6,12 @@ The source of truth is `prisma/schema.prisma` plus the migrations in `prisma/mig
 explains the rules the schema alone does not make obvious. Decisions are recorded in
 [DECISIONS.md](DECISIONS.md).
 
-**Status (B3-01):** the database has `users`, `events`, `event_members`,
-`event_reference_counters`, `audit_logs`, `attendees`, `accessibility_requirements` and
-`accessibility_resources`, created by migrations `20261009143000_init` (B0-08),
+**Status (B4-01):** the database has `users`, `events`, `event_members`,
+`event_reference_counters`, `audit_logs`, `attendees`, `accessibility_requirements`,
+`accessibility_resources` and `suppliers`, created by migrations `20261009143000_init` (B0-08),
 `20261011090000_event_ownership` (B1-01), `20261012090000_audit_log` (B1-11),
-`20261012120000_attendees` (B2-01) and `20261013120000_accessibility` (B3-01). Other tables are added
-by their batch tasks (D-008).
+`20261012120000_attendees` (B2-01), `20261013120000_accessibility` (B3-01) and
+`20261014090000_suppliers` (B4-01). Other tables are added by their batch tasks (D-008).
 
 ## Connections
 
@@ -39,20 +39,21 @@ Mirror of the Supabase Auth user, same `id`. Created on first sign-in.
 
 ### `events` (model `Event`)
 
-| Column                   | Type          | Rules                                                                                                                            |
-| ------------------------ | ------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                     | uuid          | Primary key, generated                                                                                                           |
-| `reference`              | text          | Required, unique, for example `EVT-2026-0001` (D-005)                                                                            |
-| `name`                   | varchar(120)  | Required, not blank (CHECK), at most 120 characters (D-023)                                                                      |
-| `description`            | varchar(5000) | Optional, at most 5,000 characters (D-023)                                                                                       |
-| `venue`                  | varchar(200)  | Optional, at most 200 characters (D-023)                                                                                         |
-| `startsAt`               | timestamp     | Required                                                                                                                         |
-| `endsAt`                 | timestamp     | Optional; not before `startsAt` (CHECK)                                                                                          |
-| `capacity`               | integer       | Optional; greater than 0 when set (CHECK)                                                                                        |
-| `expectedAttendees`      | integer       | Defaults to 0; not negative (CHECK). A planning number, not a count of records.                                                  |
-| `status`                 | event_status  | `DRAFT` (default), `PLANNING`, `LIVE`, `COMPLETED`, `CANCELLED`                                                                  |
-| `createdById`            | uuid          | Required; FK to `users.id`, ON DELETE RESTRICT (D-011)                                                                           |
-| `createdAt`, `updatedAt` | timestamp     | `createdAt` set on insert. `updatedAt` set by Prisma on every update through the client; raw SQL updates must set it themselves. |
+| Column                                     | Type          | Rules                                                                                                                                 |
+| ------------------------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                       | uuid          | Primary key, generated                                                                                                                |
+| `reference`                                | text          | Required, unique, for example `EVT-2026-0001` (D-005)                                                                                 |
+| `name`                                     | varchar(120)  | Required, not blank (CHECK), at most 120 characters (D-023)                                                                           |
+| `description`                              | varchar(5000) | Optional, at most 5,000 characters (D-023)                                                                                            |
+| `venue`                                    | varchar(200)  | Optional, at most 200 characters (D-023)                                                                                              |
+| `startsAt`                                 | timestamp     | Required                                                                                                                              |
+| `endsAt`                                   | timestamp     | Optional; not before `startsAt` (CHECK)                                                                                               |
+| `capacity`                                 | integer       | Optional; greater than 0 when set (CHECK)                                                                                             |
+| `expectedAttendees`                        | integer       | Defaults to 0; not negative (CHECK). A planning number, not a count of records.                                                       |
+| `lastAttendeeNumber`, `lastSupplierNumber` | integer       | Last readable number issued (`ATT-`, `SUP-`); 0 or more (CHECK); incremented in the creating transaction, never reused (D-042, D-068) |
+| `status`                                   | event_status  | `DRAFT` (default), `PLANNING`, `LIVE`, `COMPLETED`, `CANCELLED`                                                                       |
+| `createdById`                              | uuid          | Required; FK to `users.id`, ON DELETE RESTRICT (D-011)                                                                                |
+| `createdAt`, `updatedAt`                   | timestamp     | `createdAt` set on insert. `updatedAt` set by Prisma on every update through the client; raw SQL updates must set it themselves.      |
 
 Indexes: `reference` (unique), `createdById`, `(status, startsAt)`.
 
@@ -170,6 +171,63 @@ What the event provides for one resource type. No row for a type means "Not set 
 | `updatedAt` | timestamp                          | Set on every change; edits refuse stale saves with it (D-032)         |
 
 Indexes: unique `(eventId, type)` (one row per type per event), unique `(eventId, id)` (D-002).
+
+### `suppliers` (model `Supplier`, B4-01, D-068)
+
+A supplier of one event. Suppliers are strictly event-specific: the same business used for two
+events is two rows, and nothing is shared between events.
+
+| Column           | Type                     | Notes                                                                                     |
+| ---------------- | ------------------------ | ----------------------------------------------------------------------------------------- |
+| `id`             | uuid                     | Primary key                                                                               |
+| `eventId`        | uuid                     | Required. Foreign key to `events`, `ON DELETE CASCADE` (D-004)                            |
+| `number`         | integer                  | Readable ID `SUP-0001`, per event, from `events.lastSupplierNumber`; 1 or more (CHECK)    |
+| `name`           | varchar(120)             | Required, not blank (CHECK). Duplicates allowed: the number tells them apart              |
+| `category`       | enum `supplier_category` | Required; one of the canonical categories (D-069)                                         |
+| `categoryDetail` | varchar(60), optional    | Required for `OTHER` (what they provide, for example "Fireworks"); NULL otherwise (CHECK) |
+| `contactName`    | varchar(120), optional   | The person to talk to                                                                     |
+| `email`          | varchar(254), optional   | Stored trimmed and lower case                                                             |
+| `phone`          | varchar(32), optional    |                                                                                           |
+| `notes`          | varchar(2000), optional  | Details the team needs, for example "Tasting on Nov 3"                                    |
+| `createdAt`      | timestamp                | Set automatically                                                                         |
+| `updatedAt`      | timestamp                | Set on every change; edits refuse stale saves with it (D-032)                             |
+
+Indexes: unique `(eventId, number)`, unique `(eventId, id)` (target of later composite foreign keys
+from supplier payments, budget lines and tasks, D-002), `(eventId, name)` and `(eventId, category)`
+for the supplier list. Optional text is NULL or has content (CHECK). Quotes, deposits, payments and
+due dates are added by later Batch 4 tasks, following D-003.
+
+## Supplier categories (B4-02, D-069)
+
+Categories are a controlled list, not free text, so "Catering" and "catering services" can't both
+appear. The canonical list is `src/modules/events/suppliers/categories.ts`; the form, server
+validation, lists, the audit registry's copy and the database enum `supplier_category` follow it,
+and tests keep them equal.
+
+| Value                     | Label                   | Covers                                             |
+| ------------------------- | ----------------------- | -------------------------------------------------- |
+| `VENUE`                   | Venue                   | Where the event takes place.                       |
+| `CATERING`                | Catering                | Food and drinks for guests.                        |
+| `CAKE_AND_DESSERTS`       | Cake and desserts       | Cakes, pastries, dessert tables.                   |
+| `PHOTO_AND_VIDEO`         | Photo and video         | Photographers and videographers.                   |
+| `SOUND_AND_LIGHTS`        | Sound and lights        | Sound systems, lighting and technical crew.        |
+| `ENTERTAINMENT`           | Entertainment           | Bands, DJs, hosts and performers.                  |
+| `FLOWERS_AND_STYLING`     | Flowers and styling     | Florists, stylists and decorations.                |
+| `HAIR_AND_MAKEUP`         | Hair and makeup         | Hair and makeup artists.                           |
+| `ATTIRE`                  | Attire                  | Gowns, suits and costume rentals.                  |
+| `RENTALS`                 | Rentals                 | Tables, chairs, tents, linens and other equipment. |
+| `TRANSPORT`               | Transport               | Cars, vans and shuttles.                           |
+| `PRINTING_AND_STATIONERY` | Printing and stationery | Invitations, signage, programs and other print.    |
+| `OTHER`                   | Other                   | Anything else; says what the supplier provides.    |
+
+- **Other** requires a short description (`categoryDetail`, up to 60 characters), shown as
+  "Other: Fireworks". Every other category stores no detail; a value sent with another category is
+  dropped, never stored (CHECK `suppliers_category_detail`).
+- **Only canonical values** are accepted, exactly as listed: "catering" or an unknown value is
+  refused with "Choose what the supplier provides." The detail is trimmed, with inner spaces
+  collapsed.
+- **Extending:** a new category is one entry in the canonical list and a migration adding the enum
+  value. Rule packs per event type are Tier 3.
 
 ## Attendees at a glance (Batch 2)
 
@@ -514,6 +572,11 @@ place.
 | `audit_logs_action_format`                  | `action` looks like `<entity>.<verb>` in lower case.                                                |
 | `audit_logs_entity_pair`                    | `entityType` and `entityId` are both set or both NULL.                                              |
 | `events_last_attendee_number_nonneg`        | `lastAttendeeNumber` is 0 or more.                                                                  |
+| `events_last_supplier_number_nonneg`        | `lastSupplierNumber` is 0 or more.                                                                  |
+| `suppliers_name_not_blank`                  | `name` has at least one non-space character.                                                        |
+| `suppliers_number_positive`                 | `number` is 1 or more.                                                                              |
+| `suppliers_category_detail`                 | `categoryDetail` is set and not blank for `OTHER`, and NULL for every other category.               |
+| `suppliers_optional_text_not_blank`         | `contactName`, `email`, `phone` and `notes` are NULL or contain a non-space character.              |
 | `attendees_name_not_blank`                  | `name` contains at least one non-space character.                                                   |
 | `attendees_number_positive`                 | `number` is 1 or more.                                                                              |
 | `attendees_plus_ones_range`                 | `plusOnes` is from 0 to 10.                                                                         |
@@ -553,15 +616,16 @@ inside its own trigger).
 
 Who may delete what is set by the permission matrix (D-031, D-033).
 
-| Deleted row               | Effect                                                                                                                                                                                                      |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Event                     | Owners only (D-033). Its memberships, attendees, accessibility requirements and resources, and audit log are deleted (cascade). Later event-owned tables also cascade (D-004).                              |
-| Attendee                  | Owners and Coordinators (`attendees.manage`, D-035). Permanently deleted; an `attendee.deleted` audit entry keeps its number and name. Its accessibility requirements are deleted with it (cascade, D-056). |
-| Accessibility requirement | Owners and Coordinators (`accessibility.manage`). Permanently deleted; the audit entry keeps the attendee number and the type.                                                                              |
-| Accessibility resource    | Owners and Coordinators (`accessibility.manage`). Permanently deleted; the type then shows as "Not set up".                                                                                                 |
-| User                      | Blocked while the user created any event (D-011), or is the last `OWNER` of any event (D-022). Otherwise their memberships are deleted.                                                                     |
-| Membership                | Blocked if it is the event's last `OWNER` (D-022). Demoting or moving the last `OWNER` is blocked too.                                                                                                      |
-| Audit log entry           | Never deleted directly (D-037). Removed only with its event.                                                                                                                                                |
+| Deleted row               | Effect                                                                                                                                                                                                                                                                                                                 |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Event                     | Owners only (D-033). Its memberships, attendees, accessibility requirements and resources, suppliers, and audit log are deleted (cascade). Later event-owned tables also cascade (D-004).                                                                                                                              |
+| Attendee                  | Owners and Coordinators (`attendees.manage`, D-035). Permanently deleted; an `attendee.deleted` audit entry keeps its number and name. Its accessibility requirements are deleted with it (cascade, D-056).                                                                                                            |
+| Accessibility requirement | Owners and Coordinators (`accessibility.manage`). Permanently deleted; the audit entry keeps the attendee number and the type.                                                                                                                                                                                         |
+| Supplier                  | Owners and Coordinators (`suppliers.manage`, D-072). Permanently deleted; a `supplier.deleted` audit entry keeps its number and name, and numbers are never reused. Its payments will be deleted with it, its budget line unlinked keeping its totals, and task links cleared (D-002, D-003), when those tables exist. |
+| Accessibility resource    | Owners and Coordinators (`accessibility.manage`). Permanently deleted; the type then shows as "Not set up".                                                                                                                                                                                                            |
+| User                      | Blocked while the user created any event (D-011), or is the last `OWNER` of any event (D-022). Otherwise their memberships are deleted.                                                                                                                                                                                |
+| Membership                | Blocked if it is the event's last `OWNER` (D-022). Demoting or moving the last `OWNER` is blocked too.                                                                                                                                                                                                                 |
+| Audit log entry           | Never deleted directly (D-037). Removed only with its event.                                                                                                                                                                                                                                                           |
 
 ## Reading events
 

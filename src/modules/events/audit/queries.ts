@@ -1,6 +1,7 @@
 // src/modules/events/audit/queries.ts
-// Reads the audit log for one event (B1-11). Not an access check: callers must authorize first
-// (getEventActivity in the events context does, with the audit.view permission, D-035).
+// Reads the audit log for one event (B1-11), optionally only the entries about given records (for
+// example a supplier and its quotes, B4-07). Not an access check: callers must authorize first with
+// the audit.view permission (getEventActivity in the events context, getSupplierDetail, D-035).
 import "server-only";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { readAuditDetails, type AuditAction } from "./actions";
@@ -19,9 +20,11 @@ export async function listAuditEntries(
   db: PrismaClient,
   eventId: string,
   limit = 100,
+  /** Only entries about these records (their entityId). Omitted: every entry of the event. */
+  entityIds?: readonly string[],
 ): Promise<AuditEntryView[]> {
   const rows = await db.auditLog.findMany({
-    where: { eventId },
+    where: { eventId, ...(entityIds ? { entityId: { in: [...entityIds] } } : {}) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit,
     select: {
