@@ -215,6 +215,41 @@ export const paymentChangesSchema = z
 
 export type PaymentChanges = z.infer<typeof paymentChangesSchema>;
 
+/** The budget item's readable ID, for example BUD-0001 (D-085). */
+const budgetItemReference = z.string().regex(/^BUD-\d{4,}$/);
+
+/**
+ * Budget category fields as recorded in "budget_category.updated" (B5-F01, D-084). Name and
+ * allocation are business values, recorded old → new.
+ */
+export const budgetCategoryChangesSchema = z
+  .object({ name: fromTo(z.string()), allocation: fromTo(pesoAmount) })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, "An update must change something.");
+
+export type BudgetCategoryChanges = z.infer<typeof budgetCategoryChangesSchema>;
+
+/**
+ * Budget item fields as recorded in "budget_item.updated" (B5-F02, D-085). A move to another
+ * category is recorded by category NAME, old → new. Amounts are business values, old → new; the
+ * notes are free text, recorded as changed, never copied.
+ */
+export const budgetItemChangesSchema = z
+  .object({
+    category: fromTo(z.string()),
+    name: fromTo(z.string()),
+    estimated: fromTo(pesoAmount),
+    committed: fromTo(pesoAmount),
+    paid: fromTo(pesoAmount),
+    notes: changedOnly,
+  })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, "An update must change something.");
+
+export type BudgetItemChanges = z.infer<typeof budgetItemChangesSchema>;
+
 /** Who an attendee entry is about: the readable ID and the name at that moment. */
 const attendeeIdentity = z.object({ reference: attendeeReference, name: z.string() }).strict();
 
@@ -379,6 +414,50 @@ export const AUDIT_ACTIONS = {
     details: z
       .object({ reference: paymentReference, supplierReference, changes: paymentChangesSchema })
       .strict(),
+  },
+  /** A budget category was added (B5-F01, D-084): its name and allocation in pesos. */
+  "budget_category.created": {
+    entityType: "budget_category",
+    details: z.object({ name: z.string(), allocation: pesoAmount }).strict(),
+  },
+  /** A budget category was edited (B5-F01). The new name, and only the changed fields, old → new. */
+  "budget_category.updated": {
+    entityType: "budget_category",
+    details: z.object({ name: z.string(), changes: budgetCategoryChangesSchema }).strict(),
+  },
+  /** An empty budget category was removed (B5-F01, D-084). The entry keeps its name and allocation. */
+  "budget_category.deleted": {
+    entityType: "budget_category",
+    details: z.object({ name: z.string(), allocation: pesoAmount }).strict(),
+  },
+  /**
+   * A budget item was added (B5-F02, D-085): its readable ID, name, category name and the three
+   * amounts. Notes are never copied into the log.
+   */
+  "budget_item.created": {
+    entityType: "budget_item",
+    details: z
+      .object({
+        reference: budgetItemReference,
+        name: z.string(),
+        category: z.string(),
+        estimated: pesoAmount,
+        committed: pesoAmount,
+        paid: pesoAmount,
+      })
+      .strict(),
+  },
+  /** A budget item was edited (B5-F02). Only changed fields; the notes as "changed". */
+  "budget_item.updated": {
+    entityType: "budget_item",
+    details: z
+      .object({ reference: budgetItemReference, changes: budgetItemChangesSchema })
+      .strict(),
+  },
+  /** A budget item was removed (B5-F02). The entry keeps the readable ID and the name. */
+  "budget_item.deleted": {
+    entityType: "budget_item",
+    details: z.object({ reference: budgetItemReference, name: z.string() }).strict(),
   },
 } as const;
 
