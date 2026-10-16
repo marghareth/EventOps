@@ -3,13 +3,13 @@
 // strings are added as whole centavos in BigInt, never as floating-point numbers (PROJECT_RULES
 // section 6.1), so 0.10 + 0.20 is exactly 0.30.
 //
-// DELIBERATELY NOT HERE: remaining, over-budget, spent basis, statuses, and any supplier-derived
-// committed amount. Those rules are not approved (D-085, BQ-06, BQ-07). Totals are calculated on
-// demand and never stored (PROJECT_RULES section 6).
+// NOT HERE: remaining, over-budget, spent basis and statuses live in budget-summary.ts (D-088), and
+// any supplier-derived committed amount comes with D-089. Totals are calculated on demand and
+// never stored (PROJECT_RULES section 6).
 
-const toCentavos = (pesos: string): bigint => BigInt(pesos.replace(".", ""));
+export const toCentavos = (pesos: string): bigint => BigInt(pesos.replace(".", ""));
 
-function fromCentavos(centavos: bigint): string {
+export function fromCentavos(centavos: bigint): string {
   const digits = centavos.toString().padStart(3, "0");
   return `${digits.slice(0, -2)}.${digits.slice(-2)}`;
 }

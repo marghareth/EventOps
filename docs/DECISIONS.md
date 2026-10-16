@@ -94,6 +94,15 @@ Status values:
 | D-081 | The supplier list                                           | Approved | 2026-10-14 |
 | D-082 | Supplier search                                             | Approved | 2026-10-14 |
 | D-083 | Supplier filters                                            | Approved | 2026-10-14 |
+| D-084 | Budget categories and allocations                           | Approved | 2026-10-16 |
+| D-085 | Budget items                                                | Approved | 2026-10-16 |
+| D-086 | Estimated, committed and paid totals                        | Approved | 2026-10-16 |
+| D-087 | Total allocated                                             | Approved | 2026-10-16 |
+| D-088 | Remaining budget and over-budget                            | Approved | 2026-10-16 |
+| D-089 | Linking a budget item to a supplier (implements D-003)      | Approved | 2026-10-16 |
+| D-090 | Over-budget warning                                         | Approved | 2026-10-16 |
+| D-091 | Budget data is scoped to one event                          | Approved | 2026-10-16 |
+| D-092 | Budget authorization and validation checkpoint              | Proposed | 2026-10-16 |
 
 ---
 
@@ -2201,6 +2210,257 @@ the code was written before this approval (17:57 Manila time) and finished and a
 composition, clearing, wording), `suppliers/authorization.db.test.ts` (Event B's matching supplier
 never shown; composition on stored data), `src/app/(app)/events/[eventId]/suppliers/pages.test.tsx`,
 `e2e/lifecycle/supplier-flow.spec.ts` step 9 (375 px: reload, back, no match, clear).
+
+---
+
+## D-084 Budget categories and allocations
+
+**Status:** Approved by the technical lead on 2026-10-16 (written retroactively; built in B5-F01, migration `20261015090000_budget`).
+
+**Decision.**
+
+- A **category** is a named group of budget items that belongs to exactly one event and is deleted
+  with it (D-004).
+- **Name:** 1 to 120 characters, trimmed, runs of inner spaces collapsed to one. Two categories of one
+  event cannot differ only by letter case (unique index on `(eventId, lower(name))`).
+- **Allocation:** the pesos set aside for the category. It is a planning number the user enters and is
+  never derived from items. ₱0.00 or more, at most ₱9,999,999,999.99 (`Decimal(12,2)`), exact to the
+  centavo. The parser refuses more than two decimals instead of rounding.
+- **Removal:** only an empty category can be removed. A category with items is refused (use case check,
+  backed by a `NO ACTION` foreign key).
+- **Permissions:** every member reads (`event.view`); Owners and Coordinators write (`budget.manage`).
+  The role is checked on the server and again in the write.
+- **Concurrency:** a save carrying an older `updatedAt` is refused as stale (D-032). A save that
+  changes nothing writes nothing.
+- **Audit:** `budget_category.created`, `.updated` (changed fields only, old to new) and `.deleted`.
+
+**Evidence.** `budget/schema.test.ts`, `budget/application/budget.use-cases.test.ts`,
+`budget/domain/budget.money.test.ts`.
+
+---
+
+## D-085 Budget items
+
+**Status:** Approved by the technical lead on 2026-10-16 (written retroactively; built in B5-F02). Amended by D-089 for items linked to a supplier.
+
+**Decision.**
+
+- An **item** is one planned cost, inside exactly one category of the same event (composite foreign
+  key `(eventId, categoryId)`, `NO ACTION`).
+- **Readable ID:** `BUD-0001`, issued per event from `events.lastBudgetItemNumber` in the same
+  transaction as the insert, never reused.
+- **Fields:** name 1 to 120 characters; **estimated** (required); **committed** and **paid** (optional,
+  a blank field is stored as ₱0.00); notes up to 2,000 characters. All amounts are `Decimal(12,2)`,
+  ₱0.00 or more.
+- **Notes are never copied into the audit log.** The entry only says they changed.
+- **Moving** an item to another category is allowed inside the same event only.
+- **Removal** is permanent. Its number is not reused.
+- **Today, committed and paid are typed in by the user.** D-089 changes this for linked items.
+- Permissions, stale-save protection and audit follow D-084 (`budget_item.created`, `.updated`,
+  `.deleted`).
+
+**Evidence.** `budget/domain/budget.item.test.ts`, `budget/schema.test.ts`,
+`budget/application/budget.use-cases.test.ts`.
+
+---
+
+## D-086 Estimated, committed and paid totals
+
+**Status:** Approved by the technical lead on 2026-10-16 (written retroactively; built in B5-F03 to B5-F05).
+
+**Decision.**
+
+- The **total estimated**, **total committed** and **total paid** of a category, and of the whole
+  event, are plain sums of the stored item amounts.
+- Sums are done in whole centavos with `BigInt`, never floating point, so 0.10 + 0.20 is exactly 0.30
+  (PROJECT_RULES section 6.1). An empty list is ₱0.00.
+- Totals are **calculated on every read and never stored**.
+- The screen says what these are: sums of entered amounts, **not a balance**. "Paid" is the actual cost
+  recorded so far.
+
+**Evidence.** `budget/domain/budget.totals.test.ts`.
+
+---
+
+## D-087 Total allocated
+
+**Status:** Approved by the technical lead on 2026-10-16 (written retroactively; built in B5-F06).
+
+**Decision.**
+
+- The **total allocated** is the sum of all category allocations of the event, with the same exact
+  centavo arithmetic as D-086, calculated on read and never stored.
+- There is **no separate event budget field**. The event's budget is the total allocated.
+- Allocations are set and changed only through the category form (D-084). There is no separate
+  "set allocation" use case, so the empty `set-allocation.ts` stub should be deleted.
+
+**Evidence.** `budget/domain/budget.totals.test.ts`, `budget/ui/BudgetList.tsx`.
+
+---
+
+## D-088 Remaining budget and over-budget
+
+**Status:** Approved by the technical lead on 2026-10-16 (spent basis: committed; estimated above the
+allocation: no warning). Built in B5-F07 and B5-F08. Replaces the open question BQ-06.
+
+**Decision (recommended answers marked).**
+
+1. **Spent basis: committed (approved).** An item "uses" its budget when it is committed, not only when paid.
+   This matches the brand book's test example (budget ₱350,000, committed ₱370,000 gives OVER_BUDGET).
+   Alternatives: estimated (a forecast, not a fact), paid (too late to warn).
+2. **Remaining** = allocation minus total committed, for a category and for the event
+   (total allocated minus total committed). The domain value is signed (for example `-20000.00`);
+   screens never show a negative remaining and show "Over by ₱X" instead.
+3. **Status** (two values only, no new ones):
+   - `WITHIN_BUDGET`: committed is less than or equal to the allocation. Exactly equal is within, with
+     ₱0.00 remaining.
+   - `OVER_BUDGET`: committed is greater than the allocation. Shown as "Over by ₱X", never as a
+     negative remaining.
+4. **Zero allocation:** committed above ₱0.00 is `OVER_BUDGET`; committed of ₱0.00 is `WITHIN_BUDGET`.
+5. **Event level** compares total committed with total allocated. One category can be over budget while
+   the event is within it; each is reported on its own.
+6. **Estimated above allocation is not a status or warning (approved).** The user may want it
+   later; it would be its own decision.
+7. **Severity:** `OVER_BUDGET` is shown as Critical, with an icon and the text "Over budget", never
+   color alone. `WITHIN_BUDGET` is shown as Ready. The labels ("Within budget", "Over budget") live in
+   `budget-summary.ts` and screens use them, so the wording is written once. Event Health may reuse
+   this result later; it must not calculate it a second time. This defines a result only: it adds
+   no alert surface (PROJECT_RULES section 2.2).
+8. Pure, deterministic domain functions `summarizeBudget` and `summarizeEventBudget` in
+   `budget/domain/budget-summary.ts`, reusing the D-086 and D-087 sums. **Never stored and never
+   set by AI.** Signed centavo arithmetic in `BigInt`.
+
+**Evidence.** `budget/domain/budget-summary.test.ts` (under, equal and over by one centavo; zero
+allocation with and without commitments; the ₱350,000 and ₱370,000 example; empty category and empty
+event; event within while a category is over; estimated above allocation raises nothing; amounts at
+the column limit) and `budget/ui/BudgetStatusBadge.test.tsx`.
+
+---
+
+## D-089 Linking a budget item to a supplier (implements D-003)
+
+**Status:** Approved by the technical lead on 2026-10-16 (unlinking copies the supplier amounts onto
+the item). **Not built yet:** the schema and code arrive in a later task. Replaces the open question
+BQ-07. Amends D-085.
+
+**Decision.** D-003 stays as approved. In addition:
+
+- **Schema:** `budget_items.supplierId` (nullable), composite foreign key `(eventId, supplierId)`, and
+  `@@unique([eventId, supplierId])`, so a supplier links to at most one item and its money is counted
+  once. `committedAmount` and `paidAmount` become nullable. CHECK `budget_items_amount_source`: a linked
+  item stores both as NULL; an unlinked item stores both.
+- **Linked amounts:** committed is the amount of the supplier's Accepted quote, otherwise ₱0.00. Paid is
+  the sum of the supplier's payments recorded as Paid. Both come from the existing
+  `supplierPaymentSummary` rule (D-078), never a second formula. That rule returns `committed: null`
+  when no quote is Accepted; for the item this is stored and shown as ₱0.00. Estimated stays manual.
+- **Paid may exceed committed.** D-078 allows payments with no Accepted quote and overpayment, so a
+  linked or just-unlinked item can hold paid above committed. No check forbids it.
+- **Display:** linked amounts are read-only and labeled "from supplier".
+- **Linking** requires `budget.manage` and a supplier of the same event. The previous manual committed
+  and paid values are replaced, and the audit entry records them (`budget_item.linked`).
+- **Unlinking by the user** (`budget_item.unlinked`): the supplier-derived committed and paid amounts
+  are copied onto the item in the same transaction, so totals do not jump. This extends the rule D-003
+  already gives for supplier deletion.
+- **Deleting a supplier:** its linked item is unlinked and the supplier's committed and paid amounts are
+  copied onto the item, in the same transaction (D-003, unchanged).
+- Totals (D-086) and the remaining rule (D-088) use the effective amounts, linked or typed.
+
+**Migration note.** `committedAmount` and `paidAmount` become nullable, which changes every read of
+them (`budget.totals.ts`, the item form). Existing rows are unlinked and keep their values, so
+`DROP NOT NULL` needs no backfill.
+
+**Required tests.** The CHECK constraint refuses both mixed states; one supplier cannot link to two
+items; a supplier from another event is refused; Viewer and non-member are refused and change nothing;
+Accepted quote, no Accepted quote, partial and full payment; unlink and supplier delete copy the same
+amounts; centavo-exact sums; the audit entries.
+
+---
+
+## D-090 Over-budget warning
+
+**Status:** Approved by the technical lead on 2026-10-16 (B5-F09). Presents the D-088 result; adds
+no formula.
+
+**Decision.**
+
+- The budget page shows one warning when something is over budget, and nothing when nothing is.
+  "Over" is exactly D-088: committed greater than the allocation, for the event (total committed
+  against total allocated) and for each category on its own. Estimated or paid alone never warn.
+- The warning lists **the reasons**, event first, then each over category in the order of the list.
+  Each line names what is over, the committed amount, the limit it is judged against (the category
+  allocation, "it has no allocation", or the event's total allocated) and the difference. Example:
+  "Catering is over budget: ₱110,000.50 is committed and its allocation is ₱100,000.00, ₱10,000.50
+  more." The text states the basis ("Judged on committed amounts, not estimates") and, when only
+  categories are over, that the event as a whole is still within its total allocation.
+- The wording is built in `budget-summary.ts` (`overBudgetWarnings`); the screen only displays it.
+  Pure, never stored, never AI.
+- It is an inline banner on the budget page (Critical severity: icon, "Over budget" text and a
+  hidden "Error" label), announced politely (`role="status"`), not interrupting. It is not an alert
+  engine, a notification or a Critical Alert View entry (PROJECT_RULES section 2.2). Event Health may
+  reuse `overBudgetWarnings` in Batch 8 rather than calculate it again.
+
+**Evidence.** `budget/domain/budget-summary.test.ts`, `budget/ui/OverBudgetWarning.test.tsx`,
+`budget/ui/BudgetList.test.tsx`.
+
+---
+
+## D-091 Budget data is scoped to one event
+
+**Status:** Approved by the technical lead on 2026-10-16 (B5-F10). Written down from what B5-F01 and
+B5-F02 already do, plus the tests that prove it. Changes no behavior.
+
+**Decision.**
+
+- Every budget read and write names one event. The event ID that counts is the one returned by
+  `authorizeEvent` (D-036), not the one the caller sent.
+- Category and item lookups filter by event ID, so another event's record is "not found" and a
+  refusal reveals nothing.
+- Categories, items and summaries are listed and calculated only from the authorized event's
+  records. A summary is never built from a cross-event query.
+- The database backs the application up: a budget item's category is a composite foreign key
+  `(eventId, categoryId)` (D-002), so an item cannot point at another event's category even if the
+  application is bypassed. Item numbers come from the event's own counter.
+- Every write re-checks, in its own statement, that the actor is a member whose role may manage the
+  budget (D-035), and records its audit entry in the same transaction. Viewers and non-members are
+  refused and change nothing.
+- Deleting an event deletes its budget with it and touches no other event (D-004).
+
+**Evidence.** `budget/queries.test.ts` (authorized ID used, refusal before storage, malformed and
+foreign IDs) and `budget/budget-event-scope.db.test.ts` (reads, substituted IDs on every write, the
+foreign-key backstop, non-member and viewer, per-event numbering, cascade; run with
+`npm run test:db`).
+
+---
+
+## D-092 Budget authorization and validation checkpoint
+
+**Status:** Proposed (B5-F11, B5-F12). Records what the budget already enforces and what is
+deliberately not validated. Changes no behavior. Needs the technical lead's approval.
+
+**Decision.**
+
+- **Who may do what.** Every member (Owner, Coordinator, Viewer) reads the budget (`event.view`).
+  Owners and Coordinators add, edit, move and delete categories and items and set allocations
+  (`budget.manage`). Viewers change nothing and cannot open the edit forms. There is no Owner-only
+  budget operation. Items follow the category permission; no new permission is added.
+- **How it is enforced.** Each action and read authorizes first with `authorizeEvent` (D-036), uses
+  only the event and user IDs it returns, and each write checks the role again in its own database
+  statement (D-091). A non-member sees "not found", never a hint the event exists.
+- **Validation on the server, every time.** Required: category name, item name, category of the item,
+  allocation and estimated amount. Optional: committed and paid (blank is ₱0.00) and notes (blank is
+  none). Names are trimmed and 1 to 120 characters; notes at most 2,000. Amounts are ₱0.00 to
+  ₱9,999,999,999.99 with at most two decimals, never rounded for the user. A category ID must be a
+  UUID and belong to the same event. Fields outside the form are ignored.
+- **Not validated, on purpose.** No approved rule ties committed to estimated, or paid to committed
+  (D-089 allows paid above committed). Over-budget is shown as a warning (D-088, D-090), not refused
+  on save. A new rule would be its own decision.
+- **Database backstop.** CHECK constraints (non-negative amounts, non-blank names and notes,
+  positive item numbers), the case-insensitive unique category name and the composite foreign keys
+  refuse invalid rows even if the application is bypassed (D-002, D-084, D-085).
+
+**Evidence.** `budget/actions.test.ts`, `budget/schema.test.ts`, `budget/queries.test.ts`,
+`budget/authorization.db.test.ts` (every caller against every operation, plus substituted IDs) and
+`budget/budget-constraints.db.test.ts`. The two DB tests need `npm run test:db`.
 
 ---
 

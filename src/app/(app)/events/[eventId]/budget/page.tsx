@@ -2,8 +2,8 @@
 // The event's budget (B5-F01 categories, B5-F02 items; D-084, D-085). Every member can read it
 // (event.view); Owners and Coordinators also get "Add category", "Add item" and Edit links
 // (budget.manage). Checks access itself (D-027); the read authorizes again, and every action checks
-// once more. Shows stored values only: totals, remaining amounts and statuses come with their own
-// task, once their rules are approved.
+// once more. Shows the stored values, the totals, the remaining amount, the Within or Over budget
+// status and the over-budget warning (B5-F07 to B5-F09; D-086 to D-088, D-090).
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState } from "@/components/shared/EmptyState";
