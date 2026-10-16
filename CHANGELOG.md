@@ -636,6 +636,14 @@ build` fails if it is set.
 - Docs in `docs/` renamed to upper case to match PROJECT_RULES (for example `docs/ARCHITECTURE.md`).
 - `npm test` excludes `*.db.test.ts` files.
 
+### Added
+- feat(B5-F01): budget categories: add, edit and remove, with an allocation (D-084).
+- feat(B5-F02): budget items: add, view, edit, move and remove, under a category (D-085).
+- feat(audit): budget_category.* and budget_item.* actions and Activity lines.
+- feat(db): budget_categories, budget_items and events.lastBudgetItemNumber (migration
+  20261015090000_budget).
+- feat(kernel): src/shared/kernel/money.ts, peso amounts that may be zero.
+
 ### Notes
 
 - Decisions recorded for tables that later tasks add: composite `(eventId, id)` foreign keys between
