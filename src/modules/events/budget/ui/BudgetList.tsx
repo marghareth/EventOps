@@ -1,16 +1,22 @@
 // src/modules/events/budget/ui/BudgetList.tsx
 // The budget as a list of categories, each with its items in an accessible table (B5-F01,
 // B5-F02). Shows the stored amounts and plain sums of them (allocated, estimated, committed and paid; B5-F03 to B5-F06; D-086, D-087).
-// No remaining amount, over-budget warning or status until their rules are approved. Edit, Delete and Add item appear only for people who can manage the budget; the
-// server actions check the role again.
+// Also shows the remaining budget and the Within or Over budget status of the event and of each
+// category (B5-F07, B5-F08; D-088) and the over-budget warning with its reasons (B5-F09; D-090),
+// all taken from budget-summary.ts, not calculated here. Edit,
+// Delete and Add item appear only for people who can manage the budget; the server actions check
+// the role again.
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { deleteCategoryAction, deleteItemAction } from "../actions";
 import type { CategoryWithItems } from "../application/ports";
 import { formatBudgetItemReference } from "../domain/budget.item";
 import { formatPesos } from "../domain/budget.money";
-import { totalAllocated, totalsOf } from "../domain/budget.totals";
+import { overBudgetWarnings, summarizeEventBudget } from "../domain/budget-summary";
+import { totalsOf } from "../domain/budget.totals";
+import { BudgetStatusBadge } from "./BudgetStatusBadge";
 import { DeleteButton } from "./DeleteButton";
+import { OverBudgetWarning } from "./OverBudgetWarning";
 
 export function BudgetList({
   eventId,
@@ -23,12 +29,15 @@ export function BudgetList({
   basePath: string;
   canManage: boolean;
 }) {
-  const eventTotals = totalsOf(
-    categories.flatMap((category) => category.items),
-  );
-  const allocated = totalAllocated(categories);
+  const summary = summarizeEventBudget(categories);
+  const eventSummary = summary.event;
+  const warnings = overBudgetWarnings(summary);
   return (
     <div className="flex flex-col gap-6">
+      <OverBudgetWarning
+        warnings={warnings}
+        eventWithinBudget={eventSummary.status === "WITHIN_BUDGET"}
+      />
       <section
         aria-labelledby="budget-totals"
         className="rounded-xl bg-white p-5 shadow-xs"
@@ -36,39 +45,53 @@ export function BudgetList({
         <h2 id="budget-totals" className="text-h3 font-bold">
           Event totals
         </h2>
-        <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <dt className="text-sm text-muted-foreground">Total allocated</dt>
             <dd className="text-2xl font-extrabold tabular-nums">
-              {formatPesos(allocated)}
+              {formatPesos(eventSummary.allocated)}
             </dd>
           </div>
           <div>
             <dt className="text-sm text-muted-foreground">Total estimated</dt>
             <dd className="text-2xl font-extrabold tabular-nums">
-              {formatPesos(eventTotals.estimated)}
+              {formatPesos(eventSummary.estimated)}
             </dd>
           </div>
           <div>
             <dt className="text-sm text-muted-foreground">Total committed</dt>
             <dd className="text-2xl font-extrabold tabular-nums">
-              {formatPesos(eventTotals.committed)}
+              {formatPesos(eventSummary.committed)}
             </dd>
           </div>
           <div>
             <dt className="text-sm text-muted-foreground">Total paid</dt>
             <dd className="text-2xl font-extrabold tabular-nums">
-              {formatPesos(eventTotals.paid)}
+              {formatPesos(eventSummary.paid)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted-foreground">
+              {eventSummary.overBy === null ? "Remaining" : "Over by"}
+            </dt>
+            <dd className="flex flex-col items-start gap-1">
+              <span className="text-2xl font-extrabold tabular-nums">
+                {formatPesos(eventSummary.overBy ?? eventSummary.remaining)}
+              </span>
+              <BudgetStatusBadge status={eventSummary.status} />
             </dd>
           </div>
         </dl>
         <p className="mt-3 text-sm text-muted-foreground">
-          Sums of the amounts you entered. Allocated is what you set aside; paid
-          is the actual cost recorded so far. None of these is a balance.
+          Allocated is what you set aside; estimated, committed and paid are
+          sums of the amounts you entered, and paid is the actual cost recorded
+          so far. Remaining is allocated minus committed. Estimated above the
+          allocation does not change the status.
         </p>
       </section>
-      {categories.map((category) => {
+      {categories.map((category, index) => {
         const totals = totalsOf(category.items);
+        const categorySummary = summary.categories[index];
         return (
           <section
             key={category.id}
@@ -101,6 +124,19 @@ export function BudgetList({
                     {formatPesos(totals.paid)}
                   </span>
                 </p>
+                {categorySummary ? (
+                  <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">
+                      {categorySummary.overBy === null ? "Remaining" : "Over by"}
+                    </span>
+                    <span className="font-semibold tabular-nums">
+                      {formatPesos(
+                        categorySummary.overBy ?? categorySummary.remaining,
+                      )}
+                    </span>
+                    <BudgetStatusBadge status={categorySummary.status} />
+                  </p>
+                ) : null}
               </div>
               {canManage ? (
                 <div className="flex flex-wrap items-start gap-2">

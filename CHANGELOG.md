@@ -639,6 +639,13 @@ build` fails if it is set.
 ### Added
 - feat(B5-F01): budget categories: add, edit and remove, with an allocation (D-084).
 - feat(B5-F02): budget items: add, view, edit, move and remove, under a category (D-085).
+- feat(B5-F07): budget summary: the event's allocated, estimated, committed and paid totals (D-086, D-087).
+- feat(B5-F08): remaining budget and Within or Over budget status, per category and for the event (D-088).
+- docs(D-084..D-089): budget decisions recorded in DECISIONS.md.
+- feat(B5-F09): over-budget warning with the reasons, for the event and each category (D-090).
+- test(B5-F10): budget event isolation, in query tests and a database test (D-091).
+- test(B5-F11): budget authorization: action tests and a caller-by-operation database matrix (D-092, proposed).
+- test(B5-F12): budget validation boundaries and database constraint tests (D-092, proposed).
 - feat(audit): budget_category.* and budget_item.* actions and Activity lines.
 - feat(db): budget_categories, budget_items and events.lastBudgetItemNumber (migration
   20261015090000_budget).

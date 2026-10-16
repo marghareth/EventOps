@@ -35,7 +35,7 @@ least one Owner (D-022).
 | `accessibility.manage`  | Accessibility requirements and resources                | Yes   | Yes         | No     |
 | `accessibility.private` | See the notes on attendees' accessibility requirements  | Yes   | Yes         | No     |
 | `suppliers.manage`      | Suppliers, quotes and payments                          | Yes   | Yes         | No     |
-| `budget.manage`         | Budget categories and allocations                       | Yes   | Yes         | No     |
+| `budget.manage`         | Budget categories, items and allocations                    | Yes   | Yes         | No     |
 | `tasks.manage`          | Create, assign and complete tasks                       | Yes   | Yes         | No     |
 | `impact.assumptions`    | Edit impact assumptions such as cost per head           | Yes   | Yes         | No     |
 | `audit.view`            | See the activity log, including before and after values | Yes   | Yes         | No     |
