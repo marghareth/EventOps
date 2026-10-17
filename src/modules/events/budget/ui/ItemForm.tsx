@@ -2,10 +2,14 @@
 // Add or edit a budget item (B5-F02; D-085). The category picker lists only this event's
 // categories, and the server action checks the choice again. Edit carries the loaded version
 // (D-032) as a hidden field. No totals or statuses are shown here: those rules are not approved yet.
+// After a failed save every problem is listed at once in a summary that takes focus, and each line
+// jumps to its field (B5-F15). Controls are at least 44 px tall and the buttons fill the width on a
+// phone (B5-F16).
 "use client";
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { FormErrorSummary, type FormErrorItem } from "@/components/shared/FormErrorSummary";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createItemAction, updateItemAction } from "../actions";
@@ -35,7 +39,7 @@ type Props = {
 const IDLE: ItemFormState = { status: "idle" };
 
 const CONTROL =
-  "w-full rounded-lg border border-input bg-background px-3 py-2 text-base shadow-xs " +
+  "min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base shadow-xs " +
   "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 " +
   "aria-invalid:border-[#C62828]";
 
@@ -57,9 +61,24 @@ export function ItemForm({ eventId, cancelHref, categories, defaultCategoryId, i
           notes: item?.notes ?? "",
         };
   const fieldErrors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
+  // In the order the fields appear on the form.
+  const summary: FormErrorItem[] = [
+    { fieldId: "item-category", message: fieldErrors.categoryId },
+    { fieldId: "item-name", message: fieldErrors.name },
+    { fieldId: "item-estimated", message: fieldErrors.estimated },
+    { fieldId: "item-committed", message: fieldErrors.committed },
+    { fieldId: "item-paid", message: fieldErrors.paid },
+    { fieldId: "item-notes", message: fieldErrors.notes },
+  ].filter((entry): entry is FormErrorItem => Boolean(entry.message));
 
   return (
-    <form action={formAction} noValidate className="flex max-w-xl flex-col gap-5">
+    <form
+      action={formAction}
+      noValidate
+      aria-busy={pending}
+      className="flex w-full max-w-xl flex-col gap-5"
+    >
+      <FormErrorSummary errors={summary} />
       {item ? <input type="hidden" name="version" value={item.version} /> : null}
 
       {state.status === "error" && state.message ? (
@@ -81,7 +100,12 @@ export function ItemForm({ eventId, cancelHref, categories, defaultCategoryId, i
 
       <FormField id="item-category" label="Category" error={fieldErrors.categoryId}>
         {(control) => (
-          <select {...control} name="categoryId" defaultValue={values.categoryId} className={CONTROL}>
+          <select
+            {...control}
+            name="categoryId"
+            defaultValue={values.categoryId}
+            className={CONTROL}
+          >
             <option value="" disabled>
               Choose a category
             </option>
@@ -172,11 +196,11 @@ export function ItemForm({ eventId, cancelHref, categories, defaultCategoryId, i
         )}
       </FormField>
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={pending}>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
           {pending ? "Saving…" : item ? "Save item" : "Add item"}
         </Button>
-        <Button asChild variant="secondary">
+        <Button asChild variant="secondary" className="w-full sm:w-auto">
           <Link href={cancelHref}>Cancel</Link>
         </Button>
       </div>

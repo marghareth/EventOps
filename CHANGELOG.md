@@ -9,6 +9,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B5-F14 Budget audit and activity records (D-093, proposed).**
+  - Activity now says what happened to the budget in plain words: a category or item added, edited,
+    moved to another category or removed, with amounts old → new. Before this, these entries showed
+    "Made a change (details unavailable)". Item notes are never shown, only "Notes changed". The
+    audit registry test now lists the six budget actions.
+
+- **B5-F15 Budget error and empty states.**
+  - The budget and its add and edit pages have a loading screen and an error screen (no internal
+    details, Try again). After a failed save both forms list every problem at once in a summary that
+    takes focus and links to each field. An event with categories but no items says every total is
+    ₱0.00.
+
+- **B5-F16 Responsive budget interface.**
+  - Items show as stacked cards on a phone and as columns from 768 px, so the budget no longer
+    scrolls sideways. Summaries wrap, form controls are 44 px tall and form buttons fill the width
+    on a phone.
+
 - **B4-25 Supplier documentation.**
   - DATA_MODEL.md now has one Suppliers section with the rules for categories, quote and payment
     statuses, money, deletion, due dates and authorization. The money notes no longer say there is
@@ -637,6 +654,7 @@ build` fails if it is set.
 - `npm test` excludes `*.db.test.ts` files.
 
 ### Added
+
 - feat(B5-F01): budget categories: add, edit and remove, with an allocation (D-084).
 - feat(B5-F02): budget items: add, view, edit, move and remove, under a category (D-085).
 - feat(B5-F07): budget summary: the event's allocated, estimated, committed and paid totals (D-086, D-087).

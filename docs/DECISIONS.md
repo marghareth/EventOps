@@ -103,6 +103,7 @@ Status values:
 | D-090 | Over-budget warning                                         | Approved | 2026-10-16 |
 | D-091 | Budget data is scoped to one event                          | Approved | 2026-10-16 |
 | D-092 | Budget authorization and validation checkpoint              | Proposed | 2026-10-16 |
+| D-093 | Budget activity wording, states and responsive layout       | Proposed | 2026-10-16 |
 
 ---
 
@@ -2461,6 +2462,43 @@ deliberately not validated. Changes no behavior. Needs the technical lead's appr
 **Evidence.** `budget/actions.test.ts`, `budget/schema.test.ts`, `budget/queries.test.ts`,
 `budget/authorization.db.test.ts` (every caller against every operation, plus substituted IDs) and
 `budget/budget-constraints.db.test.ts`. The two DB tests need `npm run test:db`.
+
+---
+
+## D-093 Budget activity wording, states and responsive layout
+
+**Status:** Proposed (B5-F14, B5-F15, B5-F16). Changes no budget rule, formula, permission or data
+model, and adds no audit action. Needs the technical lead's approval.
+
+**Decision.**
+
+- **Activity (B5-F14).** The six budget entries already written by D-084 and D-085
+  (`budget_category.created`, `.updated`, `.deleted`, `budget_item.created`, `.updated`, `.deleted`)
+  get plain-language lines on the Activity page, in `audit/describe.ts`, the same way supplier
+  entries do (D-070, D-075). Before this, they showed "Made a change (details unavailable)".
+  - Amounts are shown as pesos and changes as old → new, in the order of the audit schema:
+    category, name, estimated, committed, paid, then notes.
+  - **Notes are never copied** (D-085): the line only says "Notes changed".
+  - A move to another category leads the summary ("Moved the budget item BUD-0002 to Catering"), as
+    a quote's status change does (B4-20). Removal entries keep the readable ID and name.
+  - Nothing new is written: no over-budget entry, no entry for reads, no entry for a save that
+    changed nothing (D-037). Who can read Activity is unchanged (`audit.view`, D-035).
+- **Error and empty states (B5-F15).** The budget and its add and edit pages get a loading screen
+  and an error screen like the supplier pages (D-040): the error names what failed, never shows
+  `error.message`, and offers Try again. After a failed save both forms list every problem at once
+  in the shared error summary, which takes focus and links to each field; a failed request still
+  says that nothing was saved. An event with categories but no items says that every total is
+  ₱0.00. The existing "no categories" state is unchanged.
+- **Responsive layout (B5-F16).** One markup serves every width. The items of a category are a list:
+  stacked cards below 768 px, a grid of columns from 768 px, so the budget never scrolls sideways
+  and a screen reader never meets an item twice. Every amount keeps its label in the page. Summaries
+  wrap, form controls and buttons are at least 44 px tall, and form buttons fill the width on a
+  phone, in the same order as the keyboard order.
+
+**Evidence.** `budget/audit.test.ts` (what each entry may hold, how Activity words it, peso format
+equal to `formatPesos`), `audit/actions.test.ts` (registry), `budget/ui/BudgetList.test.tsx`,
+`budget/ui/BudgetForms.test.tsx`, `app/(app)/events/[eventId]/budget/states.test.tsx`. Not yet
+checked in a browser at 375 and 1280 px.
 
 ---
 

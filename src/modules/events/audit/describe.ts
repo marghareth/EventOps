@@ -4,6 +4,7 @@
 import type {
   AttendeeChanges,
   AuditDetails,
+  BudgetItemChanges,
   EventChanges,
   RequirementChanges,
   ResourceChanges,
@@ -213,6 +214,32 @@ function requirementChangeLines(changes: RequirementChanges): string[] {
   return lines;
 }
 
+/**
+ * Lines for an edited budget item (B5-F14, D-093), in the order of the audit schema: category,
+ * name, the three amounts, then notes. The notes are never copied into the log, so the line only
+ * says they changed (D-085).
+ */
+function budgetItemChangeLines(changes: BudgetItemChanges): string[] {
+  const lines: string[] = [];
+  if (changes.category) {
+    lines.push(`Category: “${changes.category.from}” → “${changes.category.to}”`);
+  }
+  if (changes.name) lines.push(`Name: “${changes.name.from}” → “${changes.name.to}”`);
+  const amounts = [
+    ["estimated", "Estimated"],
+    ["committed", "Committed"],
+    ["paid", "Paid"],
+  ] as const;
+  for (const [field, label] of amounts) {
+    const change = changes[field];
+    if (change) {
+      lines.push(`${label}: ${formatAuditPeso(change.from)} → ${formatAuditPeso(change.to)}`);
+    }
+  }
+  if (changes.notes) lines.push("Notes changed");
+  return lines;
+}
+
 function showAttendeeValue(value: string | number | null, field: keyof AttendeeChanges): string {
   if (value === null) return "none";
   if (field === "rsvpStatus") return RSVP_LABEL[String(value)] ?? String(value);
@@ -410,6 +437,54 @@ export function describeAuditEntry(entry: Pick<AuditEntryView, "action" | "detai
           ? `Marked ${payment} as not paid yet`
           : `Edited ${payment}`;
     return { summary, lines };
+  }
+  if (entry.action === "budget_category.created") {
+    const { name, allocation } = entry.details as AuditDetails<"budget_category.created">;
+    return {
+      summary: `Added the budget category ${name}`,
+      lines: [`Allocation: ${formatAuditPeso(allocation)}`],
+    };
+  }
+  if (entry.action === "budget_category.updated") {
+    const { name, changes } = entry.details as AuditDetails<"budget_category.updated">;
+    const lines: string[] = [];
+    if (changes.name) lines.push(`Name: “${changes.name.from}” → “${changes.name.to}”`);
+    if (changes.allocation) {
+      lines.push(
+        `Allocation: ${formatAuditPeso(changes.allocation.from)} → ${formatAuditPeso(changes.allocation.to)}`,
+      );
+    }
+    return { summary: `Edited the budget category ${name}`, lines };
+  }
+  if (entry.action === "budget_category.deleted") {
+    const { name, allocation } = entry.details as AuditDetails<"budget_category.deleted">;
+    return {
+      summary: `Removed the budget category ${name}`,
+      lines: [`Allocation was ${formatAuditPeso(allocation)}`],
+    };
+  }
+  if (entry.action === "budget_item.created") {
+    const d = entry.details as AuditDetails<"budget_item.created">;
+    return {
+      summary: `Added the budget item ${d.name} (${d.reference}) to ${d.category}`,
+      lines: [
+        `Estimated: ${formatAuditPeso(d.estimated)}`,
+        `Committed: ${formatAuditPeso(d.committed)}`,
+        `Paid: ${formatAuditPeso(d.paid)}`,
+      ],
+    };
+  }
+  if (entry.action === "budget_item.updated") {
+    const { reference, changes } = entry.details as AuditDetails<"budget_item.updated">;
+    // A move leads the summary (as B4-20 does for quotes), so Activity says what happened.
+    const summary = changes.category
+      ? `Moved the budget item ${reference} to ${changes.category.to}`
+      : `Edited the budget item ${reference}`;
+    return { summary, lines: budgetItemChangeLines(changes) };
+  }
+  if (entry.action === "budget_item.deleted") {
+    const { reference, name } = entry.details as AuditDetails<"budget_item.deleted">;
+    return { summary: `Removed the budget item ${name} (${reference})`, lines: [] };
   }
   if (entry.action === "attendees.exported") {
     const { count } = entry.details as AuditDetails<"attendees.exported">;
