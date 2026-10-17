@@ -135,10 +135,12 @@ _Last updated: 2026-10-14._
 
 ### Operations
 
-| Item                                                                  | Batch | Status      |
-| --------------------------------------------------------------------- | ----- | ----------- |
-| Tasks: assignee, due date, priority, status, related supplier or area |       | Not started |
-| Overdue task detection                                                |       | Not started |
+| Item                                                                                                                                                                             | Batch | Status                                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------- |
+| Tasks: assignee, due date, priority, status, related supplier or area                                                                                                            |       | In progress: create and edit built (B6-F01, B6-F02); the rest not started     |
+| **B6-F01 Task Creation**: add a task to an event with a title and an optional description; readable ID TSK-0001; list, empty, loading and error states; audit entry (D-094)      | B6    | In review: unit, action, query, audit and UI tests pass; no database test yet |
+| **B6-F02 Task Editing**: change a task's title and description; stale-save refusal; "nothing changed" writes nothing; audit entry with the description only as "changed" (D-094) | B6    | In review: unit, action, query, audit and UI tests pass; no database test yet |
+| Overdue task detection                                                                                                                                                           |       | Not started                                                                   |
 
 ### Signature features
 

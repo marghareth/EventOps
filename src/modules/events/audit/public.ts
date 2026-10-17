@@ -15,6 +15,7 @@ export {
   type PaymentChanges,
   type QuoteChanges,
   type SupplierChanges,
+  type TaskChanges,
   type AuditAction,
   type EventChanges,
 } from "./actions";

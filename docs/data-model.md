@@ -1,4 +1,4 @@
-<!-- docs/DATA_MODEL.md -->
+<!-- docs/data-model.md -->
 
 # Data model
 
@@ -689,6 +689,24 @@ from the status and the gaps on every read; nothing is stored, sent or dismissed
   input (B3-14); it is never guessed as covered or as advice.
 - Notes are never part of the input.
 
+## Tasks (B6-F01, B6-F02, D-094)
+
+A task is one piece of operational work for an event. Today it holds a title and a description;
+assignee, due date, priority, status and the related supplier or area are added by their own
+features, each with its own migration.
+
+| Field         | Rule                                                                                                                                               |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `number`      | Per-event sequence behind the readable ID `TSK-0001`, from `events.lastTaskNumber`. Issued in the same transaction as the insert and never reused. |
+| `title`       | Required, 1 to 120 characters, trimmed, at least one non-space character.                                                                          |
+| `description` | Optional, at most 2,000 characters, trimmed, line breaks kept. Blank is stored as NULL.                                                            |
+| `updatedAt`   | The edit version (D-032): a save carrying an older value is refused as stale.                                                                      |
+
+A task belongs to exactly one event and is deleted with it (D-004). `(eventId, number)` and
+`(eventId, id)` are unique; the second is the target of the composite links later task features add
+(D-002). Owners and Coordinators create and edit (`tasks.manage`); every member reads. Audit:
+`task.created` and `task.updated` (`docs/audit.md`).
+
 ## CHECK constraints (D-010)
 
 Prisma cannot express these, so they are written by hand at the end of the migration that creates
@@ -710,6 +728,10 @@ place.
 | `supplier_quotes_number_positive`           | `number` is 1 or more.                                                                              |
 | `supplier_quotes_description_not_blank`     | `description` is NULL or contains a non-space character.                                            |
 | `events_last_payment_number_nonneg`         | `lastPaymentNumber` is 0 or more.                                                                   |
+| `events_last_task_number_nonneg`            | `lastTaskNumber` is 0 or more.                                                                      |
+| `tasks_number_positive`                     | `number` is 1 or more.                                                                              |
+| `tasks_title_not_blank`                     | `title` has at least one non-space character.                                                       |
+| `tasks_description_not_blank`               | `description` is NULL or contains a non-space character.                                            |
 | `supplier_payments_amount_positive`         | `amount` is more than 0.                                                                            |
 | `supplier_payments_number_positive`         | `number` is 1 or more.                                                                              |
 | `supplier_payments_description_not_blank`   | `description` is NULL or contains a non-space character.                                            |

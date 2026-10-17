@@ -486,6 +486,17 @@ export function describeAuditEntry(entry: Pick<AuditEntryView, "action" | "detai
     const { reference, name } = entry.details as AuditDetails<"budget_item.deleted">;
     return { summary: `Removed the budget item ${name} (${reference})`, lines: [] };
   }
+  if (entry.action === "task.created") {
+    const { reference, title } = entry.details as AuditDetails<"task.created">;
+    return { summary: `Added the task ${title} (${reference})`, lines: [] };
+  }
+  if (entry.action === "task.updated") {
+    const { reference, title, changes } = entry.details as AuditDetails<"task.updated">;
+    const lines: string[] = [];
+    if (changes.title) lines.push(`Title: “${changes.title.from}” → “${changes.title.to}”`);
+    if (changes.description) lines.push("Description changed");
+    return { summary: `Edited the task ${title} (${reference})`, lines };
+  }
   if (entry.action === "attendees.exported") {
     const { count } = entry.details as AuditDetails<"attendees.exported">;
     return {

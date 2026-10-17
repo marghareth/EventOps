@@ -9,6 +9,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B6-F01 Task creation (D-094, proposed).**
+  - Owners and Coordinators can add a task to an event with a title and an optional description. Each
+    task gets a readable ID (TSK-0001, numbered per event). The Tasks page now lists them, with an
+    empty state, a confirmation after adding, and loading and error screens. Viewers can read the
+    list but see no Add or Edit controls. Adding a task is recorded in Activity.
+  - New table `tasks` and column `events.lastTaskNumber` (migration `20261017090000_tasks`, written
+    by hand: run `prisma migrate dev` once to confirm there is no drift).
+
+- **B6-F02 Task editing.**
+  - Owners and Coordinators can change a task's title and description. A save that changes nothing
+    says so and writes nothing; a save over someone else's newer edit is refused. Activity shows the
+    title change old → new and "Description changed" (the text is never copied).
+
 - **B5-F14 Budget audit and activity records (D-093, proposed).**
   - Activity now says what happened to the budget in plain words: a category or item added, edited,
     moved to another category or removed, with amounts old → new. Before this, these entries showed

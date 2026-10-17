@@ -143,6 +143,7 @@ model User {
 // - events_last_supplier_number_nonneg: lastSupplierNumber is 0 or more.
 // - events_last_quote_number_nonneg: lastQuoteNumber is 0 or more.
 // - events_last_payment_number_nonneg: lastPaymentNumber is 0 or more.
+// - events_last_task_number_nonneg: lastTaskNumber is 0 or more.
 model Event {
   id                 String      @id @default(uuid()) @db.Uuid
   // Human-readable ID, for example EVT-2026-0001. Issued from EventReferenceCounter inside the
@@ -174,6 +175,8 @@ model Event {
   // Last budget item number issued in this event (BUD-0001, ...). Same rules as
   // lastAttendeeNumber (D-085).
   lastBudgetItemNumber Int       @default(0)
+  // Last task number issued in this event (TSK-0001, ...). Same rules as lastAttendeeNumber (D-094).
+  lastTaskNumber     Int         @default(0)
   // Restrict: a user who created events cannot be deleted while those events exist (D-011).
   createdById        String      @db.Uuid
   createdAt          DateTime    @default(now())
@@ -191,6 +194,7 @@ model Event {
   supplierPayments          SupplierPayment[]
   budgetCategories          BudgetCategory[]
   budgetItems               BudgetItem[]
+  tasks                     Task[]
 
   @@index([createdById])
   @@index([status, startsAt])
@@ -620,4 +624,32 @@ model BudgetItem {
   // An event's items by category: the category list and the "category has items" check.
   @@index([eventId, categoryId])
   @@map("budget_items")
+}
+
+// One piece of operational work for an event (B6-F01, B6-F02, D-094). Readable ID: TSK-<number>,
+// numbered per event from Event.lastTaskNumber. Only a title and a description for now: assignee,
+// due date, priority, status and the related supplier or area are added by their own features, each
+// with its own migration.
+//
+// CHECK constraints (migration 20261017090000_tasks):
+// - tasks_number_positive:        number is 1 or more.
+// - tasks_title_not_blank:        title has at least one non-space character.
+// - tasks_description_not_blank:  description is NULL or has a non-space character.
+model Task {
+  id          String   @id @default(uuid()) @db.Uuid
+  eventId     String   @db.Uuid
+  // Per-event sequence behind the readable ID, for example TSK-0004.
+  number      Int
+  title       String   @db.VarChar(120)
+  description String?  @db.VarChar(2000)
+  createdAt   DateTime @default(now())
+  // Edit version: a save carrying an older value is refused as stale (D-032).
+  updatedAt   DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, number])
+  // Target of the composite foreign keys the later task links will add (D-002).
+  @@unique([eventId, id])
+  @@map("tasks")
 }
