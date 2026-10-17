@@ -1,4 +1,4 @@
-<!-- docs/AUDIT.md -->
+<!-- docs/audit.md -->
 
 # Audit log
 
@@ -43,6 +43,12 @@ has a strict schema, so unlisted fields are refused, not silently stored.
 | `quote.updated`                     | A quote is saved with at least one change (B4-10, D-075)               | `quote`                     | Quote and supplier readable IDs and what changed: amount, status and description, old → new                                             |
 | `payment.created`                   | A deposit or payment is added to a supplier (B4-14, D-080)             | `payment`                   | Payment and supplier readable IDs, kind, amount, due date, recorded status, paid date and description                                   |
 | `payment.updated`                   | A payment is saved with at least one change (B4-14, D-080)             | `payment`                   | Payment and supplier readable IDs and what changed: kind, amount, due date, status, paid date and description, old → new                |
+| `budget_category.created`           | A budget category is added (B5-F01, D-084)                             | `budget_category`           | Name and allocation in pesos                                                                                                            |
+| `budget_category.updated`           | A category is saved with at least one change (B5-F01)                  | `budget_category`           | Current name; name and allocation old → new                                                                                             |
+| `budget_category.deleted`           | An empty category is removed (B5-F01)                                  | `budget_category`           | Name and allocation at that moment                                                                                                      |
+| `budget_item.created`               | A budget item is added (B5-F02, D-085)                                 | `budget_item`               | Readable ID (`BUD-0001`), name, category name, estimated, committed, paid. No notes                                                     |
+| `budget_item.updated`               | An item is saved with at least one change (B5-F02)                     | `budget_item`               | Readable ID; category name, name and the three amounts old → new; notes only as "changed"                                               |
+| `budget_item.deleted`               | An item is removed (B5-F02)                                            | `budget_item`               | Readable ID and name at that moment                                                                                                     |
 
 Not recorded:
 
@@ -139,3 +145,16 @@ Proved end to end, with the actor and event of each entry, by `accessibility/act
 `activity.test.ts` and `authorization.db.test.ts` (who can read it),
 `attendees/attendees.db.test.ts` and `attendees/schema.test.ts` (attendee entries, no personal
 values).
+
+### Budget actions on Activity (B5-F14, D-093)
+
+| Action                    | Activity says                                                | Never shown                                 |
+| ------------------------- | ------------------------------------------------------------ | ------------------------------------------- |
+| `budget_category.created` | Added the budget category, with its allocation               | Nothing personal is stored                  |
+| `budget_category.updated` | Edited the budget category: name and allocation, old → new   | Nothing personal is stored                  |
+| `budget_category.deleted` | Removed the budget category, with the allocation it had      | Nothing personal is stored                  |
+| `budget_item.created`     | Added the budget item (ID) to its category, with the amounts | The item's notes                            |
+| `budget_item.updated`     | Edited (or, for a category change, Moved) the budget item    | The text of the notes, only "Notes changed" |
+| `budget_item.deleted`     | Removed the budget item, with its ID and name                | The item's notes                            |
+
+A save that changes nothing, a refused save and an over-budget result write no entry.

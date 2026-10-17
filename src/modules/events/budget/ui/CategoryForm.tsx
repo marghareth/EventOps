@@ -1,10 +1,13 @@
 // src/modules/events/budget/ui/CategoryForm.tsx
 // Add or edit a budget category (B5-F01; D-084). The server action re-validates everything; this
 // form only shows its answer. Edit carries the version the page loaded (D-032) as a hidden field.
+// After a failed save every problem is listed at once in a summary that takes focus, and each line
+// jumps to its field (B5-F15). On a phone the buttons fill the width (B5-F16).
 "use client";
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { FormErrorSummary, type FormErrorItem } from "@/components/shared/FormErrorSummary";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createCategoryAction, updateCategoryAction } from "../actions";
@@ -31,9 +34,19 @@ export function CategoryForm({ eventId, cancelHref, category }: Props) {
       ? state.values
       : { name: category?.name ?? "", allocation: category?.allocation ?? "" };
   const fieldErrors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
+  const summary: FormErrorItem[] = [
+    { fieldId: "category-name", message: fieldErrors.name },
+    { fieldId: "category-allocation", message: fieldErrors.allocation },
+  ].filter((item): item is FormErrorItem => Boolean(item.message));
 
   return (
-    <form action={formAction} noValidate className="flex max-w-xl flex-col gap-5">
+    <form
+      action={formAction}
+      noValidate
+      aria-busy={pending}
+      className="flex w-full max-w-xl flex-col gap-5"
+    >
+      <FormErrorSummary errors={summary} />
       {category ? <input type="hidden" name="version" value={category.version} /> : null}
 
       {state.status === "error" && state.message ? (
@@ -78,11 +91,11 @@ export function CategoryForm({ eventId, cancelHref, category }: Props) {
         )}
       </FormField>
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={pending}>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
           {pending ? "Saving…" : category ? "Save category" : "Add category"}
         </Button>
-        <Button asChild variant="secondary">
+        <Button asChild variant="secondary" className="w-full sm:w-auto">
           <Link href={cancelHref}>Cancel</Link>
         </Button>
       </div>

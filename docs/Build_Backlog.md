@@ -1,4 +1,4 @@
-<!-- BUILD_BACKLOG.md -->
+<!-- docs/Build_Backlog.md -->
 
 # Build backlog
 
@@ -128,7 +128,10 @@ _Last updated: 2026-10-14._
 | **B4-25 Supplier Documentation**: one Suppliers rules section in DATA_MODEL (model, categories, quote and payment statuses, money, deletion, due and overdue, authorization); supplier entries in the other docs checked against the code                                                              | B4    | In review: documentation only                                                                                          |
 | Supplier profiles: category, contact, quote, deposit, payments, due date                                                                                                                                                                                                                               |       | In review: profiles, contacts, quotes, deposits and payments with due dates, list, search and filters (B4-01 to B4-23) |
 | Budget categories: allocation, estimated, committed, paid                                                                                                                                                                                                                                              |       | Not started                                                                                                            |
-| Remaining budget and over-budget warnings                                                                                                                                                                                                                                                              |       | In progress: remaining and Within/Over status built (D-088); no estimated warning |
+| Remaining budget and over-budget warnings                                                                                                                                                                                                                                                              |       | In progress: remaining and Within/Over status built (D-088); no estimated warning                                      |
+| **B5-F14 Budget Audit and Activity Records**: Activity words every budget entry (category and item added, edited, moved, removed) with amounts old → new; notes never copied; no new audit action (D-093)                                                                                              | B5    | In review: describe, registry and audit tests pass                                                                     |
+| **B5-F15 Budget Error and Empty States**: budget loading and error screens, every form error listed at once in a focused summary, a note when an event has categories but no items (D-093)                                                                                                             | B5    | In review: state, form and list tests pass                                                                             |
+| **B5-F16 Responsive Budget Interface**: items as stacked cards on a phone and a grid from 768 px, summaries that wrap, 44 px controls, full-width form buttons (D-093)                                                                                                                                 | B5    | In review: structure tests pass; not yet checked in a browser                                                          |
 
 ### Operations
 
