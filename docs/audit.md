@@ -49,6 +49,8 @@ has a strict schema, so unlisted fields are refused, not silently stored.
 | `budget_item.created`               | A budget item is added (B5-F02, D-085)                                 | `budget_item`               | Readable ID (`BUD-0001`), name, category name, estimated, committed, paid. No notes                                                     |
 | `budget_item.updated`               | An item is saved with at least one change (B5-F02)                     | `budget_item`               | Readable ID; category name, name and the three amounts old → new; notes only as "changed"                                               |
 | `budget_item.deleted`               | An item is removed (B5-F02)                                            | `budget_item`               | Readable ID and name at that moment                                                                                                     |
+| `task.created`                      | A task is added (B6-F01, D-094)                                        | `task`                      | Readable ID (`TSK-0001`) and title. No description                                                                                      |
+| `task.updated`                      | A task is saved with at least one change (B6-F02)                      | `task`                      | Readable ID, current title; title old → new; description only as "changed"                                                              |
 
 Not recorded:
 
@@ -158,3 +160,12 @@ values).
 | `budget_item.deleted`     | Removed the budget item, with its ID and name                | The item's notes                            |
 
 A save that changes nothing, a refused save and an over-budget result write no entry.
+
+### Task actions on Activity (B6-F01, B6-F02, D-094)
+
+| Action         | Activity says                                               | Never shown                 |
+| -------------- | ----------------------------------------------------------- | --------------------------- |
+| `task.created` | Added the task, with its title and ID                       | The description             |
+| `task.updated` | Edited the task: title old → new, and "Description changed" | The text of the description |
+
+A save that changes nothing and a refused save write no entry.

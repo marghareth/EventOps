@@ -104,6 +104,7 @@ Status values:
 | D-091 | Budget data is scoped to one event                          | Approved | 2026-10-16 |
 | D-092 | Budget authorization and validation checkpoint              | Proposed | 2026-10-16 |
 | D-093 | Budget activity wording, states and responsive layout       | Proposed | 2026-10-16 |
+| D-094 | Tasks: creating and editing                                 | Proposed | 2026-10-17 |
 
 ---
 
@@ -2499,6 +2500,56 @@ model, and adds no audit action. Needs the technical lead's approval.
 equal to `formatPesos`), `audit/actions.test.ts` (registry), `budget/ui/BudgetList.test.tsx`,
 `budget/ui/BudgetForms.test.tsx`, `app/(app)/events/[eventId]/budget/states.test.tsx`. Not yet
 checked in a browser at 375 and 1280 px.
+
+---
+
+## D-094 Tasks: creating and editing
+
+**Status:** Proposed (B6-F01, B6-F02). Adds one table, one counter column and two audit actions.
+Needs the technical lead's approval before it counts as approved, because it introduces a new
+readable ID format and decides what a task holds today.
+
+**Decision (recommended answers marked).**
+
+1. **A task holds a title and a description, nothing else yet.** Assignee, due date, priority,
+   status and the related supplier or area are separate features of this batch (B6-F03 onwards).
+   Each adds its own columns, rules and migration, so this one adds none of them.
+2. **Title is required, description is optional (recommended).** The feature text says "a title and
+   description". A task is useful with a title alone, and forcing a description would invite filler.
+   Alternative: require both.
+3. **Limits.** Title 1 to 120 characters, trimmed (as a budget item name). Description at most 2,000
+   characters, trimmed, line breaks kept; blank is stored as none (as budget notes).
+4. **Readable ID: `TSK-0001` (recommended).** Issued per event from `events.lastTaskNumber` in the
+   same transaction as the insert, never reused, same as ATT, SUP, QUO, PAY and BUD (D-042, D-085).
+   Alternative: no readable ID. The brand book lists no task prefix, so this is new.
+5. **Permissions.** Every member reads (`event.view`); Owners and Coordinators create and edit
+   (`tasks.manage`, already in the matrix, D-035). Viewers change nothing and cannot open the forms.
+   No permission is added or changed.
+6. **Authorization and isolation.** As D-091 and D-092: every action and read authorizes first with
+   `authorizeEvent` (D-036), uses only the event ID it returns, looks the task up inside that event
+   (another event's task is "not found"), and the write checks the role again in its own statement.
+7. **Editing.** A save carrying an older `updatedAt` is refused as stale (D-032). A save that
+   changes nothing says so and writes nothing, not even an audit entry (D-037).
+8. **Audit.** Two new actions. `task.created`: readable ID and title. `task.updated`: readable ID,
+   current title, and only the changed fields: title old → new; the **description only as
+   "changed"**, never its text (free text, like budget notes, D-085). Both are written in the same
+   transaction as the change. No audit entry for reads. Activity words them in `audit/describe.ts`.
+9. **Not in this decision.** Deleting a task, status, overdue detection (`overdue.ts` stays empty),
+   assignment, impact rules and any alert. Each needs its own approval (PROJECT_RULES section 2.1).
+
+**Schema.** `tasks` (id, eventId, number, title VARCHAR(120), description VARCHAR(2000) NULL,
+createdAt, updatedAt) with `ON DELETE CASCADE` to events (D-004), unique `(eventId, number)` and
+`(eventId, id)` (the target of later composite links, D-002), and CHECK constraints
+`tasks_number_positive`, `tasks_title_not_blank`, `tasks_description_not_blank`,
+`events_last_task_number_nonneg`. Migration `20261017090000_tasks`, hand-written like the budget
+one: run `prisma migrate dev` once to confirm there is no drift.
+
+**Evidence.** `tasks/domain/task.test.ts`, `tasks/schema.test.ts`,
+`tasks/application/task.use-cases.test.ts`, `tasks/actions.test.ts` (authorization before storage,
+IDs from authorization only, validation, stale, unchanged, safe failure), `tasks/queries.test.ts`,
+`tasks/audit.test.ts`, `tasks/ui/*.test.tsx`, `app/(app)/events/[eventId]/tasks/states.test.tsx`.
+**Not yet run:** a database test of the role re-check and event isolation, like
+`budget-event-scope.db.test.ts`, and a browser check at 375 and 1280 px.
 
 ---
 

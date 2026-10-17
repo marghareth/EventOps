@@ -41,6 +41,8 @@ describe("audit action registry", () => {
       "budget_item.created",
       "budget_item.updated",
       "budget_item.deleted",
+      "task.created",
+      "task.updated",
     ]);
     for (const action of Object.keys(AUDIT_ACTIONS)) expect(action).toMatch(/^[a-z_]+\.[a-z_]+$/);
   });
