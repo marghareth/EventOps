@@ -689,23 +689,32 @@ from the status and the gaps on every read; nothing is stored, sent or dismissed
   input (B3-14); it is never guessed as covered or as advice.
 - Notes are never part of the input.
 
-## Tasks (B6-F01, B6-F02, D-094)
+## Tasks (B6-F01 to B6-F05, D-094, D-095)
 
-A task is one piece of operational work for an event. Today it holds a title and a description;
-assignee, due date, priority, status and the related supplier or area are added by their own
+A task is one piece of operational work for an event. It holds a title, a description, a priority
+and an optional assignee; due date, status and the related supplier or area are added by their own
 features, each with its own migration.
 
-| Field         | Rule                                                                                                                                               |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `number`      | Per-event sequence behind the readable ID `TSK-0001`, from `events.lastTaskNumber`. Issued in the same transaction as the insert and never reused. |
-| `title`       | Required, 1 to 120 characters, trimmed, at least one non-space character.                                                                          |
-| `description` | Optional, at most 2,000 characters, trimmed, line breaks kept. Blank is stored as NULL.                                                            |
-| `updatedAt`   | The edit version (D-032): a save carrying an older value is refused as stale.                                                                      |
+| Field         | Rule                                                                                                                                                                                                                       |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `number`      | Per-event sequence behind the readable ID `TSK-0001`, from `events.lastTaskNumber`. Issued in the same transaction as the insert and never reused.                                                                         |
+| `title`       | Required, 1 to 120 characters, trimmed, at least one non-space character.                                                                                                                                                  |
+| `description` | Optional, at most 2,000 characters, trimmed, line breaks kept. Blank is stored as NULL.                                                                                                                                    |
+| `priority`    | Required: `HIGH`, `MEDIUM` or `LOW` (enum `task_priority`). A new task is `MEDIUM` unless another is chosen; that default belongs to the domain, not to a column default. Tasks that existed before D-095 became `MEDIUM`. |
+| `assigneeId`  | Optional: the `event_members` row the task is assigned to, NULL for unassigned. Any role can be assigned; being assigned grants no permission.                                                                             |
+| `updatedAt`   | The edit version (D-032): a save carrying an older value is refused as stale.                                                                                                                                              |
 
 A task belongs to exactly one event and is deleted with it (D-004). `(eventId, number)` and
 `(eventId, id)` are unique; the second is the target of the composite links later task features add
-(D-002). Owners and Coordinators create and edit (`tasks.manage`); every member reads. Audit:
-`task.created` and `task.updated` (`docs/audit.md`).
+(D-002). The assignee is a composite foreign key `(eventId, assigneeId)` to
+`event_members(eventId, id)`, so the database refuses a member of another event (D-002). The key is
+NO ACTION because Prisma cannot set one column of a composite key to NULL; the trigger
+`event_members_unassign_tasks` (migration `20261017120000_task_priority_assignee`) clears
+`assigneeId`, and moves `updatedAt`, when a member is removed, whether directly, with their user or
+with the event. Owners and Coordinators create, edit, assign and delete (`tasks.manage`); every
+member reads. A task is permanently deleted after a confirmation (D-095); it has no dependent rows
+yet, and its number is never reused. Audit: `task.created`, `task.updated` and `task.deleted`
+(`docs/audit.md`).
 
 ## CHECK constraints (D-010)
 
@@ -732,6 +741,7 @@ place.
 | `tasks_number_positive`                     | `number` is 1 or more.                                                                              |
 | `tasks_title_not_blank`                     | `title` has at least one non-space character.                                                       |
 | `tasks_description_not_blank`               | `description` is NULL or contains a non-space character.                                            |
+| `tasks_eventId_assigneeId_fkey`             | `assigneeId` is NULL or a member of the task's own event (D-095).                                   |
 | `supplier_payments_amount_positive`         | `amount` is more than 0.                                                                            |
 | `supplier_payments_number_positive`         | `number` is 1 or more.                                                                              |
 | `supplier_payments_description_not_blank`   | `description` is NULL or contains a non-space character.                                            |
@@ -786,6 +796,7 @@ Who may delete what is set by the permission matrix (D-031, D-033).
 | Attendee                  | Owners and Coordinators (`attendees.manage`, D-035). Permanently deleted; an `attendee.deleted` audit entry keeps its number and name. Its accessibility requirements are deleted with it (cascade, D-056).                                                                                                                                                                     |
 | Accessibility requirement | Owners and Coordinators (`accessibility.manage`). Permanently deleted; the audit entry keeps the attendee number and the type.                                                                                                                                                                                                                                                  |
 | Supplier                  | Owners and Coordinators (`suppliers.manage`, D-072). Permanently deleted, after confirming; a `supplier.deleted` audit entry keeps its number and name, and numbers are never reused. Its quotes and payments are deleted with it (cascade, D-075, D-077). Its budget line will be unlinked keeping its totals, and task links cleared (D-002, D-003), when those tables exist. |
+| Task                      | Owners and Coordinators (`tasks.manage`, D-095). Permanently deleted, after confirming; a `task.deleted` audit entry keeps its number and title, and numbers are never reused.                                                                                                                                                                                                  |
 | Accessibility resource    | Owners and Coordinators (`accessibility.manage`). Permanently deleted; the type then shows as "Not set up".                                                                                                                                                                                                                                                                     |
 | User                      | Blocked while the user created any event (D-011), or is the last `OWNER` of any event (D-022). Otherwise their memberships are deleted.                                                                                                                                                                                                                                         |
 | Membership                | Blocked if it is the event's last `OWNER` (D-022). Demoting or moving the last `OWNER` is blocked too.                                                                                                                                                                                                                                                                          |

@@ -9,6 +9,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B6-F03 Task deletion (D-095, proposed).**
+  - Owners and Coordinators can delete a task from the list. A confirmation names the task and says
+    it can't be undone; Viewers see no Delete button. The list then shows "Task TSK-0004 removed.".
+    The number is never reused. Activity keeps the task's ID and title.
+- **B6-F04 Task assignment (D-095, proposed).**
+  - A task can be assigned to a member of its event, or left unassigned, from the add and edit forms.
+    The list shows who it is assigned to. A member of another event is refused by the server and by
+    the database. Removing a member unassigns their tasks instead of blocking the removal. Activity
+    shows "Assignee: Unassigned → Ana Reyes". Any role can be assigned; this needs your confirmation
+    (D-095, point 3).
+- **B6-F05 Task priority (D-095, proposed).**
+  - Every task has a priority: High, Medium (the default) or Low, shown as a word on the list and
+    chosen on the add and edit forms. Tasks that existed before this change became Medium. Activity
+    shows "Priority: Medium → High".
+  - Migration `20261017120000_task_priority_assignee` (enum, two columns, foreign key and a trigger on
+    `event_members`), written by hand: run `prisma migrate dev` once to confirm there is no drift.
+    Applied to PostgreSQL 18 in testing, including on a database that already held a task.
+
 - **B6-F01 Task creation (D-094, proposed).**
   - Owners and Coordinators can add a task to an event with a title and an optional description. Each
     task gets a readable ID (TSK-0001, numbered per event). The Tasks page now lists them, with an

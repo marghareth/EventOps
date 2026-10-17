@@ -1,7 +1,7 @@
 // src/app/(app)/events/[eventId]/tasks/[taskId]/edit/page.tsx
-// Edit a task (B6-F02; D-094). The task is looked up only inside the authorized event, so another
-// event's task is "not found". The loaded updatedAt travels with the form as its edit version
-// (D-032).
+// Edit a task (B6-F02, B6-F04, B6-F05; D-094, D-095). The task is looked up only inside the
+// authorized event, so another event's task is "not found". The loaded updatedAt travels with the
+// form as its edit version (D-032). Delete lives on the list (B6-F03).
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { UnauthorizedState } from "@/components/shared/UnauthorizedState";
@@ -31,18 +31,21 @@ export default async function EditTaskPage({
     }
     notFound();
   }
-  const { task } = result;
+  const { task, assignees } = result;
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-h2 font-extrabold">Edit task</h1>
       <TaskForm
         eventId={event.id}
         cancelHref={basePath}
+        assignees={assignees}
         task={{
           id: task.id,
           reference: formatTaskReference(task.number),
           title: task.title,
           description: task.description,
+          priority: task.priority,
+          assigneeId: task.assignee?.id ?? null,
           version: task.updatedAt.toISOString(),
         }}
       />

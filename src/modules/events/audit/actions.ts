@@ -250,16 +250,30 @@ export const budgetItemChangesSchema = z
 
 export type BudgetItemChanges = z.infer<typeof budgetItemChangesSchema>;
 
+/**
+ * Task priorities as stored (B6-F05, D-095). The audit registry's own copy (it can't import the
+ * tasks context); tests keep it equal to the canonical list and the database enum.
+ */
+export const TASK_PRIORITIES = ["HIGH", "MEDIUM", "LOW"] as const;
+const taskPriority = z.enum(TASK_PRIORITIES);
+
 /** The task's readable ID, for example TSK-0001 (D-094). */
 const taskReference = z.string().regex(/^TSK-\d{4,}$/);
 
 /**
- * Task fields as recorded in "task.updated" (B6-F02, D-094). The title is a business value,
- * recorded old → new. The description is free text of up to 2,000 characters: recorded as changed,
- * never copied (docs/audit.md).
+ * Task fields as recorded in "task.updated" (B6-F02, B6-F04, B6-F05; D-094, D-095). The title and
+ * the priority are business values, recorded old → new. The assignee is recorded old → new by the
+ * member's display name (null is "unassigned"), the one personal detail a task entry holds. The
+ * description is free text of up to 2,000 characters: recorded as changed, never copied
+ * (docs/audit.md).
  */
 export const taskChangesSchema = z
-  .object({ title: fromTo(z.string()), description: changedOnly })
+  .object({
+    title: fromTo(z.string()),
+    description: changedOnly,
+    priority: fromTo(taskPriority),
+    assignee: fromTo(z.string().nullable()),
+  })
   .partial()
   .strict()
   .refine((changes) => Object.keys(changes).length > 0, "An update must change something.");
@@ -475,10 +489,21 @@ export const AUDIT_ACTIONS = {
     entityType: "budget_item",
     details: z.object({ reference: budgetItemReference, name: z.string() }).strict(),
   },
-  /** A task was added (B6-F01, D-094): its readable ID and title. The description is not copied. */
+  /**
+   * A task was added (B6-F01, D-094): its readable ID and title, and, since D-095, its priority and
+   * assignee's name. Entries written before D-095 have neither, so both stay optional. The
+   * description is not copied.
+   */
   "task.created": {
     entityType: "task",
-    details: z.object({ reference: taskReference, title: z.string() }).strict(),
+    details: z
+      .object({
+        reference: taskReference,
+        title: z.string(),
+        priority: taskPriority.optional(),
+        assignee: z.string().nullable().optional(),
+      })
+      .strict(),
   },
   /** A task was edited (B6-F02). The current title, and only the changed fields. */
   "task.updated": {
@@ -486,6 +511,11 @@ export const AUDIT_ACTIONS = {
     details: z
       .object({ reference: taskReference, title: z.string(), changes: taskChangesSchema })
       .strict(),
+  },
+  /** A task was removed (B6-F03, D-095). The entry keeps the readable ID and the title. */
+  "task.deleted": {
+    entityType: "task",
+    details: z.object({ reference: taskReference, title: z.string() }).strict(),
   },
 } as const;
 

@@ -1,19 +1,37 @@
 // src/modules/events/tasks/ui/TaskList.test.tsx
-// The task list (B6-F01, B6-F02; D-094): readable ID, title and description for everyone; Edit only
-// for people who can manage tasks.
+// The task list (B6-F01 to B6-F05; D-094, D-095): readable ID, title, description, priority and
+// assignee for everyone; Edit and Delete only for people who can manage tasks.
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { TaskRecord } from "../application/ports";
-import { TaskList } from "./TaskList";
+vi.mock("../actions", () => ({ deleteTaskAction: vi.fn() }));
+
+const { TaskList } = await import("./TaskList");
 
 const updatedAt = new Date("2026-10-17T00:00:00Z");
 const tasks: TaskRecord[] = [
-  { id: "t1", number: 1, title: "Confirm florist", description: "Call Ana", updatedAt },
-  { id: "t2", number: 12, title: "Print programs", description: null, updatedAt },
+  {
+    id: "t1",
+    number: 1,
+    title: "Confirm florist",
+    description: "Call Ana",
+    priority: "HIGH",
+    assignee: { id: "m1", name: "Ana Reyes" },
+    updatedAt,
+  },
+  {
+    id: "t2",
+    number: 12,
+    title: "Print programs",
+    description: null,
+    priority: "LOW",
+    assignee: null,
+    updatedAt,
+  },
 ];
 
 const renderList = (canManage = true, list = tasks) =>
-  render(<TaskList tasks={list} basePath="/events/e1/tasks" canManage={canManage} />);
+  render(<TaskList tasks={list} eventId="e1" basePath="/events/e1/tasks" canManage={canManage} />);
 
 describe("TaskList", () => {
   it("shows each task as a list item with its readable ID, title and description", () => {
@@ -29,7 +47,7 @@ describe("TaskList", () => {
   it("shows no description line for a task without one", () => {
     renderList();
     const second = screen.getAllByRole("listitem")[1]!;
-    expect(second.querySelectorAll("p")).toHaveLength(1); // only the readable ID
+    expect(second.querySelectorAll("p")).toHaveLength(2); // the readable ID and the priority line
   });
 
   it("gives each Edit link a name that says which task, pointing at its edit page", () => {
@@ -38,10 +56,33 @@ describe("TaskList", () => {
     expect(link).toHaveAttribute("href", "/events/e1/tasks/t1/edit");
   });
 
-  it("shows no Edit link to someone who cannot manage tasks", () => {
+  it("shows the priority as a word, never colour alone (B6-F05)", () => {
+    renderList();
+    const [first, second] = screen.getAllByRole("listitem");
+    expect(within(first!).getByText("High priority")).toBeVisible();
+    expect(within(second!).getByText("Low priority")).toBeVisible();
+  });
+
+  it("shows who a task is assigned to, or that it is unassigned (B6-F04)", () => {
+    renderList();
+    const [first, second] = screen.getAllByRole("listitem");
+    expect(first).toHaveTextContent("Assigned to Ana Reyes");
+    expect(second).toHaveTextContent("Unassigned");
+  });
+
+  it("gives each task a Delete button that names the task (B6-F03)", () => {
+    renderList();
+    expect(screen.getByRole("button", { name: "Delete TSK-0001 Confirm florist" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Delete TSK-0012 Print programs" })).toBeVisible();
+  });
+
+  it("shows no Edit link or Delete button to someone who cannot manage tasks", () => {
     renderList(false);
     expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
     expect(screen.queryByText("Edit")).toBeNull();
+    expect(screen.queryByText("Delete")).toBeNull();
+    expect(screen.getByText("High priority")).toBeVisible();
     expect(screen.getByText("Confirm florist")).toBeVisible();
   });
 

@@ -1,5 +1,5 @@
 // src/modules/events/tasks/queries.test.ts
-// Event scoping of the task reads (B6-F01, B6-F02; D-094). With authorization and storage replaced,
+// Event scoping of the task reads (B6-F01 to B6-F05; D-094, D-095). With authorization and storage replaced,
 // this checks that every read uses the event ID that authorizeEvent returned, never the one the
 // caller sent; refuses before touching storage; and treats a malformed or foreign task ID as "not
 // found".
@@ -14,15 +14,20 @@ const TASK_B = "10000000-0000-4000-8000-00000000000b";
 const authorizeEvent = vi.fn();
 vi.mock("@/modules/events/public", () => ({
   authorizeEvent: (...args: unknown[]) => authorizeEvent(...args),
+  MEMBER_ROLE_LABEL: { OWNER: "Owner", COORDINATOR: "Coordinator", VIEWER: "Viewer" },
 }));
 
 const repository = {
   listTasks: vi.fn(async () => []),
-  findTask: vi.fn(async () => null),
+  findTask: vi.fn(async (): Promise<object | null> => null),
+  listAssignableMembers: vi.fn(async () => [
+    { id: "m1", name: "Ana Reyes", role: "COORDINATOR" },
+    { id: "m2", name: "Mika Santos", role: "OWNER" },
+  ]),
 };
 vi.mock("./composition", () => ({ taskRepository: () => repository }));
 
-const { getEventTasks, getTaskForEdit } = await import("./queries");
+const { getAssigneeOptions, getEventTasks, getTaskForEdit } = await import("./queries");
 
 const ok = { ok: true, event: { id: EVENT_A }, user: { id: "u1" } };
 
@@ -71,6 +76,19 @@ describe("getTaskForEdit", () => {
     expect(repository.findTask).toHaveBeenCalledWith(EVENT_A, TASK_B);
   });
 
+  it("returns the task with the event's members to choose from, labelled with their role", async () => {
+    repository.findTask.mockResolvedValueOnce({ id: TASK_B });
+    await expect(getTaskForEdit(SENT, TASK_B)).resolves.toEqual({
+      ok: true,
+      task: { id: TASK_B },
+      assignees: [
+        { id: "m1", label: "Ana Reyes (Coordinator)" },
+        { id: "m2", label: "Mika Santos (Owner)" },
+      ],
+    });
+    expect(repository.listAssignableMembers).toHaveBeenCalledWith(EVENT_A);
+  });
+
   it("is not found for a task outside the event", async () => {
     await expect(getTaskForEdit(SENT, TASK_B)).resolves.toEqual({
       ok: false,
@@ -85,4 +103,27 @@ describe("getTaskForEdit", () => {
     });
     expect(repository.findTask).not.toHaveBeenCalled();
   });
+});
+
+describe("getAssigneeOptions (B6-F04)", () => {
+  it("lists only the authorized event's members, using the ID authorization returned", async () => {
+    await expect(getAssigneeOptions(SENT)).resolves.toEqual({
+      ok: true,
+      assignees: [
+        { id: "m1", label: "Ana Reyes (Coordinator)" },
+        { id: "m2", label: "Mika Santos (Owner)" },
+      ],
+    });
+    expect(authorizeEvent).toHaveBeenCalledWith(SENT, "tasks.manage", expect.any(String));
+    expect(repository.listAssignableMembers).toHaveBeenCalledWith(EVENT_A);
+  });
+
+  it.each(["forbidden", "not-found"] as const)(
+    "refuses (%s) before reading any member",
+    async (reason) => {
+      authorizeEvent.mockResolvedValue({ ok: false, reason });
+      await expect(getAssigneeOptions(SENT)).resolves.toEqual({ ok: false, reason });
+      expect(repository.listAssignableMembers).not.toHaveBeenCalled();
+    },
+  );
 });

@@ -1,6 +1,7 @@
 // src/app/(app)/events/[eventId]/tasks/page.tsx
-// The event's tasks (B6-F01 create, B6-F02 edit; D-094). Every member can read them (event.view);
-// Owners and Coordinators also get "Add task" and Edit links (tasks.manage). Checks access itself
+// The event's tasks (B6-F01 create, B6-F02 edit, B6-F03 delete, B6-F04 assignee, B6-F05 priority;
+// D-094, D-095). Every member can read them (event.view); Owners and Coordinators also get "Add
+// task", Edit and Delete (tasks.manage). Checks access itself
 // (D-027); the read authorizes again, and every action checks once more.
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -25,7 +26,7 @@ type Props = {
 };
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
-const KINDS: readonly TaskNoticeKind[] = ["task-added", "task-saved"];
+const KINDS: readonly TaskNoticeKind[] = ["task-added", "task-saved", "task-removed"];
 
 export default async function TasksPage({ params, searchParams }: Props) {
   // Membership is checked here too, not only in the event layout (D-027, B1-07).
@@ -94,7 +95,7 @@ export default async function TasksPage({ params, searchParams }: Props) {
           />
         </div>
       ) : (
-        <TaskList tasks={tasks} basePath={basePath} canManage={canManage} />
+        <TaskList tasks={tasks} eventId={event.id} basePath={basePath} canManage={canManage} />
       )}
     </div>
   );
