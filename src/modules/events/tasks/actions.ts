@@ -1,9 +1,11 @@
 // src/modules/events/tasks/actions.ts
-// Task server actions (B6-F01 create, B6-F02 edit; D-094). Server actions are public HTTP
+// Task server actions (B6-F01 create, B6-F02 edit, B6-F03 delete, B6-F04 assignee, B6-F05 priority;
+// D-094, D-095). Server actions are public HTTP
 // endpoints, so each one authorizes first with authorizeEvent(eventId, "tasks.manage") (D-035,
 // D-036) and validates every input on the server with the shared schema. The event comes only from
 // the bound argument and is checked; the task ID is looked up only inside the authorized event, so
-// another event's task is "not found". The repository re-checks the role in the database.
+// another event's task is "not found". An assignee is accepted only if it is a member of the
+// authorized event. The repository re-checks the role in the database.
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -12,10 +14,11 @@ import { z } from "zod";
 import { fieldErrorsFrom } from "@/lib/auth-rules";
 import { authorizeEvent } from "@/modules/events/public";
 import { createTask } from "./application/create-task";
+import { deleteTask } from "./application/delete-task";
 import { updateTask } from "./application/update-task";
 import { taskRepository } from "./composition";
 import { formatTaskReference } from "./domain/task";
-import { TASK_MESSAGES as MESSAGES, type TaskFormState } from "./form-state";
+import { TASK_MESSAGES as MESSAGES, type TaskDeleteState, type TaskFormState } from "./form-state";
 import { TASK_FIELDS, taskFormSchema, type TaskField } from "./schema";
 
 const idSchema = z.uuid();
@@ -38,6 +41,13 @@ function taskValues(formData: FormData): Record<TaskField, string> {
   return values;
 }
 
+/** A member ID that is not this event's: shown as an error on the assignee field (D-095). */
+const assigneeRefused = (values: Record<TaskField, string>): TaskFormState => ({
+  status: "error",
+  fieldErrors: { assigneeId: MESSAGES.assigneeNotFound },
+  values,
+});
+
 /** Adds a task, then opens the task list with an "added" notice (B6-F01). Owners and Coordinators. */
 export async function createTaskAction(
   eventId: string,
@@ -59,6 +69,7 @@ export async function createTaskAction(
       actorId: auth.user.id,
       input: parsed.data,
     });
+    if (!result.ok && result.reason === "assignee-not-found") return assigneeRefused(values);
     // The role changed after the check above: refused in the database.
     if (!result.ok) return { status: "error", message: MESSAGES.forbidden, values };
     number = result.number;
@@ -107,6 +118,7 @@ export async function updateTaskAction(
       version: new Date(version.data),
       input: parsed.data,
     });
+    if (!result.ok && result.reason === "assignee-not-found") return assigneeRefused(values);
     if (!result.ok) {
       const message = result.reason === "stale" ? MESSAGES.taskStale : MESSAGES.taskNotFound;
       return { status: "error", message, values };
@@ -117,4 +129,31 @@ export async function updateTaskAction(
   }
   revalidatePath(tasksPath(auth.event.id));
   redirect(noticeUrl(auth.event.id, "task-saved", reference));
+}
+
+/**
+ * Permanently removes a task, then opens the task list with a "removed" notice (B6-F03, D-095).
+ * Owners and Coordinators. The task ID is looked up only inside the authorized event, so another
+ * event's task is "not found"; a refusal removes nothing.
+ */
+export async function deleteTaskAction(eventId: string, taskId: string): Promise<TaskDeleteState> {
+  const auth = await authorizeEvent(eventId, "tasks.manage", tasksPath(eventId));
+  if (!auth.ok) return { status: "error", message: REFUSED[auth.reason] };
+  if (!idSchema.safeParse(taskId).success) {
+    return { status: "error", message: MESSAGES.taskNotFound };
+  }
+  let number: number;
+  try {
+    const result = await deleteTask(taskRepository(), {
+      eventId: auth.event.id,
+      taskId,
+      actorId: auth.user.id,
+    });
+    if (!result.ok) return { status: "error", message: MESSAGES.taskNotFound };
+    number = result.number;
+  } catch {
+    return { status: "error", message: MESSAGES.deleteFailed };
+  }
+  revalidatePath(tasksPath(auth.event.id));
+  redirect(noticeUrl(auth.event.id, "task-removed", formatTaskReference(number)));
 }

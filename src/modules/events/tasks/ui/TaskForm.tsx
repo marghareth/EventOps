@@ -1,6 +1,7 @@
 // src/modules/events/tasks/ui/TaskForm.tsx
-// Add or edit a task (B6-F01, B6-F02; D-094). The server action re-validates everything; this form
-// only shows its answer. Edit carries the version the page loaded (D-032) as a hidden field. After
+// Add or edit a task (B6-F01, B6-F02, B6-F04, B6-F05; D-094, D-095). The server action re-validates
+// everything (including that the assignee is a member of this event); this form only shows its
+// answer. Edit carries the version the page loaded (D-032) as a hidden field. After
 // a failed save every problem is listed at once in a summary that takes focus, and each line jumps
 // to its field. Controls are 44 px tall and the buttons fill the width on a phone.
 "use client";
@@ -13,25 +14,36 @@ import { FormField, fieldControlClass } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createTaskAction, updateTaskAction } from "../actions";
-import { TASK_DESCRIPTION_MAX, TASK_TITLE_MAX } from "../domain/task";
+import {
+  DEFAULT_TASK_PRIORITY,
+  TASK_DESCRIPTION_MAX,
+  TASK_PRIORITIES,
+  TASK_PRIORITY_LABEL,
+  TASK_TITLE_MAX,
+} from "../domain/task";
 import type { TaskFormState } from "../form-state";
 
 type Props = {
   eventId: string;
   cancelHref: string;
+  /** The members of this event the task can be assigned to, labelled for display (D-095). */
+  assignees: { id: string; label: string }[];
   /** Omit to add a task. */
   task?: {
     id: string;
     reference: string;
     title: string;
     description: string | null;
+    priority: (typeof TASK_PRIORITIES)[number];
+    /** The member ID the task is assigned to, or null. */
+    assigneeId: string | null;
     version: string;
   };
 };
 
 const IDLE: TaskFormState = { status: "idle" };
 
-export function TaskForm({ eventId, cancelHref, task }: Props) {
+export function TaskForm({ eventId, cancelHref, assignees, task }: Props) {
   const action = task
     ? updateTaskAction.bind(null, eventId, task.id)
     : createTaskAction.bind(null, eventId);
@@ -40,11 +52,18 @@ export function TaskForm({ eventId, cancelHref, task }: Props) {
   const values =
     state.status === "error"
       ? state.values
-      : { title: task?.title ?? "", description: task?.description ?? "" };
+      : {
+          title: task?.title ?? "",
+          description: task?.description ?? "",
+          priority: task?.priority ?? DEFAULT_TASK_PRIORITY,
+          assigneeId: task?.assigneeId ?? "",
+        };
   const fieldErrors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
   const summary: FormErrorItem[] = [
     { fieldId: "task-title", message: fieldErrors.title },
     { fieldId: "task-description", message: fieldErrors.description },
+    { fieldId: "task-priority", message: fieldErrors.priority },
+    { fieldId: "task-assignee", message: fieldErrors.assigneeId },
   ].filter((entry): entry is FormErrorItem => Boolean(entry.message));
   // Re-mount the fields after each server answer so defaultValue shows what the user typed.
   const formKey = JSON.stringify(values);
@@ -99,6 +118,52 @@ export function TaskForm({ eventId, cancelHref, task }: Props) {
             maxLength={TASK_DESCRIPTION_MAX}
             className={`${fieldControlClass} py-2`}
           />
+        )}
+      </FormField>
+
+      <FormField
+        id="task-priority"
+        label="Priority"
+        required
+        hint="High priority tasks are the ones to do first."
+        error={fieldErrors.priority}
+      >
+        {(control) => (
+          <select
+            {...control}
+            name="priority"
+            defaultValue={values.priority}
+            className={fieldControlClass}
+          >
+            {TASK_PRIORITIES.map((priority) => (
+              <option key={priority} value={priority}>
+                {TASK_PRIORITY_LABEL[priority]}
+              </option>
+            ))}
+          </select>
+        )}
+      </FormField>
+
+      <FormField
+        id="task-assignee"
+        label="Assigned to (optional)"
+        hint="Choose who is responsible. Leave it as Unassigned if nobody is yet."
+        error={fieldErrors.assigneeId}
+      >
+        {(control) => (
+          <select
+            {...control}
+            name="assigneeId"
+            defaultValue={values.assigneeId}
+            className={fieldControlClass}
+          >
+            <option value="">Unassigned</option>
+            {assignees.map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.label}
+              </option>
+            ))}
+          </select>
         )}
       </FormField>
 

@@ -105,6 +105,7 @@ Status values:
 | D-092 | Budget authorization and validation checkpoint              | Proposed | 2026-10-16 |
 | D-093 | Budget activity wording, states and responsive layout       | Proposed | 2026-10-16 |
 | D-094 | Tasks: creating and editing                                 | Proposed | 2026-10-17 |
+| D-095 | Tasks: deleting, assigning and priority                     | Proposed | 2026-10-17 |
 
 ---
 
@@ -2550,6 +2551,71 @@ IDs from authorization only, validation, stale, unchanged, safe failure), `tasks
 `tasks/audit.test.ts`, `tasks/ui/*.test.tsx`, `app/(app)/events/[eventId]/tasks/states.test.tsx`.
 **Not yet run:** a database test of the role re-check and event isolation, like
 `budget-event-scope.db.test.ts`, and a browser check at 375 and 1280 px.
+
+## D-095 Tasks: deleting, assigning and priority
+
+**Status:** Proposed (B6-F03, B6-F04, B6-F05). Adds one enum, two columns, one foreign key, one
+trigger and one audit action. Needs the technical lead's approval before it counts as approved,
+because it decides deletion behaviour, who can be assigned, and a database trigger on memberships.
+
+**Decision (recommended answers marked).**
+
+1. **Deleting is permanent, after a confirmation (recommended).** Same as budget items (D-085),
+   suppliers (D-072) and attendees. A task has no dependent rows yet, so there is nothing to cascade
+   or block. Its `TSK-` number is never reused. Alternatives: archive or soft-delete. Nothing in the
+   scope document asks for it, and it would need a status the task does not have yet.
+2. **Delete permission is `tasks.manage`** (Owners and Coordinators), already in the matrix (D-035),
+   which says "Create, assign and complete tasks". No permission is added or changed. Viewers see no
+   Delete button and the action refuses them; the repository re-checks the role in the delete
+   statement.
+3. **Any member of the event can be assigned (recommended).** Owner, Coordinator and Viewer. The
+   matrix does not say who may be assigned, only who may assign. Assignment is a label: it grants no
+   permission, so a Viewer who is assigned a task still can't edit it. Alternative: Owners and
+   Coordinators only, so a task is never assigned to someone who can't change it. **Technical lead:
+   please confirm or choose the alternative.**
+4. **Assignment links to the membership, not to the user.** `tasks.assigneeId` references
+   `event_members(eventId, id)` with a composite foreign key (D-002), so the database refuses a member
+   of another event. The server also looks the member up inside the authorized event first and shows
+   "Choose a member of this event." on the field.
+5. **Removing a member unassigns their tasks; it does not block the removal and does not delete the
+   tasks (recommended).** Prisma can't set one column of a composite key to NULL, so the foreign key
+   is NO ACTION and a database trigger (`event_members_unassign_tasks`, BEFORE DELETE on
+   `event_members`) clears `assigneeId` and moves `updatedAt`. It covers removing a member, deleting a
+   user and deleting an event. This changes what removing a member does to another table, so it is
+   called out here. The members feature is not built yet (`members/actions.ts` is empty).
+6. **Priority is `HIGH`, `MEDIUM` or `LOW`, required, `MEDIUM` by default (recommended).** The
+   brief says only "priority". Three levels are enough to tell what to do first; no numeric scale
+   and no "urgent" level. The default is in the domain (`DEFAULT_TASK_PRIORITY`), not in a column
+   default. The migration adds the column with a temporary default so existing tasks become `MEDIUM`,
+   then drops it. Alternative: optional priority (a task with none).
+7. **Priority is shown as a word** ("High priority") on a tinted badge, never colour alone. The list
+   stays in `TSK-` order: no sorting or filtering by priority or assignee is added here.
+8. **Audit.** New action `task.deleted` (readable ID and title). `task.updated` gains `priority`
+   old → new and `assignee` old → new **by display name** (none is null). `task.created` gains an
+   optional priority and assignee, optional so entries written before this decision stay valid. The
+   assignee's name is the one personal detail a task entry holds; the alternative is "Assignee
+   changed" with no name. Activity words them in `audit/describe.ts`. All are written in the same
+   transaction as the change.
+9. **Editing keeps its rules (D-094):** a stale save is refused, and a save that changes nothing
+   writes nothing, including when the assignee and priority are unchanged.
+10. **Not in this decision.** Due date, status, related supplier or area, overdue detection, "my
+    tasks", filtering or sorting, notifying the assignee, bulk delete, undo, and any impact rule or
+    alert. Each needs its own approval (PROJECT_RULES section 2.1).
+
+**Schema.** Enum `task_priority`; `tasks.priority` (NOT NULL), `tasks.assigneeId` (UUID, NULL),
+index `(eventId, assigneeId)`, foreign key `tasks_eventId_assigneeId_fkey` to
+`event_members(eventId, id)`, trigger function `eventops_unassign_tasks_of_member`. Migration
+`20261017120000_task_priority_assignee`, hand-written: run `prisma migrate dev` once to confirm
+there is no drift (Prisma does not diff the trigger).
+
+**Evidence.** `tasks/domain/task.test.ts` (priorities equal the database enum and the audit copy,
+diff), `tasks/schema.test.ts`, `tasks/application/task.use-cases.test.ts`, `tasks/actions.test.ts`,
+`tasks/queries.test.ts`, `tasks/audit.test.ts`, `tasks/ui/*.test.tsx`, and
+`tasks/tasks-event-scope.db.test.ts` (16 tests against PostgreSQL 18: event isolation, role re-check,
+cross-event assignee refused by the application and by the database, unassign on member removal,
+user removal and event deletion, number never reused). The migration was applied to a database that
+already held a task: the task became `MEDIUM` with no assignee. **Not yet run:** a browser check at
+375 and 1280 px, and `prisma migrate dev` for drift.
 
 ---
 

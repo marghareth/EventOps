@@ -1,19 +1,30 @@
 // src/modules/events/tasks/ui/TaskList.tsx
-// The event's tasks as a list of cards (B6-F01, B6-F02; D-094): readable ID, title and description.
-// One markup for every width: a single column that fills a phone and reads as rows on a desktop, so
-// nothing scrolls sideways. Edit appears only for people who can manage tasks; the server action
-// checks the role again. Nothing about assignees, due dates, priority or status yet.
+// The event's tasks as a list of cards (B6-F01 to B6-F05; D-094, D-095): readable ID, title,
+// description, priority and who it is assigned to. One markup for every width: a single column that
+// fills a phone and reads as rows on a desktop, so nothing scrolls sideways. Edit and Delete appear
+// only for people who can manage tasks; the server actions check the role again. Priority is shown
+// as a word on a tinted badge, never colour alone. Nothing about due dates or status yet.
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { deleteTaskAction } from "../actions";
 import type { TaskRecord } from "../application/ports";
-import { formatTaskReference } from "../domain/task";
+import { TASK_PRIORITY_LABEL, formatTaskReference, type TaskPriority } from "../domain/task";
+import { TaskDeleteButton } from "./TaskDeleteButton";
+
+const PRIORITY_STYLE: Record<TaskPriority, string> = {
+  HIGH: "border-critical-line bg-critical-tint text-critical",
+  MEDIUM: "border-info-line bg-info-tint text-info",
+  LOW: "border-line bg-mist text-ink",
+};
 
 export function TaskList({
   tasks,
+  eventId,
   basePath,
   canManage,
 }: {
   tasks: TaskRecord[];
+  eventId: string;
   basePath: string;
   canManage: boolean;
 }) {
@@ -34,16 +45,40 @@ export function TaskList({
                   {task.description}
                 </p>
               ) : null}
+              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-2">
+                <span
+                  className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-[13px] leading-tight font-medium ${PRIORITY_STYLE[task.priority]}`}
+                >
+                  {TASK_PRIORITY_LABEL[task.priority]} priority
+                </span>
+                <span>
+                  {task.assignee ? (
+                    <>
+                      Assigned to{" "}
+                      <span className="font-semibold text-ink">{task.assignee.name}</span>
+                    </>
+                  ) : (
+                    "Unassigned"
+                  )}
+                </span>
+              </p>
             </div>
             {canManage ? (
-              <Button asChild variant="secondary" size="sm" className="w-full sm:w-auto">
-                <Link href={`${basePath}/${task.id}/edit`}>
-                  <span aria-hidden="true">Edit</span>
-                  <span className="sr-only">
-                    Edit {reference} {task.title}
-                  </span>
-                </Link>
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button asChild variant="secondary" size="sm" className="w-full sm:w-auto">
+                  <Link href={`${basePath}/${task.id}/edit`}>
+                    <span aria-hidden="true">Edit</span>
+                    <span className="sr-only">
+                      Edit {reference} {task.title}
+                    </span>
+                  </Link>
+                </Button>
+                <TaskDeleteButton
+                  action={deleteTaskAction.bind(null, eventId, task.id)}
+                  reference={reference}
+                  title={task.title}
+                />
+              </div>
             ) : null}
           </li>
         );

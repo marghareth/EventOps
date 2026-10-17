@@ -87,6 +87,13 @@ export const RESOURCE_TYPE_LABEL: Record<string, string> = {
   CAPTIONING: "Captioning",
   SIGN_LANGUAGE: "Sign-language interpreter",
 };
+/** Task priorities as shown in Activity (B6-F05, D-095). A test keeps it equal to the domain's. */
+export const TASK_PRIORITY_LABEL: Record<string, string> = {
+  HIGH: "High",
+  MEDIUM: "Medium",
+  LOW: "Low",
+};
+
 export const RESOURCE_STATUS_LABEL: Record<string, string> = {
   NOT_AVAILABLE: "Not available",
   ARRANGING: "Being arranged",
@@ -487,15 +494,32 @@ export function describeAuditEntry(entry: Pick<AuditEntryView, "action" | "detai
     return { summary: `Removed the budget item ${name} (${reference})`, lines: [] };
   }
   if (entry.action === "task.created") {
-    const { reference, title } = entry.details as AuditDetails<"task.created">;
-    return { summary: `Added the task ${title} (${reference})`, lines: [] };
+    const { reference, title, priority, assignee } = entry.details as AuditDetails<"task.created">;
+    const lines: string[] = [];
+    if (priority) lines.push(`Priority: ${TASK_PRIORITY_LABEL[priority]}`);
+    if (assignee) lines.push(`Assigned to ${assignee}`);
+    return { summary: `Added the task ${title} (${reference})`, lines };
   }
   if (entry.action === "task.updated") {
     const { reference, title, changes } = entry.details as AuditDetails<"task.updated">;
     const lines: string[] = [];
     if (changes.title) lines.push(`Title: “${changes.title.from}” → “${changes.title.to}”`);
     if (changes.description) lines.push("Description changed");
+    if (changes.priority) {
+      lines.push(
+        `Priority: ${TASK_PRIORITY_LABEL[changes.priority.from]} → ${TASK_PRIORITY_LABEL[changes.priority.to]}`,
+      );
+    }
+    if (changes.assignee) {
+      lines.push(
+        `Assignee: ${changes.assignee.from ?? "Unassigned"} → ${changes.assignee.to ?? "Unassigned"}`,
+      );
+    }
     return { summary: `Edited the task ${title} (${reference})`, lines };
+  }
+  if (entry.action === "task.deleted") {
+    const { reference, title } = entry.details as AuditDetails<"task.deleted">;
+    return { summary: `Removed the task ${title} (${reference})`, lines: [] };
   }
   if (entry.action === "attendees.exported") {
     const { count } = entry.details as AuditDetails<"attendees.exported">;

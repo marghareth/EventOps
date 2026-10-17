@@ -1,10 +1,10 @@
 // src/modules/events/tasks/queries.ts
-// Server-side task reads for the pages (B6-F01, B6-F02; D-094). Every read authorizes on its own
+// Server-side task reads for the pages (B6-F01 to B6-F05; D-094, D-095). Every read authorizes on its own
 // with authorizeEvent (D-036) and looks records up only inside the authorized event, so another
 // event's task is "not found". Stored values only.
 import "server-only";
 import { z } from "zod";
-import { authorizeEvent } from "@/modules/events/public";
+import { MEMBER_ROLE_LABEL, authorizeEvent } from "@/modules/events/public";
 import type { TaskRecord } from "./application/ports";
 import { taskRepository } from "./composition";
 
@@ -24,14 +24,36 @@ export async function getEventTasks(
   return { ok: true, tasks, canManage: manage.ok };
 }
 
-/** One task for its edit form. Owners and Coordinators only. */
+/** A member the form can assign a task to: the ID to send and the words to show (D-095). */
+export type AssigneeOption = { id: string; label: string };
+
+/** The members of this event, labelled with their role so two people with one name differ. */
+async function assigneeOptions(eventId: string): Promise<AssigneeOption[]> {
+  const members = await taskRepository().listAssignableMembers(eventId);
+  return members.map((member) => ({
+    id: member.id,
+    label: `${member.name} (${MEMBER_ROLE_LABEL[member.role]})`,
+  }));
+}
+
+/** The assignee choices for the add form. Owners and Coordinators only. */
+export async function getAssigneeOptions(
+  eventId: string,
+): Promise<{ ok: true; assignees: AssigneeOption[] } | Refused> {
+  const auth = await authorizeEvent(eventId, "tasks.manage", tasksPath(eventId));
+  if (!auth.ok) return { ok: false, reason: auth.reason };
+  return { ok: true, assignees: await assigneeOptions(auth.event.id) };
+}
+
+/** One task for its edit form, with the assignee choices. Owners and Coordinators only. */
 export async function getTaskForEdit(
   eventId: string,
   taskId: string,
-): Promise<{ ok: true; task: TaskRecord } | Refused> {
+): Promise<{ ok: true; task: TaskRecord; assignees: AssigneeOption[] } | Refused> {
   const auth = await authorizeEvent(eventId, "tasks.manage", tasksPath(eventId));
   if (!auth.ok) return { ok: false, reason: auth.reason };
   if (!idSchema.safeParse(taskId).success) return { ok: false, reason: "not-found" };
   const task = await taskRepository().findTask(auth.event.id, taskId);
-  return task ? { ok: true, task } : { ok: false, reason: "not-found" };
+  if (!task) return { ok: false, reason: "not-found" };
+  return { ok: true, task, assignees: await assigneeOptions(auth.event.id) };
 }

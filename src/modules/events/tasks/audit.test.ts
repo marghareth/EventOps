@@ -1,11 +1,12 @@
 // src/modules/events/tasks/audit.test.ts
-// Task entries in the audit log and the Activity feed (B6-F01, B6-F02; D-094): what each entry may
+// Task entries in the audit log and the Activity feed (B6-F01 to B6-F05; D-094, D-095): what each entry may
 // hold (the description's text never) and how Activity words it.
 import { describe, expect, it } from "vitest";
 import { AUDIT_ACTIONS, describeAuditEntry } from "@/modules/events/audit/public";
 
 const created = AUDIT_ACTIONS["task.created"].details;
 const updated = AUDIT_ACTIONS["task.updated"].details;
+const deleted = AUDIT_ACTIONS["task.deleted"].details;
 
 describe("what a task entry may hold", () => {
   it("accepts a created task with its readable ID and title, and nothing else", () => {
@@ -78,5 +79,110 @@ describe("how Activity words task entries", () => {
         },
       }).lines,
     ).toEqual(["Description changed"]);
+  });
+});
+
+describe("priority and assignee in task entries (B6-F04, B6-F05)", () => {
+  const entry = (changes: unknown) =>
+    updated.safeParse({ reference: "TSK-0001", title: "A", changes }).success;
+
+  it("accepts the priority and the assignee as old → new, and nothing looser", () => {
+    expect(entry({ priority: { from: "MEDIUM", to: "HIGH" } })).toBe(true);
+    expect(entry({ priority: { from: "MEDIUM", to: "URGENT" } })).toBe(false);
+    expect(entry({ assignee: { from: null, to: "Ana Reyes" } })).toBe(true);
+    expect(entry({ assignee: { from: "Ana Reyes", to: null } })).toBe(true);
+    expect(entry({ assignee: { changed: true } })).toBe(false);
+  });
+
+  it("keeps entries written before priority and assignee existed valid", () => {
+    expect(created.safeParse({ reference: "TSK-0001", title: "Confirm florist" }).success).toBe(
+      true,
+    );
+  });
+
+  it("records a new task's priority and assignee, and nothing else", () => {
+    const base = { reference: "TSK-0001", title: "A" };
+    expect(created.safeParse({ ...base, priority: "HIGH", assignee: "Ana Reyes" }).success).toBe(
+      true,
+    );
+    expect(created.safeParse({ ...base, priority: "HIGH", assignee: null }).success).toBe(true);
+    expect(created.safeParse({ ...base, priority: "SOON" }).success).toBe(false);
+    expect(created.safeParse({ ...base, assigneeId: "m1" }).success).toBe(false);
+  });
+
+  it("describes a new task's priority and assignee on their own lines", () => {
+    expect(
+      describeAuditEntry({
+        action: "task.created",
+        details: {
+          reference: "TSK-0004",
+          title: "Confirm florist",
+          priority: "HIGH",
+          assignee: "Ana Reyes",
+        },
+      }),
+    ).toEqual({
+      summary: "Added the task Confirm florist (TSK-0004)",
+      lines: ["Priority: High", "Assigned to Ana Reyes"],
+    });
+  });
+
+  it("describes an old-style created entry with no extra lines", () => {
+    expect(
+      describeAuditEntry({
+        action: "task.created",
+        details: { reference: "TSK-0004", title: "Confirm florist" },
+      }).lines,
+    ).toEqual([]);
+  });
+
+  it("describes a priority change and an assignment in words", () => {
+    expect(
+      describeAuditEntry({
+        action: "task.updated",
+        details: {
+          reference: "TSK-0004",
+          title: "Confirm florist",
+          changes: {
+            priority: { from: "MEDIUM", to: "HIGH" },
+            assignee: { from: null, to: "Ana Reyes" },
+          },
+        },
+      }).lines,
+    ).toEqual(["Priority: Medium → High", "Assignee: Unassigned → Ana Reyes"]);
+  });
+
+  it("describes an unassignment", () => {
+    expect(
+      describeAuditEntry({
+        action: "task.updated",
+        details: {
+          reference: "TSK-0004",
+          title: "Confirm florist",
+          changes: { assignee: { from: "Ana Reyes", to: null } },
+        },
+      }).lines,
+    ).toEqual(["Assignee: Ana Reyes → Unassigned"]);
+  });
+});
+
+describe("a deleted task entry (B6-F03)", () => {
+  it("keeps the readable ID and the title, and nothing else", () => {
+    expect(deleted.safeParse({ reference: "TSK-0001", title: "Confirm florist" }).success).toBe(
+      true,
+    );
+    expect(
+      deleted.safeParse({ reference: "TSK-0001", title: "A", description: "secret" }).success,
+    ).toBe(false);
+    expect(deleted.safeParse({ reference: "task-1", title: "A" }).success).toBe(false);
+  });
+
+  it("is worded as a removal, by title and readable ID", () => {
+    expect(
+      describeAuditEntry({
+        action: "task.deleted",
+        details: { reference: "TSK-0004", title: "Confirm florist" },
+      }),
+    ).toEqual({ summary: "Removed the task Confirm florist (TSK-0004)", lines: [] });
   });
 });

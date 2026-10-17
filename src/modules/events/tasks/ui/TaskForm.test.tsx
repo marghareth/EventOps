@@ -1,8 +1,8 @@
 // src/modules/events/tasks/ui/TaskForm.test.tsx
-// The task form (B6-F01, B6-F02; D-094): add and edit, and after a failed save every problem is
+// The task form (B6-F01 to B6-F05; D-094, D-095): add and edit, and after a failed save every problem is
 // listed at once in a summary that takes focus, the typed values stay, and a failed request says
 // that nothing was saved.
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TaskFormState } from "../form-state";
@@ -16,6 +16,11 @@ vi.mock("../actions", () => ({
 
 const { TaskForm } = await import("./TaskForm");
 
+const assignees = [
+  { id: "m1", label: "Ana Reyes (Coordinator)" },
+  { id: "m2", label: "Mika Santos (Owner)" },
+];
+
 beforeEach(() => {
   createTaskAction.mockReset();
   updateTaskAction.mockReset();
@@ -23,7 +28,7 @@ beforeEach(() => {
 
 describe("TaskForm (add)", () => {
   it("shows an empty form with a labelled title and description", () => {
-    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" />);
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
     expect(screen.getByLabelText(/Title/)).toHaveValue("");
     expect(screen.getByLabelText("Description (optional)")).toHaveValue("");
     expect(screen.getByRole("button", { name: "Add task" })).toBeVisible();
@@ -41,9 +46,9 @@ describe("TaskForm (add)", () => {
         title: "Enter a task title.",
         description: "Keep the description to 2000 characters or fewer.",
       },
-      values: { title: "", description: "too long" },
+      values: { title: "", description: "too long", priority: "MEDIUM", assigneeId: "" },
     });
-    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" />);
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
     await userEvent.click(screen.getByRole("button", { name: "Add task" }));
 
     const summary = await screen.findByRole("group", { name: "Fix these to continue" });
@@ -58,9 +63,9 @@ describe("TaskForm (add)", () => {
     createTaskAction.mockResolvedValue({
       status: "error",
       fieldErrors: { title: "Enter a task title." },
-      values: { title: "", description: "Call Ana" },
+      values: { title: "", description: "Call Ana", priority: "MEDIUM", assigneeId: "" },
     });
-    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" />);
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
     await userEvent.click(screen.getByRole("button", { name: "Add task" }));
     await userEvent.click(await screen.findByRole("link", { name: "Enter a task title." }));
     expect(screen.getByLabelText(/Title/)).toHaveFocus();
@@ -70,13 +75,57 @@ describe("TaskForm (add)", () => {
     createTaskAction.mockResolvedValue({
       status: "error",
       message: "We couldn't save your changes. Nothing was saved. Try again in a moment.",
-      values: { title: "Confirm florist", description: "" },
+      values: { title: "Confirm florist", description: "", priority: "MEDIUM", assigneeId: "" },
     });
-    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" />);
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
     await userEvent.click(screen.getByRole("button", { name: "Add task" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Nothing was saved");
     expect(screen.queryByRole("group", { name: "Fix these to continue" })).toBeNull();
     expect(screen.getByLabelText(/Title/)).toHaveValue("Confirm florist");
+  });
+});
+
+describe("TaskForm priority and assignee (B6-F04, B6-F05)", () => {
+  it("starts a new task at Medium priority and unassigned", () => {
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
+    expect(screen.getByLabelText(/Priority/)).toHaveValue("MEDIUM");
+    expect(screen.getByLabelText("Assigned to (optional)")).toHaveValue("");
+  });
+
+  it("offers High, Medium and Low in that order", () => {
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
+    const options = within(screen.getByLabelText(/Priority/)).getAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual(["High", "Medium", "Low"]);
+  });
+
+  it("offers Unassigned and then this event's members, named with their role", () => {
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
+    const options = within(screen.getByLabelText("Assigned to (optional)")).getAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "Unassigned",
+      "Ana Reyes (Coordinator)",
+      "Mika Santos (Owner)",
+    ]);
+    expect(options.map((option) => (option as HTMLOptionElement).value)).toEqual(["", "m1", "m2"]);
+  });
+
+  it("lists a priority and an assignee error in the summary and marks the fields", async () => {
+    createTaskAction.mockResolvedValue({
+      status: "error",
+      fieldErrors: {
+        priority: "Choose a priority.",
+        assigneeId: "Choose a member of this event.",
+      },
+      values: { title: "A", description: "", priority: "MEDIUM", assigneeId: "m1" },
+    });
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
+    await userEvent.click(screen.getByRole("button", { name: "Add task" }));
+    const summary = await screen.findByRole("group", { name: "Fix these to continue" });
+    expect(summary).toHaveTextContent("Choose a priority.");
+    expect(summary).toHaveTextContent("Choose a member of this event.");
+    expect(screen.getByLabelText(/Priority/)).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Assigned to (optional)")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Assigned to (optional)")).toHaveValue("m1");
   });
 });
 
@@ -86,16 +135,20 @@ describe("TaskForm (edit)", () => {
     reference: "TSK-0004",
     title: "Confirm florist",
     description: "Call Ana",
+    priority: "HIGH" as const,
+    assigneeId: "m2" as string | null,
     version: "2026-10-17T00:00:00.000Z",
   };
 
   it("shows the stored values, the readable ID and the edit version", () => {
     const { container } = render(
-      <TaskForm eventId="e1" cancelHref="/events/e1/tasks" task={task} />,
+      <TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} task={task} />,
     );
     expect(screen.getByText("TSK-0004")).toBeVisible();
     expect(screen.getByLabelText(/Title/)).toHaveValue("Confirm florist");
     expect(screen.getByLabelText("Description (optional)")).toHaveValue("Call Ana");
+    expect(screen.getByLabelText(/Priority/)).toHaveValue("HIGH");
+    expect(screen.getByLabelText("Assigned to (optional)")).toHaveValue("m2");
     expect(screen.getByRole("button", { name: "Save task" })).toBeVisible();
     expect(container.querySelector('input[name="version"]')).toHaveValue(task.version);
   });
@@ -105,7 +158,9 @@ describe("TaskForm (edit)", () => {
       status: "success",
       message: "Nothing changed, so nothing was saved.",
     });
-    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" task={task} />);
+    render(
+      <TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} task={task} />,
+    );
     await userEvent.click(screen.getByRole("button", { name: "Save task" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Nothing changed");
     expect(screen.queryByRole("alert")).toBeNull();
@@ -116,9 +171,11 @@ describe("TaskForm (edit)", () => {
       status: "error",
       message:
         "Someone else changed this task while you were editing. Reopen it to see the latest values.",
-      values: { title: "My edit", description: "Call Ana" },
+      values: { title: "My edit", description: "Call Ana", priority: "HIGH", assigneeId: "m2" },
     });
-    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" task={task} />);
+    render(
+      <TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} task={task} />,
+    );
     await userEvent.click(screen.getByRole("button", { name: "Save task" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Someone else changed this task");
     expect(screen.getByLabelText(/Title/)).toHaveValue("My edit");
