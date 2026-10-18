@@ -1,15 +1,34 @@
 // src/modules/events/tasks/schema.ts
-// Zod schema for the task form (B6-F01, B6-F02, B6-F04, B6-F05; D-094, D-095). The server actions
+// Zod schema for the task form (B6-F01 to B6-F07; D-094 to D-096). The server actions
 // parse the raw FormData strings with it on every request; the browser never decides what is valid.
 // A blank description leaves as null; a blank assignee means "unassigned" and leaves as null. That
 // the assignee belongs to this event is checked against storage, not here.
 import { z } from "zod";
-import { TASK_DESCRIPTION_MAX, TASK_PRIORITIES, TASK_TITLE_MAX } from "./domain/task";
+import {
+  TASK_DESCRIPTION_MAX,
+  TASK_PRIORITIES,
+  TASK_STATUSES,
+  TASK_TITLE_MAX,
+} from "./domain/task";
+import {
+  TASK_DUE_DATE_RANGE,
+  formatCalendarDate,
+  isCalendarDate,
+  isDueDateInRange,
+} from "./domain/due-date";
 
-export const TASK_FIELDS = ["title", "description", "priority", "assigneeId"] as const;
+export const TASK_FIELDS = [
+  "title",
+  "description",
+  "priority",
+  "status",
+  "dueDate",
+  "assigneeId",
+] as const;
 export type TaskField = (typeof TASK_FIELDS)[number];
 
 const uuid = z.uuid();
+const RANGE_MESSAGE = `Enter a date from ${formatCalendarDate(TASK_DUE_DATE_RANGE.min)} to ${formatCalendarDate(TASK_DUE_DATE_RANGE.max)}.`;
 
 export const taskFormSchema = z.object({
   title: z
@@ -26,6 +45,19 @@ export const taskFormSchema = z.object({
     )
     .transform((value) => (value === "" ? null : value)),
   priority: z.enum(TASK_PRIORITIES, { error: "Choose a priority." }),
+  status: z.enum(TASK_STATUSES, { error: "Choose a status." }),
+  dueDate: z
+    .string()
+    .trim()
+    .superRefine((value, ctx) => {
+      if (value === "") return;
+      if (!isCalendarDate(value)) {
+        ctx.addIssue({ code: "custom", message: "Enter a real date, for example 2026-11-15." });
+      } else if (!isDueDateInRange(value)) {
+        ctx.addIssue({ code: "custom", message: RANGE_MESSAGE });
+      }
+    })
+    .transform((value) => (value === "" ? null : value)),
   assigneeId: z
     .string()
     .trim()

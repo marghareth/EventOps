@@ -257,12 +257,20 @@ export type BudgetItemChanges = z.infer<typeof budgetItemChangesSchema>;
 export const TASK_PRIORITIES = ["HIGH", "MEDIUM", "LOW"] as const;
 const taskPriority = z.enum(TASK_PRIORITIES);
 
+/**
+ * Task statuses as stored (B6-F06, D-096). The audit registry's own copy; tests keep it equal to
+ * the canonical list and the database enum.
+ */
+export const TASK_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "DONE"] as const;
+const taskStatus = z.enum(TASK_STATUSES);
+
 /** The task's readable ID, for example TSK-0001 (D-094). */
 const taskReference = z.string().regex(/^TSK-\d{4,}$/);
 
 /**
- * Task fields as recorded in "task.updated" (B6-F02, B6-F04, B6-F05; D-094, D-095). The title and
- * the priority are business values, recorded old → new. The assignee is recorded old → new by the
+ * Task fields as recorded in "task.updated" (B6-F02, B6-F04 to B6-F07; D-094 to D-096). The title,
+ * the priority, the status and the due date ("YYYY-MM-DD", null is none) are business values,
+ * recorded old → new. The assignee is recorded old → new by the
  * member's display name (null is "unassigned"), the one personal detail a task entry holds. The
  * description is free text of up to 2,000 characters: recorded as changed, never copied
  * (docs/audit.md).
@@ -272,6 +280,8 @@ export const taskChangesSchema = z
     title: fromTo(z.string()),
     description: changedOnly,
     priority: fromTo(taskPriority),
+    status: fromTo(taskStatus),
+    dueDate: fromTo(calendarDate.nullable()),
     assignee: fromTo(z.string().nullable()),
   })
   .partial()
@@ -490,9 +500,9 @@ export const AUDIT_ACTIONS = {
     details: z.object({ reference: budgetItemReference, name: z.string() }).strict(),
   },
   /**
-   * A task was added (B6-F01, D-094): its readable ID and title, and, since D-095, its priority and
-   * assignee's name. Entries written before D-095 have neither, so both stay optional. The
-   * description is not copied.
+   * A task was added (B6-F01, D-094): its readable ID and title, and, since D-095 and D-096, its
+   * priority, status, due date and assignee's name. Entries written before have none of them, so
+   * all stay optional. The description is not copied.
    */
   "task.created": {
     entityType: "task",
@@ -501,6 +511,8 @@ export const AUDIT_ACTIONS = {
         reference: taskReference,
         title: z.string(),
         priority: taskPriority.optional(),
+        status: taskStatus.optional(),
+        dueDate: calendarDate.nullable().optional(),
         assignee: z.string().nullable().optional(),
       })
       .strict(),

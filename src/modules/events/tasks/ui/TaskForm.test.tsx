@@ -46,7 +46,14 @@ describe("TaskForm (add)", () => {
         title: "Enter a task title.",
         description: "Keep the description to 2000 characters or fewer.",
       },
-      values: { title: "", description: "too long", priority: "MEDIUM", assigneeId: "" },
+      values: {
+        title: "",
+        description: "too long",
+        priority: "MEDIUM",
+        status: "NOT_STARTED",
+        dueDate: "",
+        assigneeId: "",
+      },
     });
     render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
     await userEvent.click(screen.getByRole("button", { name: "Add task" }));
@@ -63,7 +70,14 @@ describe("TaskForm (add)", () => {
     createTaskAction.mockResolvedValue({
       status: "error",
       fieldErrors: { title: "Enter a task title." },
-      values: { title: "", description: "Call Ana", priority: "MEDIUM", assigneeId: "" },
+      values: {
+        title: "",
+        description: "Call Ana",
+        priority: "MEDIUM",
+        status: "NOT_STARTED",
+        dueDate: "",
+        assigneeId: "",
+      },
     });
     render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
     await userEvent.click(screen.getByRole("button", { name: "Add task" }));
@@ -75,7 +89,14 @@ describe("TaskForm (add)", () => {
     createTaskAction.mockResolvedValue({
       status: "error",
       message: "We couldn't save your changes. Nothing was saved. Try again in a moment.",
-      values: { title: "Confirm florist", description: "", priority: "MEDIUM", assigneeId: "" },
+      values: {
+        title: "Confirm florist",
+        description: "",
+        priority: "MEDIUM",
+        status: "NOT_STARTED",
+        dueDate: "",
+        assigneeId: "",
+      },
     });
     render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
     await userEvent.click(screen.getByRole("button", { name: "Add task" }));
@@ -116,7 +137,14 @@ describe("TaskForm priority and assignee (B6-F04, B6-F05)", () => {
         priority: "Choose a priority.",
         assigneeId: "Choose a member of this event.",
       },
-      values: { title: "A", description: "", priority: "MEDIUM", assigneeId: "m1" },
+      values: {
+        title: "A",
+        description: "",
+        priority: "MEDIUM",
+        status: "NOT_STARTED",
+        dueDate: "",
+        assigneeId: "m1",
+      },
     });
     render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
     await userEvent.click(screen.getByRole("button", { name: "Add task" }));
@@ -129,6 +157,52 @@ describe("TaskForm priority and assignee (B6-F04, B6-F05)", () => {
   });
 });
 
+describe("TaskForm status and due date (B6-F06, B6-F07)", () => {
+  it("starts a new task as Not started with no due date", () => {
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
+    expect(screen.getByLabelText(/Status/)).toHaveValue("NOT_STARTED");
+    expect(screen.getByLabelText("Due date (optional)")).toHaveValue("");
+  });
+
+  it("offers Not started, In progress and Done in that order", () => {
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
+    const options = within(screen.getByLabelText(/Status/)).getAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "Not started",
+      "In progress",
+      "Done",
+    ]);
+  });
+
+  it("uses a date field limited to the allowed range", () => {
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
+    const field = screen.getByLabelText("Due date (optional)");
+    expect(field).toHaveAttribute("type", "date");
+    expect(field).toHaveAttribute("min", "2000-01-01");
+    expect(field).toHaveAttribute("max", "2100-12-31");
+  });
+
+  it("lists a due date error in the summary and marks the field", async () => {
+    createTaskAction.mockResolvedValue({
+      status: "error",
+      fieldErrors: { dueDate: "Enter a real date, for example 2026-11-15." },
+      values: {
+        title: "A",
+        description: "",
+        priority: "MEDIUM",
+        status: "NOT_STARTED",
+        dueDate: "",
+        assigneeId: "",
+      },
+    });
+    render(<TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} />);
+    await userEvent.click(screen.getByRole("button", { name: "Add task" }));
+    const summary = await screen.findByRole("group", { name: "Fix these to continue" });
+    expect(summary).toHaveTextContent("Enter a real date, for example 2026-11-15.");
+    expect(screen.getByLabelText("Due date (optional)")).toHaveAttribute("aria-invalid", "true");
+  });
+});
+
 describe("TaskForm (edit)", () => {
   const task = {
     id: "t1",
@@ -136,6 +210,8 @@ describe("TaskForm (edit)", () => {
     title: "Confirm florist",
     description: "Call Ana",
     priority: "HIGH" as const,
+    status: "IN_PROGRESS" as const,
+    dueDate: "2026-11-15" as string | null,
     assigneeId: "m2" as string | null,
     version: "2026-10-17T00:00:00.000Z",
   };
@@ -171,7 +247,14 @@ describe("TaskForm (edit)", () => {
       status: "error",
       message:
         "Someone else changed this task while you were editing. Reopen it to see the latest values.",
-      values: { title: "My edit", description: "Call Ana", priority: "HIGH", assigneeId: "m2" },
+      values: {
+        title: "My edit",
+        description: "Call Ana",
+        priority: "HIGH",
+        status: "NOT_STARTED",
+        dueDate: "",
+        assigneeId: "m2",
+      },
     });
     render(
       <TaskForm eventId="e1" cancelHref="/events/e1/tasks" assignees={assignees} task={task} />,

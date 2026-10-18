@@ -1,8 +1,8 @@
 // src/modules/events/tasks/application/ports.ts
-// What the task use cases need from storage (B6-F01 to B6-F05; D-094, D-095). The Prisma repository
+// What the task use cases need from storage (B6-F01 to B6-F07; D-094 to D-096). The Prisma repository
 // implements it; tests use an in-memory fake.
 import type { TaskChanges } from "@/modules/events/audit/public";
-import type { TaskAssignee, TaskPriority } from "../domain/task";
+import type { TaskAssignee, TaskPriority, TaskStatus } from "../domain/task";
 import type { TaskInput } from "../schema";
 
 export type TaskRecord = {
@@ -11,6 +11,9 @@ export type TaskRecord = {
   title: string;
   description: string | null;
   priority: TaskPriority;
+  status: TaskStatus;
+  /** The day it is due as "YYYY-MM-DD" (a calendar day in Philippine time), or null. */
+  dueDate: string | null;
   /** The member the task is assigned to, or null when unassigned. */
   assignee: TaskAssignee | null;
   /** The edit version (D-032). Sent back on save; an older value is refused as stale. */

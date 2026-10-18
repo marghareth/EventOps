@@ -50,6 +50,8 @@ const fields = {
   title: "Confirm florist",
   description: "Call Ana",
   priority: "MEDIUM",
+  status: "NOT_STARTED",
+  dueDate: "",
   assigneeId: "",
 };
 const allowed = { ok: true, event: { id: EVENT }, user: USER };
@@ -73,6 +75,8 @@ beforeEach(() => {
     title: "Confirm florist",
     description: "Call Ana",
     priority: "MEDIUM",
+    status: "NOT_STARTED",
+    dueDate: null,
     assignee: null,
     updatedAt: new Date(VERSION),
   });
@@ -95,6 +99,8 @@ describe("createTaskAction", () => {
         title: "Confirm florist",
         description: "Call Ana",
         priority: "MEDIUM",
+        status: "NOT_STARTED",
+        dueDate: null,
         assigneeId: null,
       },
     });
@@ -123,7 +129,14 @@ describe("createTaskAction", () => {
     const state = await createTaskAction(
       EVENT,
       idle,
-      form({ title: "   ", description: "x".repeat(2001), priority: "URGENT", assigneeId: "ana" }),
+      form({
+        title: "   ",
+        description: "x".repeat(2001),
+        priority: "URGENT",
+        status: "BLOCKED",
+        dueDate: "2026-02-30",
+        assigneeId: "ana",
+      }),
     );
     expect(state).toMatchObject({
       status: "error",
@@ -131,6 +144,8 @@ describe("createTaskAction", () => {
         title: "Enter a task title.",
         description: "Keep the description to 2000 characters or fewer.",
         priority: "Choose a priority.",
+        status: "Choose a status.",
+        dueDate: "Enter a real date, for example 2026-11-15.",
         assigneeId: "Choose a member of this event.",
       },
       values: { title: "   " },
@@ -205,6 +220,8 @@ describe("updateTaskAction", () => {
         title: "Confirm both florists",
         description: "Call Ana",
         priority: "MEDIUM",
+        status: "NOT_STARTED",
+        dueDate: null,
         assigneeId: null,
       },
       changes: { title: { from: "Confirm florist", to: "Confirm both florists" } },
@@ -282,6 +299,59 @@ describe("updateTaskAction", () => {
   });
 });
 
+describe("updateTaskAction: status and due date (B6-F06, B6-F07)", () => {
+  const edit = (extra: Record<string, string>) =>
+    updateTaskAction(EVENT, TASK, idle, form({ ...fields, version: VERSION, ...extra }));
+
+  it("saves a new status and records it old → new", async () => {
+    const url = await redirectedTo(() => edit({ status: "IN_PROGRESS" }));
+    expect(repository.updateTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ status: "IN_PROGRESS" }),
+        changes: { status: { from: "NOT_STARTED", to: "IN_PROGRESS" } },
+      }),
+    );
+    expect(url).toBe(`/events/${EVENT}/tasks?notice=task-saved&ref=TSK-0004`);
+  });
+
+  it("sets a due date and records it", async () => {
+    await redirectedTo(() => edit({ dueDate: "2026-11-15" }));
+    expect(repository.updateTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ dueDate: "2026-11-15" }),
+        changes: { dueDate: { from: null, to: "2026-11-15" } },
+      }),
+    );
+  });
+
+  it("clears a due date when the field is emptied", async () => {
+    repository.findTask.mockResolvedValue({
+      id: TASK,
+      number: 4,
+      title: "Confirm florist",
+      description: "Call Ana",
+      priority: "MEDIUM",
+      status: "NOT_STARTED",
+      dueDate: "2026-11-15",
+      assignee: null,
+      updatedAt: new Date(VERSION),
+    });
+    await redirectedTo(() => edit({ dueDate: "" }));
+    expect(repository.updateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ changes: { dueDate: { from: "2026-11-15", to: null } } }),
+    );
+  });
+
+  it("refuses an impossible date and writes nothing", async () => {
+    const state = await edit({ dueDate: "2026-02-30" });
+    expect(state).toMatchObject({
+      status: "error",
+      fieldErrors: { dueDate: "Enter a real date, for example 2026-11-15." },
+    });
+    expect(repository.updateTask).not.toHaveBeenCalled();
+  });
+});
+
 describe("updateTaskAction: priority and assignee (B6-F04, B6-F05)", () => {
   const edit = (extra: Record<string, string>) =>
     updateTaskAction(EVENT, TASK, idle, form({ ...fields, version: VERSION, ...extra }));
@@ -333,6 +403,8 @@ describe("updateTaskAction: priority and assignee (B6-F04, B6-F05)", () => {
       title: "Confirm florist",
       description: "Call Ana",
       priority: "MEDIUM",
+      status: "NOT_STARTED",
+      dueDate: null,
       assignee: { id: ANA, name: "Ana Reyes" },
       updatedAt: new Date(VERSION),
     });

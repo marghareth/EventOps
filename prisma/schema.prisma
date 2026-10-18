@@ -3,7 +3,7 @@
 // EventOps data model. B0-08 Database Foundation: users, events and event members; B1-11 adds the
 // audit log; B2-01 adds attendees; B3-01 adds accessibility requirements and resources; B4 adds
 // suppliers, quotes and payments; B5-F01 and B5-F02 add budget categories and budget items; B6 adds
-// tasks, with priority and assignee (B6-F04, B6-F05).
+// tasks, with priority and assignee (B6-F04, B6-F05), status and due date (B6-F06, B6-F07).
 // Other tables are added by their own batch tasks,
 // following docs/DECISIONS.md (D-002, D-003) and docs/DATA_MODEL.md.
 //
@@ -119,6 +119,18 @@ enum TaskPriority {
   LOW
 
   @@map("task_priority")
+}
+
+// How far a task has got (B6-F06, D-096). The canonical list and labels live in
+// src/modules/events/tasks/domain/task.ts; tests keep it equal to this enum and to the audit
+// registry's copy. NOT_STARTED is the domain default for a new task (not a column default). Moves
+// between values are free: any value can follow any other, so a finished task can be reopened.
+enum TaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+
+  @@map("task_status")
 }
 
 // ───────────────────────────── Users ─────────────────────────────
@@ -643,18 +655,22 @@ model BudgetItem {
 
 // One piece of operational work for an event (B6-F01, B6-F02, D-094; B6-F04, B6-F05, D-095).
 // Readable ID: TSK-<number>, numbered per event from Event.lastTaskNumber. Holds a title, a
-// description, a priority and an optional assignee. Due date, status and the related supplier or
-// area are added by their own features, each with its own migration.
+// description, a priority, a status, an optional due date and an optional assignee. The related
+// supplier or area is added by its own feature, with its own migration.
 //
 // Assignee (D-095): a member of the SAME event. The composite foreign key (eventId, assigneeId) to
 // event_members(eventId, id) lets the database refuse a member of another event (D-002). NO ACTION
 // here, because Prisma cannot SET NULL one column of a composite key; the trigger
 // event_members_unassign_tasks (migration SQL) clears assigneeId when the member is removed.
 //
-// CHECK constraints (migration 20261017090000_tasks):
+// Due date (D-096): a calendar day in Philippine time stored as DATE, with no time of day, like
+// payment due dates (D-079). Whether a task is overdue is calculated from it, never stored.
+//
+// CHECK constraints (migration 20261017090000_tasks, and 20261017150000_task_status_due_date):
 // - tasks_number_positive:        number is 1 or more.
 // - tasks_title_not_blank:        title has at least one non-space character.
 // - tasks_description_not_blank:  description is NULL or has a non-space character.
+// - tasks_due_date_in_range:      dueDate is NULL or from 2000-01-01 to 2100-12-31.
 model Task {
   id          String       @id @default(uuid()) @db.Uuid
   eventId     String       @db.Uuid
@@ -664,6 +680,10 @@ model Task {
   description String?      @db.VarChar(2000)
   // Set by the domain (default MEDIUM), not by a column default (B6-F05, D-095).
   priority    TaskPriority
+  // Set by the domain (default NOT_STARTED), not by a column default (B6-F06, D-096).
+  status      TaskStatus
+  // The day the task is due, or NULL for no deadline (B6-F07, D-096).
+  dueDate     DateTime?    @db.Date
   // The EventMember who owns the work, or NULL for unassigned (B6-F04, D-095).
   assigneeId  String?      @db.Uuid
   createdAt   DateTime     @default(now())

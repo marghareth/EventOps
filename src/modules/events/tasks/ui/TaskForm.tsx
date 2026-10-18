@@ -1,5 +1,5 @@
 // src/modules/events/tasks/ui/TaskForm.tsx
-// Add or edit a task (B6-F01, B6-F02, B6-F04, B6-F05; D-094, D-095). The server action re-validates
+// Add or edit a task (B6-F01 to B6-F07; D-094 to D-096). The server action re-validates
 // everything (including that the assignee is a member of this event); this form only shows its
 // answer. Edit carries the version the page loaded (D-032) as a hidden field. After
 // a failed save every problem is listed at once in a summary that takes focus, and each line jumps
@@ -16,11 +16,15 @@ import { Input } from "@/components/ui/input";
 import { createTaskAction, updateTaskAction } from "../actions";
 import {
   DEFAULT_TASK_PRIORITY,
+  DEFAULT_TASK_STATUS,
   TASK_DESCRIPTION_MAX,
   TASK_PRIORITIES,
   TASK_PRIORITY_LABEL,
+  TASK_STATUSES,
+  TASK_STATUS_LABEL,
   TASK_TITLE_MAX,
 } from "../domain/task";
+import { TASK_DUE_DATE_RANGE } from "../domain/due-date";
 import type { TaskFormState } from "../form-state";
 
 type Props = {
@@ -35,6 +39,9 @@ type Props = {
     title: string;
     description: string | null;
     priority: (typeof TASK_PRIORITIES)[number];
+    status: (typeof TASK_STATUSES)[number];
+    /** "YYYY-MM-DD", or null for no due date. */
+    dueDate: string | null;
     /** The member ID the task is assigned to, or null. */
     assigneeId: string | null;
     version: string;
@@ -56,12 +63,16 @@ export function TaskForm({ eventId, cancelHref, assignees, task }: Props) {
           title: task?.title ?? "",
           description: task?.description ?? "",
           priority: task?.priority ?? DEFAULT_TASK_PRIORITY,
+          status: task?.status ?? DEFAULT_TASK_STATUS,
+          dueDate: task?.dueDate ?? "",
           assigneeId: task?.assigneeId ?? "",
         };
   const fieldErrors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
   const summary: FormErrorItem[] = [
     { fieldId: "task-title", message: fieldErrors.title },
     { fieldId: "task-description", message: fieldErrors.description },
+    { fieldId: "task-status", message: fieldErrors.status },
+    { fieldId: "task-due-date", message: fieldErrors.dueDate },
     { fieldId: "task-priority", message: fieldErrors.priority },
     { fieldId: "task-assignee", message: fieldErrors.assigneeId },
   ].filter((entry): entry is FormErrorItem => Boolean(entry.message));
@@ -117,6 +128,42 @@ export function TaskForm({ eventId, cancelHref, assignees, task }: Props) {
             rows={5}
             maxLength={TASK_DESCRIPTION_MAX}
             className={`${fieldControlClass} py-2`}
+          />
+        )}
+      </FormField>
+
+      <FormField id="task-status" label="Status" required error={fieldErrors.status}>
+        {(control) => (
+          <select
+            {...control}
+            name="status"
+            defaultValue={values.status}
+            className={fieldControlClass}
+          >
+            {TASK_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {TASK_STATUS_LABEL[status]}
+              </option>
+            ))}
+          </select>
+        )}
+      </FormField>
+
+      <FormField
+        id="task-due-date"
+        label="Due date (optional)"
+        hint="Philippine date. Leave it empty if the task has no deadline."
+        error={fieldErrors.dueDate}
+      >
+        {(control) => (
+          <input
+            {...control}
+            name="dueDate"
+            type="date"
+            min={TASK_DUE_DATE_RANGE.min}
+            max={TASK_DUE_DATE_RANGE.max}
+            defaultValue={values.dueDate}
+            className={`${fieldControlClass} sm:max-w-60`}
           />
         )}
       </FormField>

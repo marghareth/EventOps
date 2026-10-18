@@ -1,5 +1,6 @@
 // src/modules/events/tasks/application/update-task.ts
-// Saves a task's title, description, priority and assignee (B6-F02, B6-F04, B6-F05; D-094, D-095).
+// Saves a task's title, description, priority, status, due date and assignee (B6-F02, B6-F04 to
+// B6-F07; D-094 to D-096).
 // A save that changes nothing is reported as "unchanged" and writes nothing, not even an audit
 // entry. The repository refuses a stale save. The description is never copied into the audit log:
 // the entry only says it changed. A new assignee must be a member of THIS event: a member ID from
@@ -38,6 +39,8 @@ export async function updateTask(
     title: args.input.title,
     description: args.input.description,
     priority: args.input.priority,
+    status: args.input.status,
+    dueDate: args.input.dueDate,
     assignee,
   });
   if (!hasTaskChanges(changes)) return { ok: true, unchanged: true } as const;

@@ -1,7 +1,7 @@
 // src/modules/events/tasks/domain/task.ts
-// Task rules that need no database (B6-F01, B6-F02, B6-F04, B6-F05; D-094, D-095): the readable ID,
-// the field limits, the priorities and the list of fields an edit can change. Nothing about due
-// dates or status lives here: those are later features.
+// Task rules that need no database (B6-F01 to B6-F07; D-094, D-095, D-096): the readable ID, the
+// field limits, the priorities and statuses, and the list of fields an edit can change. Whether a
+// task is overdue is not decided here: that is its own feature.
 import type { TaskChanges } from "@/modules/events/audit/public";
 
 export const TASK_TITLE_MAX = 120;
@@ -21,6 +21,23 @@ export const TASK_PRIORITY_LABEL: Record<TaskPriority, string> = {
   HIGH: "High",
   MEDIUM: "Medium",
   LOW: "Low",
+};
+
+/**
+ * How far a task has got, in the order work normally moves (D-096). Any value can follow any other,
+ * so a finished task can be reopened. A test keeps this list equal to the database enum and to the
+ * audit registry's copy.
+ */
+export const TASK_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "DONE"] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+/** What a new task gets when nothing else is chosen (D-096). The domain decides, not the column. */
+export const DEFAULT_TASK_STATUS: TaskStatus = "NOT_STARTED";
+
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  NOT_STARTED: "Not started",
+  IN_PROGRESS: "In progress",
+  DONE: "Done",
 };
 
 const REFERENCE_PATTERN = /^TSK-\d{4,}$/;
@@ -43,12 +60,15 @@ export type TaskFields = {
   title: string;
   description: string | null;
   priority: TaskPriority;
+  status: TaskStatus;
+  /** The day it is due, "YYYY-MM-DD", or null for no deadline (D-096). */
+  dueDate: string | null;
   assignee: TaskAssignee | null;
 };
 
 /**
- * What an edit really changes, in the shape the audit log stores (D-037): the title and the
- * priority old → new, the assignee old → new by name ("none" is null), and the description only
+ * What an edit really changes, in the shape the audit log stores (D-037): the title, the priority,
+ * the status and the due date old → new, the assignee old → new by name ("none" is null), and the description only
  * as "changed", never its text (D-094). Empty when nothing changed, so a save that changes nothing
  * writes nothing. Pure: compares exact values only. Two assignees are the same when their member
  * IDs are the same, whatever their names.
@@ -59,6 +79,12 @@ export function diffTask(current: TaskFields, next: TaskFields): TaskChanges {
   if (current.description !== next.description) changes.description = { changed: true };
   if (current.priority !== next.priority) {
     changes.priority = { from: current.priority, to: next.priority };
+  }
+  if (current.status !== next.status) {
+    changes.status = { from: current.status, to: next.status };
+  }
+  if (current.dueDate !== next.dueDate) {
+    changes.dueDate = { from: current.dueDate, to: next.dueDate };
   }
   if ((current.assignee?.id ?? null) !== (next.assignee?.id ?? null)) {
     changes.assignee = { from: current.assignee?.name ?? null, to: next.assignee?.name ?? null };

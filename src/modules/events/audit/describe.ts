@@ -94,6 +94,13 @@ export const TASK_PRIORITY_LABEL: Record<string, string> = {
   LOW: "Low",
 };
 
+/** Task statuses as shown in Activity (B6-F06, D-096). A test keeps it equal to the domain's. */
+export const TASK_STATUS_LABEL: Record<string, string> = {
+  NOT_STARTED: "Not started",
+  IN_PROGRESS: "In progress",
+  DONE: "Done",
+};
+
 export const RESOURCE_STATUS_LABEL: Record<string, string> = {
   NOT_AVAILABLE: "Not available",
   ARRANGING: "Being arranged",
@@ -494,9 +501,12 @@ export function describeAuditEntry(entry: Pick<AuditEntryView, "action" | "detai
     return { summary: `Removed the budget item ${name} (${reference})`, lines: [] };
   }
   if (entry.action === "task.created") {
-    const { reference, title, priority, assignee } = entry.details as AuditDetails<"task.created">;
+    const { reference, title, priority, status, dueDate, assignee } =
+      entry.details as AuditDetails<"task.created">;
     const lines: string[] = [];
     if (priority) lines.push(`Priority: ${TASK_PRIORITY_LABEL[priority]}`);
+    if (status) lines.push(`Status: ${TASK_STATUS_LABEL[status]}`);
+    if (dueDate) lines.push(`Due ${auditDate(dueDate)}`);
     if (assignee) lines.push(`Assigned to ${assignee}`);
     return { summary: `Added the task ${title} (${reference})`, lines };
   }
@@ -509,6 +519,15 @@ export function describeAuditEntry(entry: Pick<AuditEntryView, "action" | "detai
       lines.push(
         `Priority: ${TASK_PRIORITY_LABEL[changes.priority.from]} → ${TASK_PRIORITY_LABEL[changes.priority.to]}`,
       );
+    }
+    if (changes.status) {
+      lines.push(
+        `Status: ${TASK_STATUS_LABEL[changes.status.from]} → ${TASK_STATUS_LABEL[changes.status.to]}`,
+      );
+    }
+    if (changes.dueDate) {
+      const day = (value: string | null) => (value === null ? "none" : auditDate(value));
+      lines.push(`Due date: ${day(changes.dueDate.from)} → ${day(changes.dueDate.to)}`);
     }
     if (changes.assignee) {
       lines.push(
