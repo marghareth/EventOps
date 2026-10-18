@@ -106,6 +106,8 @@ Status values:
 | D-093 | Budget activity wording, states and responsive layout       | Proposed | 2026-10-16 |
 | D-094 | Tasks: creating and editing                                 | Proposed | 2026-10-17 |
 | D-095 | Tasks: deleting, assigning and priority                     | Proposed | 2026-10-17 |
+| D-096 | Tasks: status and due date                                  | Proposed | 2026-10-18 |
+| D-097 | Tasks: the list and its filters                             | Proposed | 2026-10-18 |
 
 ---
 
@@ -2648,3 +2650,102 @@ PROJECT_RULES says to stop and ask rather than choose.
    decided, so there is no status control yet. Found while closing B1-10; needs its own task.
 10. ~~**Errors inside an event lose the app shell.**~~ Resolved by D-040 (B1-15): an error screen
     inside the shell.
+
+---
+## D-096 Tasks: status and due date
+
+**Status:** Proposed (B6-F06, B6-F07). Adds one enum, two columns and one CHECK. The status values and
+the due-date form were chosen by the technical lead; everything else below needs approval.
+
+**Decision.**
+
+1. **Status values (chosen by the technical lead): `NOT_STARTED`, `IN_PROGRESS`, `DONE`.** Shown as
+   "Not started", "In progress" and "Done". No other status (blocked, cancelled, late) exists.
+   "Late" is not a status; it is derived from the due date by the separate overdue feature.
+2. **Status is required and defaults to `NOT_STARTED` in the domain** (`DEFAULT_TASK_STATUS`), not as a
+   column default. The migration adds the column with a temporary default so existing tasks become
+   `NOT_STARTED`, then drops it.
+3. **Status is changed from the edit form, like any other field.** There is no one-click "mark done"
+   and no automatic change (for example Done when everything is finished). It follows the same rules
+   as every task edit (D-094): a stale save is refused, an unchanged save writes nothing.
+4. **Who can change it:** `tasks.manage` (Owners and Coordinators), as for every task write. The matrix
+   (D-035) says "Create, assign and complete tasks". An assignee who is a Viewer **cannot** mark their
+   own task done. **Technical lead: please confirm.**
+5. **Due date (chosen by the technical lead): optional calendar date in Philippine time.** A
+   PostgreSQL `DATE` (`tasks.dueDate`, NULL for no deadline), no time of day and no time zone, so
+   the day cannot shift (D-025, D-079). The form uses a date field limited to 2000-01-01 to
+   2100-12-31, and the server and a CHECK (`tasks_due_date_in_range`) enforce the same range, as for
+   supplier due dates.
+6. **A date in the past is allowed** when adding or editing. Importing or recording a task that is
+   already late is legitimate, and refusing it would be a business rule nobody approved.
+7. **Display.** The list shows status as a word on a bordered badge and "Due Nov 15, 2026" or "No
+   due date". Nothing is coloured red or flagged late.
+8. **Audit.** `task.updated` gains `status` old → new and `dueDate` old → new (none is null).
+   `task.created` gains an optional status and due date, optional so older entries stay valid. Dates
+   are stored as `YYYY-MM-DD` and worded by `audit/describe.ts`. Same transaction as the change.
+9. **Known debt.** `tasks/domain/due-date.ts` repeats the due-date helpers that suppliers already
+   have, because import boundaries (cross-context access only through `public.ts`, D-043) stop the
+   task module from reaching supplier internals. Moving them to a shared place is a separate,
+   approved refactor.
+10. **Not in this decision.** Overdue detection or any "late" flag, filtering or sorting by status or
+    due date, reminders or notifications, completed-at timestamps, a due time, recurring tasks,
+    changing status automatically, and any impact rule, alert or Event Health input. Each needs its
+    own approval (PROJECT_RULES section 2.1).
+
+**Schema.** Enum `task_status`; `tasks.status` (NOT NULL), `tasks.dueDate` (DATE, NULL), CHECK
+`tasks_due_date_in_range`. Migration `20261017150000_task_status_due_date`, hand-written: run
+`prisma migrate dev` once to confirm there is no drift.
+
+**Evidence.** `tasks/domain/task.test.ts`, `tasks/schema.test.ts` (every status, impossible dates,
+leap day, range edges), `tasks/application/task.use-cases.test.ts`, `tasks/actions.test.ts`,
+`tasks/audit.test.ts`, `tasks/ui/*.test.tsx`, and `tasks/tasks-event-scope.db.test.ts` (20 tests
+against PostgreSQL 18, 4 new: defaults and creation entry, no day shift, one entry per change and
+clearing, CHECK refuses dates outside the range with the application bypassed). The migration was
+applied to a database that already held a task: it became `NOT_STARTED` with no due date, and the
+CHECK refused 2101-01-01. **Not yet run:** a browser check at 375 and 1280 px, `prisma migrate dev`
+for drift, and Playwright.
+
+---
+## D-097 Tasks: the list and its filters
+
+**Status:** Proposed (B6-F08, B6-F09). No schema change, no migration and no new permission. The due
+date options were chosen by the technical lead (has a date, no date, and a date range) as was
+"one value per filter, with Unassigned".
+
+**Decision.**
+
+1. **B6-F08 needs no new build.** The task list was built in B6-F01 and already shows the selected
+   event's tasks to every member (`event.view`), read on the server inside the authorized event. This
+   task adds page tests that pin that behaviour (access check, event-scoped read, empty and refused
+   states) and records it as satisfied.
+2. **Filters follow the supplier filters (D-083).** Values come from the address only
+   (`?status=in-progress&priority=high&assignee=unassigned&due=set&dueFrom=2026-11-01&dueTo=2026-11-30`),
+   in a plain GET form, so they work without JavaScript and survive refresh, back and sharing. A
+   value that is not on a fixed list, or a date that is not real or is outside 2000 to 2100, is
+   ignored (no filter), never an error.
+3. **Dimensions.** Status (Not started, In progress, Done); priority (High, Medium, Low); assignee
+   (one member, or Unassigned); due date: "Has a due date", "No due date", "Due on or after" and "Due
+   on or before" (both inclusive). Each is a single choice. Several values per filter are not offered.
+4. **Combination: AND.** Contradictory filters (No due date plus a date range, or a range that ends
+   before it starts) match nothing and say so, instead of guessing. A date range never matches a task
+   with no due date.
+5. **Assignee choices are the members who have a task in this event**, taken from the tasks already
+   read. A Viewer sees the same choices and so learns no name they could not already see on the list.
+   A member with no task is not listed. Two members with the same name are told apart as "Ana
+   Reyes (1)" and "(2)". An assignee ID that is not among them is ignored.
+6. **Server-side and event-scoped.** Filtering runs on the server over the tasks `getEventTasks` has
+   already authorized, with pure functions (`tasks/task-list-query.ts`). It cannot reach another
+   event's tasks or show more than the role may read. Order is unchanged (task number).
+7. **States.** "N of M tasks match" while narrowed; "No tasks match" names the filters and offers
+   "Clear filters"; no filters are shown when the event has no tasks. Fields stack in one column with
+   44 px controls.
+8. **Not in this decision.** An "Overdue" or "late" filter or flag (overdue detection is its own
+   feature), text search, sorting, saved filters, several values per filter, counts per option,
+   filtering by related supplier or area, and filter state kept across an edit (saving a task returns
+   to the plain list, as before).
+
+**Evidence.** `tasks/task-list-query.test.ts` (parsing, malformed and impossible values, inclusive date
+edges, AND, contradictions, wording), `tasks/ui/TaskListControls.test.tsx`, and
+`src/app/(app)/events/[eventId]/tasks/page.test.tsx`. Event isolation of the underlying read is
+covered by `tasks/tasks-event-scope.db.test.ts` (D-094). **Not yet run:** a browser check at 375 and
+1280 px, and Playwright.

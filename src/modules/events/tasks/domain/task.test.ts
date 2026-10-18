@@ -1,16 +1,24 @@
 // src/modules/events/tasks/domain/task.test.ts
-// Task rules without a database (B6-F01 to B6-F05; D-094, D-095): the readable ID, the priorities
+// Task rules without a database (B6-F01 to B6-F07; D-094 to D-096): the readable ID, the priorities, the statuses
 // and what an edit changes.
 import { describe, expect, it } from "vitest";
-import { TaskPriority as DatabaseTaskPriority } from "@/generated/prisma/client";
+import {
+  TaskPriority as DatabaseTaskPriority,
+  TaskStatus as DatabaseTaskStatus,
+} from "@/generated/prisma/client";
 import {
   TASK_PRIORITIES as AUDIT_TASK_PRIORITIES,
   TASK_PRIORITY_LABEL as AUDIT_LABEL,
+  TASK_STATUSES as AUDIT_TASK_STATUSES,
+  TASK_STATUS_LABEL as AUDIT_STATUS_LABEL,
 } from "@/modules/events/audit/public";
 import {
   DEFAULT_TASK_PRIORITY,
+  DEFAULT_TASK_STATUS,
   TASK_PRIORITIES,
   TASK_PRIORITY_LABEL,
+  TASK_STATUSES,
+  TASK_STATUS_LABEL,
   diffTask,
   formatTaskReference,
   hasTaskChanges,
@@ -54,6 +62,24 @@ describe("task priorities (D-095)", () => {
     expect([...TASK_PRIORITIES].sort()).toEqual(Object.values(DatabaseTaskPriority).sort());
     expect([...AUDIT_TASK_PRIORITIES]).toEqual([...TASK_PRIORITIES]);
     expect(AUDIT_LABEL).toEqual(TASK_PRIORITY_LABEL);
+  });
+});
+
+describe("task status (B6-F06)", () => {
+  it("lists Not started, In progress and Done, in that order, starting at Not started", () => {
+    expect([...TASK_STATUSES]).toEqual(["NOT_STARTED", "IN_PROGRESS", "DONE"]);
+    expect(DEFAULT_TASK_STATUS).toBe("NOT_STARTED");
+    expect(TASK_STATUS_LABEL).toEqual({
+      NOT_STARTED: "Not started",
+      IN_PROGRESS: "In progress",
+      DONE: "Done",
+    });
+  });
+
+  it("stays equal to the database enum and to the audit registry's copy", () => {
+    expect([...TASK_STATUSES].sort()).toEqual(Object.values(DatabaseTaskStatus).sort());
+    expect([...AUDIT_TASK_STATUSES]).toEqual([...TASK_STATUSES]);
+    expect(AUDIT_STATUS_LABEL).toEqual(TASK_STATUS_LABEL);
   });
 });
 
