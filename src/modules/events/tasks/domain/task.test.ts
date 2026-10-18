@@ -1,9 +1,12 @@
 // src/modules/events/tasks/domain/task.test.ts
 // Task rules without a database (B6-F01 to B6-F05; D-094, D-095): the readable ID, the priorities
-// (equal to the database enum and the audit copy) and what an edit changes.
+// and what an edit changes.
 import { describe, expect, it } from "vitest";
 import { TaskPriority as DatabaseTaskPriority } from "@/generated/prisma/client";
-import { TASK_PRIORITIES as AUDIT_PRIORITIES } from "@/modules/events/audit/public";
+import {
+  TASK_PRIORITIES as AUDIT_TASK_PRIORITIES,
+  TASK_PRIORITY_LABEL as AUDIT_LABEL,
+} from "@/modules/events/audit/public";
 import {
   DEFAULT_TASK_PRIORITY,
   TASK_PRIORITIES,
@@ -33,34 +36,38 @@ describe("isTaskReference", () => {
   });
 });
 
-describe("priorities (B6-F05)", () => {
-  it("are High, Medium and Low, most important first, and equal the database enum", () => {
+describe("task priorities (D-095)", () => {
+  it("lists High, Medium and Low, most important first", () => {
     expect([...TASK_PRIORITIES]).toEqual(["HIGH", "MEDIUM", "LOW"]);
-    expect([...TASK_PRIORITIES].sort()).toEqual(Object.values(DatabaseTaskPriority).sort());
   });
 
-  it("equal the audit registry's copy", () => {
-    expect([...AUDIT_PRIORITIES]).toEqual([...TASK_PRIORITIES]);
-  });
-
-  it("default to Medium, decided by the domain, and every one has a label", () => {
+  it("gives a new task Medium priority unless another is chosen", () => {
     expect(DEFAULT_TASK_PRIORITY).toBe("MEDIUM");
-    expect(TASK_PRIORITIES.map((priority) => TASK_PRIORITY_LABEL[priority])).toEqual([
-      "High",
-      "Medium",
-      "Low",
-    ]);
+  });
+
+  it("has a label for every priority and no other", () => {
+    expect(Object.keys(TASK_PRIORITY_LABEL).sort()).toEqual([...TASK_PRIORITIES].sort());
+    expect(TASK_PRIORITY_LABEL).toEqual({ HIGH: "High", MEDIUM: "Medium", LOW: "Low" });
+  });
+
+  it("stays equal to the database enum and to the audit registry's copy", () => {
+    expect([...TASK_PRIORITIES].sort()).toEqual(Object.values(DatabaseTaskPriority).sort());
+    expect([...AUDIT_TASK_PRIORITIES]).toEqual([...TASK_PRIORITIES]);
+    expect(AUDIT_LABEL).toEqual(TASK_PRIORITY_LABEL);
   });
 });
 
 describe("diffTask", () => {
+  const ana = { id: "m-ana", name: "Ana Reyes" };
+  const ben = { id: "m-ben", name: "Ben Cruz" };
   const current: TaskFields = {
     title: "Confirm florist",
     description: "Call Ana",
     priority: "MEDIUM",
+    status: "NOT_STARTED",
+    dueDate: null,
     assignee: null,
   };
-  const ana = { id: "m1", name: "Ana Reyes" };
 
   it("is empty when nothing changed", () => {
     expect(diffTask(current, { ...current })).toEqual({});
@@ -80,12 +87,28 @@ describe("diffTask", () => {
   });
 
   it("sees adding and clearing a description as a change", () => {
-    expect(diffTask({ ...current, description: null }, { ...current, description: "x" })).toEqual({
+    expect(diffTask(current, { ...current, description: null })).toEqual({
       description: { changed: true },
     });
-    expect(diffTask({ ...current, description: "x" }, { ...current, description: null })).toEqual({
+    expect(diffTask({ ...current, description: null }, current)).toEqual({
       description: { changed: true },
     });
+  });
+
+  it("records a status change old → new (B6-F06)", () => {
+    expect(diffTask(current, { ...current, status: "IN_PROGRESS" })).toEqual({
+      status: { from: "NOT_STARTED", to: "IN_PROGRESS" },
+    });
+  });
+
+  it("records a due date being set, moved and cleared (B6-F07)", () => {
+    const set = { ...current, dueDate: "2026-11-15" };
+    expect(diffTask(current, set)).toEqual({ dueDate: { from: null, to: "2026-11-15" } });
+    expect(diffTask(set, { ...set, dueDate: "2026-11-20" })).toEqual({
+      dueDate: { from: "2026-11-15", to: "2026-11-20" },
+    });
+    expect(diffTask(set, current)).toEqual({ dueDate: { from: "2026-11-15", to: null } });
+    expect(diffTask(set, { ...set })).toEqual({});
   });
 
   it("records a priority change old → new", () => {
@@ -95,27 +118,39 @@ describe("diffTask", () => {
   });
 
   it("records assigning, reassigning and unassigning by name", () => {
-    const assigned = { ...current, assignee: ana };
-    expect(diffTask(current, assigned)).toEqual({ assignee: { from: null, to: "Ana Reyes" } });
-    expect(diffTask(assigned, { ...current, assignee: { id: "m2", name: "Ben Cruz" } })).toEqual({
+    expect(diffTask(current, { ...current, assignee: ana })).toEqual({
+      assignee: { from: null, to: "Ana Reyes" },
+    });
+    expect(diffTask({ ...current, assignee: ana }, { ...current, assignee: ben })).toEqual({
       assignee: { from: "Ana Reyes", to: "Ben Cruz" },
     });
-    expect(diffTask(assigned, current)).toEqual({ assignee: { from: "Ana Reyes", to: null } });
+    expect(diffTask({ ...current, assignee: ana }, current)).toEqual({
+      assignee: { from: "Ana Reyes", to: null },
+    });
   });
 
-  it("treats the same member as unchanged, whatever name is shown for them", () => {
-    const assigned = { ...current, assignee: ana };
-    expect(diffTask(assigned, { ...assigned, assignee: { id: "m1", name: "Ana R." } })).toEqual({});
+  it("treats the same member as unchanged even if the name shown differs", () => {
+    const renamed = { id: ana.id, name: "Ana R." };
+    expect(diffTask({ ...current, assignee: ana }, { ...current, assignee: renamed })).toEqual({});
   });
 
-  it("lists every field that changed, in order", () => {
+  it("lists every field that changed, in a stable order", () => {
     const changes = diffTask(current, {
       title: "New",
       description: null,
       priority: "LOW",
+      status: "DONE",
+      dueDate: "2026-11-15",
       assignee: ana,
     });
-    expect(Object.keys(changes)).toEqual(["title", "description", "priority", "assignee"]);
+    expect(Object.keys(changes)).toEqual([
+      "title",
+      "description",
+      "priority",
+      "status",
+      "dueDate",
+      "assignee",
+    ]);
     expect(hasTaskChanges(changes)).toBe(true);
   });
 });

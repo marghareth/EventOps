@@ -23,6 +23,8 @@ const task: TaskRecord = {
   title: "Confirm florist",
   description: "Call Ana",
   priority: "MEDIUM",
+  status: "NOT_STARTED",
+  dueDate: null,
   assignee: null,
   updatedAt: version,
 };
@@ -52,6 +54,8 @@ const same = {
   title: "Confirm florist",
   description: "Call Ana",
   priority: "MEDIUM" as const,
+  status: "NOT_STARTED" as const,
+  dueDate: null,
   assigneeId: null,
 };
 
@@ -62,6 +66,8 @@ describe("createTask", () => {
       title: "Print programs",
       description: null,
       priority: "HIGH" as const,
+      status: "NOT_STARTED" as const,
+      dueDate: null,
       assigneeId: ANA,
     };
     await expect(createTask(repo, { eventId: EVENT, actorId: ACTOR, input })).resolves.toEqual({
@@ -84,6 +90,8 @@ describe("createTask", () => {
           title: "A",
           description: null,
           priority: "MEDIUM",
+          status: "NOT_STARTED",
+          dueDate: null,
           assigneeId: OTHER_EVENT_MEMBER,
         },
       });
@@ -121,6 +129,22 @@ describe("updateTask", () => {
     const call = vi.mocked(repo.updateTask).mock.calls[0]![0];
     expect(call.changes).toEqual({ description: { changed: true } });
     expect(JSON.stringify(call.changes)).not.toContain("0917");
+  });
+
+  it("records a status change and a due date change (B6-F06, B6-F07)", async () => {
+    const repo = fakeRepository();
+    await updateTask(repo, {
+      ...args,
+      input: { ...same, status: "DONE", dueDate: "2026-11-15" },
+    });
+    expect(repo.updateTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changes: {
+          status: { from: "NOT_STARTED", to: "DONE" },
+          dueDate: { from: null, to: "2026-11-15" },
+        },
+      }),
+    );
   });
 
   it("records a priority change old → new (B6-F05)", async () => {

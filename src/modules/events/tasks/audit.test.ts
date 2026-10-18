@@ -1,5 +1,5 @@
 // src/modules/events/tasks/audit.test.ts
-// Task entries in the audit log and the Activity feed (B6-F01 to B6-F05; D-094, D-095): what each entry may
+// Task entries in the audit log and the Activity feed (B6-F01 to B6-F07; D-094 to D-096): what each entry may
 // hold (the description's text never) and how Activity words it.
 import { describe, expect, it } from "vitest";
 import { AUDIT_ACTIONS, describeAuditEntry } from "@/modules/events/audit/public";
@@ -163,6 +163,64 @@ describe("priority and assignee in task entries (B6-F04, B6-F05)", () => {
         },
       }).lines,
     ).toEqual(["Assignee: Ana Reyes → Unassigned"]);
+  });
+});
+
+describe("status and due date in task entries (B6-F06, B6-F07)", () => {
+  const entry = (changes: unknown) =>
+    updated.safeParse({ reference: "TSK-0001", title: "A", changes }).success;
+
+  it("accepts a status and a due date as old → new, and nothing looser", () => {
+    expect(entry({ status: { from: "NOT_STARTED", to: "DONE" } })).toBe(true);
+    expect(entry({ status: { from: "NOT_STARTED", to: "BLOCKED" } })).toBe(false);
+    expect(entry({ dueDate: { from: null, to: "2026-11-15" } })).toBe(true);
+    expect(entry({ dueDate: { from: "2026-11-15", to: null } })).toBe(true);
+    expect(entry({ dueDate: { from: null, to: "15 November" } })).toBe(false);
+    expect(entry({ dueDate: { changed: true } })).toBe(false);
+  });
+
+  it("records a new task's status and due date, and keeps older entries valid", () => {
+    const base = { reference: "TSK-0001", title: "A" };
+    expect(created.safeParse(base).success).toBe(true);
+    expect(
+      created.safeParse({ ...base, status: "IN_PROGRESS", dueDate: "2026-11-15" }).success,
+    ).toBe(true);
+    expect(created.safeParse({ ...base, status: "DONE", dueDate: null }).success).toBe(true);
+    expect(created.safeParse({ ...base, status: "LATE" }).success).toBe(false);
+  });
+
+  it("describes a new task's status and due date on their own lines", () => {
+    expect(
+      describeAuditEntry({
+        action: "task.created",
+        details: {
+          reference: "TSK-0004",
+          title: "Confirm florist",
+          status: "IN_PROGRESS",
+          dueDate: "2026-11-15",
+        },
+      }).lines,
+    ).toEqual(["Status: In progress", "Due Nov 15, 2026"]);
+  });
+
+  it("describes a status change and a due date being set, moved and cleared", () => {
+    const lines = (changes: unknown) =>
+      describeAuditEntry({
+        action: "task.updated",
+        details: { reference: "TSK-0004", title: "Confirm florist", changes },
+      }).lines;
+    expect(lines({ status: { from: "NOT_STARTED", to: "DONE" } })).toEqual([
+      "Status: Not started → Done",
+    ]);
+    expect(lines({ dueDate: { from: null, to: "2026-11-15" } })).toEqual([
+      "Due date: none → Nov 15, 2026",
+    ]);
+    expect(lines({ dueDate: { from: "2026-11-15", to: "2026-11-20" } })).toEqual([
+      "Due date: Nov 15, 2026 → Nov 20, 2026",
+    ]);
+    expect(lines({ dueDate: { from: "2026-11-20", to: null } })).toEqual([
+      "Due date: Nov 20, 2026 → none",
+    ]);
   });
 });
 

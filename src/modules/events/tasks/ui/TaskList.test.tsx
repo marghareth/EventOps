@@ -16,6 +16,8 @@ const tasks: TaskRecord[] = [
     title: "Confirm florist",
     description: "Call Ana",
     priority: "HIGH",
+    status: "IN_PROGRESS",
+    dueDate: "2026-11-15",
     assignee: { id: "m1", name: "Ana Reyes" },
     updatedAt,
   },
@@ -25,6 +27,8 @@ const tasks: TaskRecord[] = [
     title: "Print programs",
     description: null,
     priority: "LOW",
+    status: "NOT_STARTED",
+    dueDate: null,
     assignee: null,
     updatedAt,
   },
@@ -54,6 +58,15 @@ describe("TaskList", () => {
     renderList();
     const link = screen.getByRole("link", { name: "Edit TSK-0001 Confirm florist" });
     expect(link).toHaveAttribute("href", "/events/e1/tasks/t1/edit");
+  });
+
+  it("shows the status as a word and the due date, or that there is none (B6-F06, B6-F07)", () => {
+    renderList(false);
+    const [first, second] = screen.getAllByRole("listitem");
+    expect(within(first!).getByText("In progress")).toBeVisible();
+    expect(within(first!).getByText("Nov 15, 2026")).toBeVisible();
+    expect(within(second!).getByText("Not started")).toBeVisible();
+    expect(within(second!).getByText("No due date")).toBeVisible();
   });
 
   it("shows the priority as a word, never colour alone (B6-F05)", () => {

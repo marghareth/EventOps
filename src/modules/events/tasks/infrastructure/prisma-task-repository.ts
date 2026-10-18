@@ -1,5 +1,5 @@
 // src/modules/events/tasks/infrastructure/prisma-task-repository.ts
-// The task repository on PostgreSQL through Prisma (D-001; B6-F01 to B6-F05; D-094, D-095). Every
+// The task repository on PostgreSQL through Prisma (D-001; B6-F01 to B6-F07; D-094 to D-096). Every
 // query filters by the event ID. Every write re-checks, in storage, that the actor is a member whose
 // role may manage tasks (D-035), refuses a stale save (D-032) and records its audit entry in the same
 // transaction (D-037), so a change and its entry are saved together or not at all. An assignee is
@@ -12,6 +12,7 @@ import { writeAudit } from "@/modules/events/audit/public";
 import { rolesAllowed } from "@/modules/events/public";
 import type { AssignableMember, TaskRecord, TaskRepository } from "../application/ports";
 import { formatTaskReference } from "../domain/task";
+import { toCalendarDate, toDateColumn } from "../domain/due-date";
 
 const TASK_SELECT = {
   id: true,
@@ -19,6 +20,8 @@ const TASK_SELECT = {
   title: true,
   description: true,
   priority: true,
+  status: true,
+  dueDate: true,
   updatedAt: true,
   assignee: { select: { id: true, user: { select: { displayName: true } } } },
 } as const;
@@ -29,6 +32,8 @@ type TaskRow = {
   title: string;
   description: string | null;
   priority: TaskRecord["priority"];
+  status: TaskRecord["status"];
+  dueDate: Date | null;
   updatedAt: Date;
   assignee: { id: string; user: { displayName: string } } | null;
 };
@@ -39,6 +44,8 @@ const toRecord = (row: TaskRow): TaskRecord => ({
   title: row.title,
   description: row.description,
   priority: row.priority,
+  status: row.status,
+  dueDate: row.dueDate ? toCalendarDate(row.dueDate) : null,
   assignee: row.assignee ? { id: row.assignee.id, name: row.assignee.user.displayName } : null,
   updatedAt: row.updatedAt,
 });
@@ -125,6 +132,8 @@ export function prismaTaskRepository(db: PrismaClient): TaskRepository {
             title: input.title,
             description: input.description,
             priority: input.priority,
+            status: input.status,
+            dueDate: input.dueDate ? toDateColumn(input.dueDate) : null,
             assigneeId: input.assigneeId,
           },
           select: { id: true, number: true },
@@ -138,6 +147,8 @@ export function prismaTaskRepository(db: PrismaClient): TaskRepository {
             reference: formatTaskReference(created.number),
             title: input.title,
             priority: input.priority,
+            status: input.status,
+            dueDate: input.dueDate,
             assignee: assigneeName,
           },
         });
@@ -166,6 +177,8 @@ export function prismaTaskRepository(db: PrismaClient): TaskRepository {
                 title: input.title,
                 description: input.description,
                 priority: input.priority,
+                status: input.status,
+                dueDate: input.dueDate ? toDateColumn(input.dueDate) : null,
                 assigneeId: input.assigneeId,
               },
             })

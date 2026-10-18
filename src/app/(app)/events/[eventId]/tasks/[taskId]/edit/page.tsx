@@ -45,6 +45,8 @@ export default async function EditTaskPage({
           title: task.title,
           description: task.description,
           priority: task.priority,
+          status: task.status,
+          dueDate: task.dueDate,
           assigneeId: task.assignee?.id ?? null,
           version: task.updatedAt.toISOString(),
         }}
