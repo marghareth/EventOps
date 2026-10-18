@@ -1,7 +1,7 @@
 // src/app/(app)/events/[eventId]/tasks/page.tsx
-// The event's tasks (B6-F01 create, B6-F02 edit, B6-F03 delete, B6-F04 assignee, B6-F05 priority;
-// D-094, D-095). Every member can read them (event.view); Owners and Coordinators also get "Add
-// task", Edit and Delete (tasks.manage). Checks access itself
+// The event's tasks (B6-F01 create, B6-F02 edit, B6-F03 delete, B6-F08 list, B6-F09 filters; D-094,
+// D-095, D-097). Every member can read them (event.view);
+// Owners and Coordinators also get "Add task", Edit and Delete (tasks.manage). Checks access itself
 // (D-027); the read authorizes again, and every action checks once more.
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -11,8 +11,14 @@ import { Button } from "@/components/ui/button";
 import { requireEventAccess } from "@/modules/events/public";
 import {
   TaskList,
+  TaskListControls,
   TaskNotice,
+  assigneeFilterOptions,
+  describeTaskListQuery,
+  filterTasks,
   getEventTasks,
+  isNarrowed,
+  parseTaskListQuery,
   isTaskReference,
   formatTaskReference,
   type TaskNoticeKind,
@@ -49,6 +55,13 @@ export default async function TasksPage({ params, searchParams }: Props) {
   const { tasks, canManage } = result;
   const basePath = `/events/${event.id}/tasks`;
 
+  // B6-F09, D-097: filters come from the address and run over the tasks already authorized above,
+  // so they cannot reach another event's tasks or widen what this role may read.
+  const assignees = assigneeFilterOptions(tasks);
+  const filters = parseTaskListQuery(query, new Set(assignees.map((a) => a.id)));
+  const narrowed = isNarrowed(filters);
+  const shown = filterTasks(tasks, filters);
+
   // After a change: only a known kind and a well-formed reference are used. The title shown comes
   // from the stored record, never from the address.
   const kind = KINDS.find((k) => k === first(query.notice));
@@ -75,7 +88,33 @@ export default async function TasksPage({ params, searchParams }: Props) {
           </Button>
         ) : null}
       </div>
-      {tasks.length === 0 ? (
+      {tasks.length > 0 ? (
+        <TaskListControls
+          query={filters}
+          assignees={assignees}
+          listHref={basePath}
+          narrowed={narrowed}
+        />
+      ) : null}
+      {tasks.length > 0 && narrowed ? (
+        <p className="text-sm text-ink-2" role="status">
+          {shown.length} of {tasks.length} {tasks.length === 1 ? "task matches" : "tasks match"}.
+        </p>
+      ) : null}
+      {tasks.length > 0 && shown.length === 0 ? (
+        <div className="rounded-xl bg-white shadow-xs">
+          <EmptyState
+            headingLevel={2}
+            title="No tasks match"
+            description={`${describeTaskListQuery(filters, (id) => assignees.find((a) => a.id === id)?.label).join(" · ")}. Change the filters, or clear them to see all ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}.`}
+            action={
+              <Button asChild variant="secondary">
+                <Link href={basePath}>Clear filters</Link>
+              </Button>
+            }
+          />
+        </div>
+      ) : tasks.length === 0 ? (
         <div className="rounded-xl bg-white shadow-xs">
           <EmptyState
             headingLevel={2}
@@ -95,7 +134,7 @@ export default async function TasksPage({ params, searchParams }: Props) {
           />
         </div>
       ) : (
-        <TaskList tasks={tasks} eventId={event.id} basePath={basePath} canManage={canManage} />
+        <TaskList tasks={shown} eventId={event.id} basePath={basePath} canManage={canManage} />
       )}
     </div>
   );

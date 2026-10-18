@@ -27,6 +27,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     `event_members`), written by hand: run `prisma migrate dev` once to confirm there is no drift.
     Applied to PostgreSQL 18 in testing, including on a database that already held a task.
 
+- **B6-F08 Task list and B6-F09 task filtering (D-097, proposed).**
+  - The task list was already event-scoped and visible to every member; this adds tests that pin it.
+  - Above the list, filters for status, priority, assignee (or Unassigned) and due date (has one, has
+    none, on or after, on or before). They combine, live in the address so reload and back keep them,
+    and work on a phone. The list says "2 of 9 tasks match" and "No tasks match" with a Clear filters
+    link. Viewers can filter too. There is no "overdue" filter yet.
+- **B6-F06 Task status (D-096, proposed).**
+  - Every task has a status: Not started (the default), In progress or Done, chosen on the add and
+    edit forms and shown as a word on the list. Tasks that existed before this change became Not
+    started. Activity shows "Status: Not started → Done". Only Owners and Coordinators can change it,
+    so an assigned Viewer can't mark their own task done; this needs your confirmation (D-096,
+    point 4).
+- **B6-F07 Task due dates (D-096, proposed).**
+  - A task can have a due date: an optional calendar date in Philippine time, set, changed or cleared
+    on the add and edit forms. The list shows "Due Nov 15, 2026" or "No due date". A date in the past
+    is allowed. Activity shows "Due date: none → Nov 15, 2026". Nothing is flagged late yet.
+  - Migration `20261017150000_task_status_due_date` (enum, two columns, a range CHECK), written by
+    hand: run `prisma migrate dev` once to confirm there is no drift. Applied to PostgreSQL 18 in
+    testing, including on a database that already held a task.
+
 - **B6-F01 Task creation (D-094, proposed).**
   - Owners and Coordinators can add a task to an event with a title and an optional description. Each
     task gets a readable ID (TSK-0001, numbered per event). The Tasks page now lists them, with an
