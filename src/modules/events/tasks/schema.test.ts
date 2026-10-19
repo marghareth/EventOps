@@ -203,3 +203,19 @@ describe("due date (B6-F07)", () => {
     ]);
   });
 });
+
+describe("invisible NUL characters (B6-F13, D-100)", () => {
+  const MESSAGE = "Remove the invisible character this text contains, then try again.";
+
+  it("refuses a NUL in the title with a clear message instead of failing on save", () => {
+    expect(messages(parse("Confirm\u0000 florist"))).toEqual([MESSAGE]);
+  });
+
+  it("refuses a NUL in the description with a clear message", () => {
+    expect(messages(parse("A", "Call\u0000 Ana"))).toEqual([MESSAGE]);
+  });
+
+  it("still reports a blank title as blank", () => {
+    expect(messages(parse("   "))).toEqual(["Enter a task title."]);
+  });
+});

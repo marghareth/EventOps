@@ -1,5 +1,5 @@
 // src/modules/events/tasks/ui/TaskListControls.test.tsx
-// The task filters (B6-F09; D-097): labelled fields, values kept from the address, a plain GET
+// The task filters (B6-F09, B6-F16; D-097, D-100): labelled fields, values kept from the address, a plain GET
 // form, and "Clear filters" only while narrowed.
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -79,6 +79,14 @@ describe("TaskListControls", () => {
       expect(field).toHaveAttribute("min", "2000-01-01");
       expect(field).toHaveAttribute("max", "2100-12-31");
     }
+  });
+
+  it("gives a date field a full row on a phone, where half a row would clip it (B6-F16)", () => {
+    show();
+    for (const name of ["Due on or after", "Due on or before"]) {
+      expect(screen.getByLabelText(name).parentElement).toHaveClass("col-span-2", "sm:col-span-1");
+    }
+    expect(screen.getByLabelText("Status").parentElement).not.toHaveClass("col-span-2");
   });
 
   it("shows Clear filters only while narrowed, pointing at the plain list", () => {

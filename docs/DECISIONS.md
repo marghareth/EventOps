@@ -110,6 +110,7 @@ Status values:
 | D-097 | Tasks: the list and its filters                             | Proposed | 2026-10-18 |
 | D-098 | Tasks: overdue detection                                    | Proposed | 2026-10-19 |
 | D-099 | Tasks: event scope and authorization, verified              | Proposed | 2026-10-19 |
+| D-100 | Tasks: validation, audit, states and phone layout, verified | Proposed | 2026-10-19 |
 
 ---
 
@@ -2828,3 +2829,46 @@ their own task Done (D-096, point 4); changing that would change the matrix and 
 
 **Not yet run:** a browser check, Playwright, and the 3 `db.test` files blocked by the pre-existing
 `createPrismaClient` problem.
+
+---
+## D-100 Tasks: validation, audit, states and phone layout, verified
+
+**Status:** Proposed (B6-F13 to B6-F16). No schema change, no migration, no new permission. Like D-099,
+these four were mostly built with the earlier task work; each was checked against PROJECT_RULES
+(sections 8, 11, 12, 13) and the findings are below. Two small changes came out of the check.
+
+**B6-F13 Validation.** Checked and complete on the server (the browser never decides): title 1 to 120
+characters and not blank, description at most 2,000, priority and status from fixed lists, due date a
+real day from 2000 to 2100 or empty, assignee a UUID that is then looked up inside the authorized
+event and again by the database's composite key, edit version required. Unknown fields are ignored.
+**Changed:** a NUL character in the title or description is now refused with "Remove the invisible
+character this text contains, then try again." as on suppliers and accessibility (B3-19). Before, it
+passed validation and failed in PostgreSQL as a vague "couldn't save". **Not changed:** a title may
+still contain line breaks if posted by hand; D-094 says "trimmed" and inner spacing is stored as
+typed.
+
+**B6-F14 Audit and Activity.** Checked and complete: `task.created`, `task.updated` and `task.deleted`
+are in the audit registry with strict details (free text only as "changed"), are written in the same
+transaction as the change, are never written for an unchanged, refused or stale save, and are worded
+by `audit/describe.ts` on Activity. Documented in `docs/audit.md`. **Added:** a database test that
+stores real entries (Owner creates, Coordinator edits, Owner deletes) and checks who, the order and
+the Activity wording. Removing a member unassigns their tasks without an entry (D-095, point 5).
+
+**B6-F15 Error and empty states.** Checked and complete: empty list (differs for managers and
+Viewers), no filter match with a way back, loading screen, error screen with a retry and no internal
+details, field errors in a summary that links to each field, unchanged and stale saves, failed save
+and failed delete ("Nothing was saved" / "Nothing was removed"), refused role and 404 for another
+event's task. **Added:** a test for the Viewer's empty state. **Known limit:** if the browser cannot
+reach the server at all while deleting, the error screen appears instead of an inline message. The
+other delete buttons behave the same way.
+
+**B6-F16 Responsive interface.** Rendered the real list, filtered, empty, Viewer, Add and error-state
+pages to HTML with the project's compiled Tailwind and measured them in Chromium at 375 and 1280 px.
+Result: no horizontal scroll, every button, link, field and select at least 44 px tall, long titles,
+unbroken words and long names wrap, Edit and Delete stack full width on a phone and sit beside the
+card on a desktop. **Changed:** on a phone the filter form was six stacked fields before the first
+task; Status and Priority now share a row (a date field clipped when halved, so dates keep a full
+row). **Not tested:** the running app inside its sidebar and header (not rendered here), real touch
+devices, or a screen reader.
+
+**Not yet run:** Playwright on the running app and `prisma migrate dev` for drift.

@@ -205,6 +205,33 @@ describe("createTaskAction: priority and assignee (B6-F04, B6-F05)", () => {
   });
 });
 
+describe("task text with a NUL character (B6-F13, D-100)", () => {
+  it("refuses it as a field error on create and saves nothing", async () => {
+    const state = await createTaskAction(EVENT, idle, form({ ...fields, title: "Flor\u0000ist" }));
+    expect(state).toMatchObject({
+      status: "error",
+      fieldErrors: { title: "Remove the invisible character this text contains, then try again." },
+    });
+    expect(repository.createTask).not.toHaveBeenCalled();
+  });
+
+  it("refuses it as a field error on edit and saves nothing", async () => {
+    const state = await updateTaskAction(
+      EVENT,
+      TASK,
+      idle,
+      form({ ...fields, version: VERSION, description: "Call\u0000 Ana" }),
+    );
+    expect(state).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        description: "Remove the invisible character this text contains, then try again.",
+      },
+    });
+    expect(repository.updateTask).not.toHaveBeenCalled();
+  });
+});
+
 describe("updateTaskAction", () => {
   const edit = (extra: Record<string, string> = {}, taskId = TASK) =>
     updateTaskAction(EVENT, taskId, idle, form({ ...fields, version: VERSION, ...extra }));

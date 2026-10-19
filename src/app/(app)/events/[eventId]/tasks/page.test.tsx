@@ -192,6 +192,18 @@ describe("the task list page", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
+  it("tells a Viewer who can add tasks when the list is empty, without an Add button", async () => {
+    getEventTasks.mockResolvedValue({ ok: true, tasks: [], canManage: false });
+    render(
+      await TasksPage({
+        params: Promise.resolve({ eventId: EVENT }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    expect(screen.getByText("Owners and Coordinators can add tasks to this event.")).toBeVisible();
+    expect(screen.queryByRole("link", { name: /Add/ })).toBeNull();
+  });
+
   it("shows the refused screen, with no filters, when reading is not allowed", async () => {
     getEventTasks.mockResolvedValue({ ok: false, reason: "forbidden" });
     render(

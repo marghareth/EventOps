@@ -27,6 +27,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     `event_members`), written by hand: run `prisma migrate dev` once to confirm there is no drift.
     Applied to PostgreSQL 18 in testing, including on a database that already held a task.
 
+- **B6-F13 to B6-F16 Task validation, audit, states and phone layout (D-100, proposed).**
+  - Checked against the project rules; most of it was already built. A NUL (invisible) character in a
+    task's title or description is now refused with a clear message instead of failing on save.
+  - On a phone the task filters take less space: Status and Priority share a row. Measured at 375 and
+    1280 px: no sideways scroll and every control at least 44 px tall.
+  - Added tests: Activity wording of real stored task entries, the Viewer's empty list, the NUL cases.
 - **B6-F10 Overdue detection (D-098, proposed).**
   - A task that is not Done and whose due date has passed shows an "Overdue" badge on the list. A
     task due today is not overdue until Philippine midnight; a Done task or one with no due date never
