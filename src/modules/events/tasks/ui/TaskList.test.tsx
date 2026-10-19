@@ -34,8 +34,17 @@ const tasks: TaskRecord[] = [
   },
 ];
 
-const renderList = (canManage = true, list = tasks) =>
-  render(<TaskList tasks={list} eventId="e1" basePath="/events/e1/tasks" canManage={canManage} />);
+const TODAY = "2026-11-16";
+const renderList = (canManage = true, list = tasks, today = "2026-10-18") =>
+  render(
+    <TaskList
+      tasks={list}
+      eventId="e1"
+      basePath="/events/e1/tasks"
+      canManage={canManage}
+      today={today}
+    />,
+  );
 
 describe("TaskList", () => {
   it("shows each task as a list item with its readable ID, title and description", () => {
@@ -106,5 +115,39 @@ describe("TaskList", () => {
     expect(document.querySelector("img")).toBeNull();
     expect(document.querySelector("b")).toBeNull();
     expect(screen.getByText("<b>bold</b>")).toBeVisible();
+  });
+});
+
+describe("TaskList overdue (B6-F10)", () => {
+  const open = (id: string, dueDate: string | null, status: TaskRecord["status"]): TaskRecord => ({
+    ...tasks[1]!,
+    id,
+    number: Number(id),
+    title: `Task ${id}`,
+    status,
+    dueDate,
+  });
+  const list = [
+    open("1", "2026-11-15", "IN_PROGRESS"), // due yesterday, not done
+    open("2", "2026-11-16", "NOT_STARTED"), // due today
+    open("3", "2026-11-15", "DONE"), // due yesterday but done
+    open("4", null, "NOT_STARTED"), // no due date
+  ];
+
+  it("marks only a task that is not Done and past its due date, with a word", () => {
+    renderList(false, list, TODAY);
+    const items = screen.getAllByRole("listitem");
+    expect(within(items[0]!).getByText("Overdue")).toBeVisible();
+    for (const item of items.slice(1)) expect(within(item).queryByText("Overdue")).toBeNull();
+  });
+
+  it("marks nothing when no task is past due", () => {
+    renderList(false, list, "2026-11-15");
+    expect(screen.queryByText("Overdue")).toBeNull();
+  });
+
+  it("marks a task overdue the moment Philippine midnight passes", () => {
+    renderList(false, [list[1]!], "2026-11-17");
+    expect(screen.getByText("Overdue")).toBeVisible();
   });
 });

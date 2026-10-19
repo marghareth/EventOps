@@ -147,7 +147,9 @@ _Last updated: 2026-10-14._
 | **B6-F07 Task Due Dates**: optional calendar date (Philippine time), set, changed or cleared from the forms; shown on the list; audit entries old → new (D-096) | B6 | In review: unit, action, audit and UI tests pass; database CHECK and day-exactness verified on PostgreSQL 18; no browser check yet |
 | **B6-F08 Task List**: every member sees the event's tasks, read on the server inside the authorized event; satisfied by the list built in B6-F01 (D-097) | B6 | In review: no new build; page tests added (access, event-scoped read, empty and refused states); no browser check yet |
 | **B6-F09 Task Filtering**: filter by status, priority, assignee (or Unassigned) and due date (has, none, on or after, on or before); from the address, server-side, combined with AND (D-097) | B6 | In review: unit, control and page tests pass; no browser check yet |
-| Overdue task detection                                                                                                                                                           |       | Not started                                                                                                                                                       |
+| **B6-F10 Overdue Detection**: a task is overdue when it is not Done, has a due date, and that day is before today in Philippine time; shown as an Overdue badge on the list (D-098) | B6 | In review: rule, badge, list and page tests pass (Philippine midnight edge, Done, due today, no date); no browser check yet |
+| **B6-F11 Event-Scoped Task Data**: every task belongs to one event; reads, writes and links are checked against it (D-099) | B6 | In review: already built (D-002, D-094, D-095); verified and tests added; 25 database tests passed on PostgreSQL 18 |
+| **B6-F12 Task Authorization**: members read, Owners and Coordinators write, checked on the server and again in storage (D-099) | B6 | In review: already built (D-035, D-094); verified and tests added (pages, storage, role change); no browser check yet |
 
 ### Signature features
 

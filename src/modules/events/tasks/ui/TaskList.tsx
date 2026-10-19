@@ -1,10 +1,11 @@
 // src/modules/events/tasks/ui/TaskList.tsx
-// The event's tasks as a list of cards (B6-F01 to B6-F07; D-094 to D-096): readable ID, title,
+// The event's tasks as a list of cards (B6-F01 to B6-F07, B6-F10; D-094 to D-098): readable ID, title,
 // description, status, priority, due date and who it is assigned to. One markup for every width: a single column that
 // fills a phone and reads as rows on a desktop, so nothing scrolls sideways. Edit and Delete appear
 // only for people who can manage tasks; the server actions check the role again. Priority is shown
 // as a word on a tinted badge, never colour alone. The due date is shown as written, in Philippine
-// time; whether a task is late is a separate, later feature.
+// time. A task that is not Done and past its due date also carries an Overdue badge (B6-F10, D-098);
+// "today" is passed in by the page so this component never reads a clock.
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { deleteTaskAction } from "../actions";
@@ -16,7 +17,9 @@ import {
   formatTaskReference,
   type TaskPriority,
 } from "../domain/task";
+import { isTaskOverdue } from "../overdue";
 import { TaskDeleteButton } from "./TaskDeleteButton";
+import { TaskOverdueBadge } from "./TaskOverdueBadge";
 
 const PRIORITY_STYLE: Record<TaskPriority, string> = {
   HIGH: "border-critical-line bg-critical-tint text-critical",
@@ -29,11 +32,14 @@ export function TaskList({
   eventId,
   basePath,
   canManage,
+  today,
 }: {
   tasks: TaskRecord[];
   eventId: string;
   basePath: string;
   canManage: boolean;
+  /** The Philippine day, "YYYY-MM-DD", worked out once per request. */
+  today: string;
 }) {
   return (
     <ul aria-label="Tasks" className="flex flex-col gap-3">
@@ -74,6 +80,7 @@ export function TaskList({
                     "No due date"
                   )}
                 </span>
+                {isTaskOverdue(task, today) ? <TaskOverdueBadge /> : null}
                 <span>
                   {task.assignee ? (
                     <>

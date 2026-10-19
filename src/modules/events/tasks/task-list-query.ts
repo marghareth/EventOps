@@ -3,7 +3,8 @@
 // already authorized, so a filter never widens what a role may see or reaches another event's
 // tasks. Every value comes from the address (?status=done&priority=high&assignee=unassigned&due=set
 // &dueFrom=2026-11-01&dueTo=2026-11-30) and must match a fixed list or be a real date; anything
-// else is ignored (no filter). Filters combine with AND. Due dates are days in Philippine time and
+// else is ignored (no filter). Filters combine with AND. "Overdue only" (B6-F10; D-098) needs
+// today's Philippine day, which the page passes in. Due dates are days in Philippine time and
 // are compared as written ("YYYY-MM-DD" sorts as a date), never as instants.
 import {
   TASK_PRIORITIES,
@@ -14,6 +15,7 @@ import {
   type TaskStatus,
 } from "./domain/task";
 import { formatCalendarDate, isCalendarDate, isDueDateInRange } from "./domain/due-date";
+import { isTaskOverdue } from "./overdue";
 
 export type DueFilter = "none" | "set";
 export const DUE_FILTERS = ["set", "none"] as const satisfies readonly DueFilter[];
@@ -21,6 +23,10 @@ export const DUE_FILTER_LABEL: Record<DueFilter, string> = {
   set: "Has a due date",
   none: "No due date",
 };
+
+/** The overdue choice: only incomplete tasks whose due date has passed (D-098). */
+export type OverdueFilter = "only";
+export const OVERDUE_FILTER_LABEL = "Overdue only";
 
 /** "unassigned", or the ID of a member who is assigned a task in this event. */
 export type AssigneeFilter = "unassigned" | string;
@@ -30,6 +36,8 @@ export type TaskListQuery = {
   priority: TaskPriority | null;
   assignee: AssigneeFilter | null;
   due: DueFilter | null;
+  /** Only overdue tasks: not done, with a due date before today (D-098). */
+  overdue: OverdueFilter | null;
   /** Due on or after this day ("YYYY-MM-DD"). A task with no due date never matches. */
   dueFrom: string | null;
   /** Due on or before this day ("YYYY-MM-DD"). A task with no due date never matches. */
@@ -85,6 +93,7 @@ export function parseTaskListQuery(
     priority: TASK_PRIORITIES.find((value) => param(value) === one(params.priority)) ?? null,
     assignee: assignee === "unassigned" || assigneeIds.has(assignee) ? assignee : null,
     due: DUE_FILTERS.find((value) => value === one(params.due)) ?? null,
+    overdue: one(params.overdue) === "only" ? "only" : null,
     dueFrom: day(one(params.dueFrom)),
     dueTo: day(one(params.dueTo)),
   };
@@ -95,11 +104,18 @@ export function isNarrowed(query: TaskListQuery): boolean {
   return Object.values(query).some((value) => value !== null);
 }
 
-/** The tasks that match every filter that is on, in the same order. */
+/**
+ * The tasks that match every filter that is on, in the same order. `today` (the Philippine day,
+ * "YYYY-MM-DD") is required only when the Overdue filter is on.
+ */
 export function filterTasks<T extends FilterableTask>(
   tasks: readonly T[],
   query: TaskListQuery,
+  today?: string,
 ): T[] {
+  if (query.overdue && today === undefined) {
+    throw new Error("Today's date is needed to filter overdue tasks.");
+  }
   return tasks.filter((task) => {
     if (query.status && task.status !== query.status) return false;
     if (query.priority && task.priority !== query.priority) return false;
@@ -109,6 +125,7 @@ export function filterTasks<T extends FilterableTask>(
     }
     if (query.due === "set" && task.dueDate === null) return false;
     if (query.due === "none" && task.dueDate !== null) return false;
+    if (query.overdue && !isTaskOverdue(task, today!)) return false;
     if (query.dueFrom && (task.dueDate === null || task.dueDate < query.dueFrom)) return false;
     if (query.dueTo && (task.dueDate === null || task.dueDate > query.dueTo)) return false;
     return true;
@@ -131,6 +148,7 @@ export function describeTaskListQuery(
     );
   }
   if (query.due) parts.push(DUE_FILTER_LABEL[query.due]);
+  if (query.overdue) parts.push("Overdue");
   if (query.dueFrom) parts.push(`Due on or after ${formatCalendarDate(query.dueFrom)}`);
   if (query.dueTo) parts.push(`Due on or before ${formatCalendarDate(query.dueTo)}`);
   return parts;

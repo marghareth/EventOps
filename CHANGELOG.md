@@ -27,6 +27,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     `event_members`), written by hand: run `prisma migrate dev` once to confirm there is no drift.
     Applied to PostgreSQL 18 in testing, including on a database that already held a task.
 
+- **B6-F10 Overdue detection (D-098, proposed).**
+  - A task that is not Done and whose due date has passed shows an "Overdue" badge on the list. A
+    task due today is not overdue until Philippine midnight; a Done task or one with no due date never
+    is. Nothing is stored or sent: it is worked out when the list is shown. Needs your confirmation
+    that "incomplete" means Not started or In progress.
+- **B6-F11 Event-scoped task data and B6-F12 task authorization (D-099, proposed).**
+  - Checked, not changed: tasks belong to one event, members read, Owners and Coordinators write, and
+    the role is checked on the page, in the action and again in storage. Added tests for another
+    event's task, non-members, Owners and Coordinators, a role changed between the check and the write,
+    and the Add and Edit pages. No gap was found in the code.
 - **B6-F08 Task list and B6-F09 task filtering (D-097, proposed).**
   - The task list was already event-scoped and visible to every member; this adds tests that pin it.
   - Above the list, filters for status, priority, assignee (or Unassigned) and due date (has one, has

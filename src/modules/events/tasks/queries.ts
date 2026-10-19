@@ -1,5 +1,5 @@
 // src/modules/events/tasks/queries.ts
-// Server-side task reads for the pages (B6-F01 to B6-F05; D-094, D-095). Every read authorizes on its own
+// Server-side task reads for the pages (B6-F01 to B6-F12; D-094 to D-099). Every read authorizes on its own
 // with authorizeEvent (D-036) and looks records up only inside the authorized event, so another
 // event's task is "not found". Stored values only.
 import "server-only";

@@ -108,6 +108,8 @@ Status values:
 | D-095 | Tasks: deleting, assigning and priority                     | Proposed | 2026-10-17 |
 | D-096 | Tasks: status and due date                                  | Proposed | 2026-10-18 |
 | D-097 | Tasks: the list and its filters                             | Proposed | 2026-10-18 |
+| D-098 | Tasks: overdue detection                                    | Proposed | 2026-10-19 |
+| D-099 | Tasks: event scope and authorization, verified              | Proposed | 2026-10-19 |
 
 ---
 
@@ -2749,3 +2751,80 @@ edges, AND, contradictions, wording), `tasks/ui/TaskListControls.test.tsx`, and
 `src/app/(app)/events/[eventId]/tasks/page.test.tsx`. Event isolation of the underlying read is
 covered by `tasks/tasks-event-scope.db.test.ts` (D-094). **Not yet run:** a browser check at 375 and
 1280 px, and Playwright.
+
+---
+## D-098 Tasks: overdue detection
+
+**Status:** Proposed (B6-F10). No schema change, no migration, no new permission.
+
+**Decision.**
+
+1. **The rule.** A task is overdue when it is **not Done**, **has a due date**, and that day is
+   **before today**. A task due today is not overdue yet; a Done task is never overdue, whenever it
+   was due or finished; a task with no due date is never overdue. This is the same shape as the
+   supplier payment rule (D-079). "Incomplete" is read as "not Done", so Not started and In progress
+   both count (D-096). **Technical lead: please confirm.**
+2. **Today is the Philippine day (Asia/Manila, UTC+8, no daylight saving; D-025).** The page works it
+   out once per request with `manilaToday(new Date())` and passes it in, so the rule never reads a
+   clock and tests fix the day. A task due on the 17th turns overdue at midnight on the 18th in
+   Manila, which is 16:00 UTC on the 17th (pinned by a test on both sides of that instant).
+3. **Identification only.** The rule is a pure function (`tasks/overdue.ts`, `isTaskOverdue`). It
+   changes no data, writes no audit entry, sends no notification and is not stored: it is worked out
+   when the list is shown, so it is never stale and cannot be edited by hand.
+4. **Display.** An "Overdue" badge, a word with an icon in the critical colour, never colour alone,
+   next to the due date on the list. The due date stays visible. The number of days late is not
+   shown.
+5. **Not in this decision.** An "Overdue only" filter (adding it to the D-097 filters needs approval),
+   a count of overdue tasks, Event Health or alert use of the rule (the "Critical Alert View" and Event
+   Health use their own approved contracts), reminders, "due today" or "due soon" badges, and
+   automatic status changes.
+
+**Known debt.** `manilaToday` is repeated in `tasks/domain/due-date.ts` for the same boundary reason
+as the other due-date helpers (D-096, point 9).
+
+**Evidence.** `tasks/overdue.test.ts` (boundaries, Done, no date, month and year edges, invalid
+input, Philippine midnight, leap day), `tasks/ui/TaskList.test.tsx` (badge on the right tasks only),
+and `src/app/(app)/events/[eventId]/tasks/page.test.tsx` (a fixed clock, Viewer, filtered list).
+**Not yet run:** a browser check at 375 and 1280 px.
+
+---
+## D-099 Tasks: event scope and authorization, verified
+
+**Status:** Proposed (B6-F11, B6-F12). **No behaviour changed and no migration.** Both features were
+built with the earlier task work (D-002, D-035, D-036, D-094, D-095). This task checked that they are
+complete against PROJECT_RULES sections 6 and 7, found no gap in the code, and added tests for the
+cases that were not yet covered.
+
+**What guarantees each point (and where it is tested).**
+
+1. **A task belongs to exactly one event.** `tasks.eventId` is required, with a foreign key to
+   `events` and deletion with the event (D-004); `(eventId, number)` and `(eventId, id)` are unique,
+   and the assignee is a composite key `(eventId, assigneeId)` to `event_members(eventId, id)`
+   (D-002, D-095). Every repository read and write filters by the event ID that authorization
+   returned. Tested against PostgreSQL: a task with no event and a repeated number are refused;
+   another event's task, or member, is "not found" through this event's ID for reading, editing and
+   deleting; nothing changes in either event.
+2. **Viewing:** every member reads (`event.view`); a non-member gets "not found", the same as an event
+   that does not exist. Tested in `queries.test.ts`, `page.test.tsx` and the all-pages
+   `access-coverage.test.tsx`.
+3. **Modifying:** Owners and Coordinators only (`tasks.manage`, D-035). Viewers cannot create, edit or
+   delete. Checked **three times:** the page, the server action (`authorizeEvent`, guarded for every
+   action file by `action-coverage.test.ts`) and again inside the storage statement itself, so a role
+   that changed after the check writes nothing. Tested: Viewer, member of another event, an Owner and
+   a Coordinator allowed, and a Coordinator demoted to Viewer between the check and the write.
+4. **Never trusting the client:** the event, task and assignee IDs from the form are verified inside
+   the authorized event; the title, edit version and assignee are validated on the server; the
+   numbers, times and totals shown are stored or derived values.
+5. **Refusals change nothing and say little:** a refused write leaves rows, the task counter and
+   Activity as they were (compared before and after in the database tests) and does not reveal
+   whether the other event or task exists.
+
+**Added in this task:** database tests (editing another event's task through this event's ID, a
+member of another event creating or editing, Owner and Coordinator allowed, role re-checked at write
+time, refused orphan and duplicate number) and the Add and Edit page tests
+(`tasks/form-pages.test.tsx`). **Not changed:** the permission matrix; the matrix still says "Create,
+assign and complete tasks" for Owners and Coordinators (D-035). An assigned Viewer still cannot mark
+their own task Done (D-096, point 4); changing that would change the matrix and needs approval.
+
+**Not yet run:** a browser check, Playwright, and the 3 `db.test` files blocked by the pre-existing
+`createPrismaClient` problem.
