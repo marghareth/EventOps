@@ -1,6 +1,6 @@
 // src/modules/events/tasks/tasks-event-scope.db.test.ts
-// Task isolation, assignment and deletion against PostgreSQL (B6-F03, B6-F04, B6-F05; D-002, D-094,
-// D-095). Two events, each with a task. Every repository operation tries the other event's records
+// Task isolation, assignment and deletion against PostgreSQL (B6-F03 to B6-F07, B6-F11, B6-F12; D-002,
+// D-094 to D-099). Two events, each with a task. Every repository operation tries the other event's records
 // through this event's ID, the way a substituted ID would: reads see only their own event, writes
 // are refused and change nothing in either event (rows, task counter and Activity). The database's
 // composite foreign key refuses an assignee from another event even when the application is
@@ -57,11 +57,18 @@ async function addMember(eventId: string, userId: string, role: MemberRole) {
 
 const input = (
   title: string,
-  extra: { priority?: "HIGH" | "MEDIUM" | "LOW"; assigneeId?: string | null } = {},
+  extra: {
+    priority?: "HIGH" | "MEDIUM" | "LOW";
+    status?: "NOT_STARTED" | "IN_PROGRESS" | "DONE";
+    dueDate?: string | null;
+    assigneeId?: string | null;
+  } = {},
 ) => ({
   title,
   description: null,
   priority: extra.priority ?? ("MEDIUM" as const),
+  status: extra.status ?? ("NOT_STARTED" as const),
+  dueDate: extra.dueDate ?? null,
   assigneeId: extra.assigneeId ?? null,
 });
 
@@ -202,6 +209,114 @@ describe("task writes are scoped to one event and one role", () => {
     expect(await snapshot(w.eventA, w.eventB)).toEqual(before);
   });
 
+  it("editing another event's task through this event's ID changes nothing", async () => {
+    const w = await world();
+    const before = await snapshot(w.eventA, w.eventB);
+    const theirs = await w.repository.findTask(w.eventB, w.b.id);
+    const result = await w.repository.updateTask({
+      eventId: w.eventA,
+      taskId: w.b.id,
+      actorId: w.ownerA,
+      version: theirs!.updatedAt,
+      input: input("Hijacked", { priority: "HIGH" }),
+      changes: { title: { from: "Task B", to: "Hijacked" } },
+    });
+    expect(result).toEqual({ ok: false, reason: "not-found" });
+    expect(await snapshot(w.eventA, w.eventB)).toEqual(before);
+  });
+
+  it("a member of another event cannot create or edit in this event", async () => {
+    const w = await world();
+    const before = await snapshot(w.eventA, w.eventB);
+    expect(
+      await w.repository.createTask({ eventId: w.eventA, actorId: w.ownerB, input: input("Nope") }),
+    ).toEqual({ ok: false, reason: "not-found" });
+    const current = await w.repository.findTask(w.eventA, w.a.id);
+    expect(
+      await w.repository.updateTask({
+        eventId: w.eventA,
+        taskId: w.a.id,
+        actorId: w.ownerB,
+        version: current!.updatedAt,
+        input: input("Changed"),
+        changes: { title: { from: "Task A", to: "Changed" } },
+      }),
+    ).toEqual({ ok: false, reason: "not-found" });
+    expect(await snapshot(w.eventA, w.eventB)).toEqual(before);
+  });
+
+  it("lets an Owner and a Coordinator create and edit, each in their own event", async () => {
+    const w = await world();
+    for (const actorId of [w.ownerA, w.coordinatorA]) {
+      const created = await w.repository.createTask({
+        eventId: w.eventA,
+        actorId,
+        input: input(`By ${actorId.slice(0, 4)}`),
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) continue;
+      const current = await w.repository.findTask(w.eventA, created.id);
+      const saved = await w.repository.updateTask({
+        eventId: w.eventA,
+        taskId: created.id,
+        actorId,
+        version: current!.updatedAt,
+        input: input("Edited"),
+        changes: { title: { from: current!.title, to: "Edited" } },
+      });
+      expect(saved).toEqual({ ok: true });
+    }
+    expect((await w.repository.listTasks(w.eventB)).map((task) => task.id)).toEqual([w.b.id]);
+  });
+
+  it("re-checks the role at write time: a member demoted to Viewer can no longer write", async () => {
+    const w = await world();
+    await db.eventMember.update({ where: { id: w.ana.id }, data: { role: "VIEWER" } });
+    const before = await snapshot(w.eventA, w.eventB);
+    expect(
+      await w.repository.createTask({
+        eventId: w.eventA,
+        actorId: w.coordinatorA,
+        input: input("Late"),
+      }),
+    ).toEqual({ ok: false, reason: "not-found" });
+    expect(
+      await w.repository.deleteTask({
+        eventId: w.eventA,
+        taskId: w.a.id,
+        actorId: w.coordinatorA,
+      }),
+    ).toEqual({ ok: false, reason: "not-found" });
+    expect(await snapshot(w.eventA, w.eventB)).toEqual(before);
+  });
+
+  it("the database refuses a task with no event and two tasks with one number in an event", async () => {
+    const w = await world();
+    await expect(
+      db.task.create({
+        data: {
+          eventId: randomUUID(),
+          number: 1,
+          title: "Orphan",
+          priority: "MEDIUM",
+          status: "NOT_STARTED",
+        },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      db.task.create({
+        data: {
+          eventId: w.eventA,
+          number: w.a.number,
+          title: "Duplicate number",
+          priority: "MEDIUM",
+          status: "NOT_STARTED",
+        },
+      }),
+    ).rejects.toThrow();
+    expect(await db.task.count({ where: { eventId: w.eventA } })).toBe(1);
+  });
+
   it("deletes a task for a Coordinator, records the deletion, and never reuses the number", async () => {
     const w = await world();
     const result = await w.repository.deleteTask({
@@ -245,6 +360,104 @@ describe("priority (B6-F05)", () => {
       priority: "HIGH",
       assignee: null,
     });
+  });
+});
+
+describe("status and due date (B6-F06, B6-F07)", () => {
+  it("starts Not started with no due date, and records what was chosen on creation", async () => {
+    const w = await world();
+    const plain = await w.repository.createTask({
+      eventId: w.eventA,
+      actorId: w.ownerA,
+      input: input("Plain"),
+    });
+    if (!plain.ok) throw new Error("setup failed");
+    expect(await w.repository.findTask(w.eventA, plain.id)).toMatchObject({
+      status: "NOT_STARTED",
+      dueDate: null,
+    });
+    const dated = await w.repository.createTask({
+      eventId: w.eventA,
+      actorId: w.ownerA,
+      input: input("Dated", { status: "IN_PROGRESS", dueDate: "2082-12-01" }),
+    });
+    if (!dated.ok) throw new Error("setup failed");
+    expect(await w.repository.findTask(w.eventA, dated.id)).toMatchObject({
+      status: "IN_PROGRESS",
+      dueDate: "2082-12-01",
+    });
+    const entry = await db.auditLog.findFirstOrThrow({
+      where: { eventId: w.eventA, entityId: dated.id, action: "task.created" },
+    });
+    expect(entry.details).toMatchObject({ status: "IN_PROGRESS", dueDate: "2082-12-01" });
+  });
+
+  it("keeps the calendar day exactly as chosen, with no time-zone shift", async () => {
+    const w = await world();
+    const created = await w.repository.createTask({
+      eventId: w.eventA,
+      actorId: w.ownerA,
+      input: input("Edge", { dueDate: "2082-01-01" }),
+    });
+    if (!created.ok) throw new Error("setup failed");
+    const [row] = await db.$queryRaw<{ d: string }[]>`
+      SELECT to_char("dueDate", 'YYYY-MM-DD') AS d FROM tasks WHERE id = ${created.id}::uuid`;
+    expect(row?.d).toBe("2082-01-01");
+    expect((await w.repository.findTask(w.eventA, created.id))?.dueDate).toBe("2082-01-01");
+  });
+
+  it("changes, then clears, status and due date with one entry per save", async () => {
+    const w = await world();
+    const created = await w.repository.createTask({
+      eventId: w.eventA,
+      actorId: w.ownerA,
+      input: input("Task A"),
+    });
+    if (!created.ok) throw new Error("setup failed");
+    const run = async (status: "NOT_STARTED" | "DONE", dueDate: string | null) => {
+      const current = await w.repository.findTask(w.eventA, created.id);
+      if (!current) throw new Error("setup failed");
+      return updateTask(w.repository, {
+        eventId: w.eventA,
+        taskId: created.id,
+        actorId: w.ownerA,
+        version: current.updatedAt,
+        input: input("Task A", { status, dueDate }),
+      });
+    };
+    expect(await run("DONE", "2082-11-15")).toMatchObject({ ok: true });
+    expect(await run("DONE", "2082-11-15")).toEqual({ ok: true, unchanged: true });
+    expect(await run("NOT_STARTED", null)).toMatchObject({ ok: true });
+    const entries = await db.auditLog.findMany({
+      where: { eventId: w.eventA, entityId: created.id, action: "task.updated" },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(entries.map((entry) => (entry.details as { changes: unknown }).changes)).toEqual([
+      {
+        status: { from: "NOT_STARTED", to: "DONE" },
+        dueDate: { from: null, to: "2082-11-15" },
+      },
+      {
+        status: { from: "DONE", to: "NOT_STARTED" },
+        dueDate: { from: "2082-11-15", to: null },
+      },
+    ]);
+  });
+
+  it("refuses a due date outside 2000 to 2100 even when the application is bypassed", async () => {
+    const w = await world();
+    const created = await w.repository.createTask({
+      eventId: w.eventA,
+      actorId: w.ownerA,
+      input: input("Task A"),
+    });
+    if (!created.ok) throw new Error("setup failed");
+    await expect(
+      db.$executeRaw`UPDATE tasks SET "dueDate" = '1999-12-31' WHERE id = ${created.id}::uuid`,
+    ).rejects.toThrow();
+    await expect(
+      db.$executeRaw`UPDATE tasks SET "dueDate" = '2101-01-01' WHERE id = ${created.id}::uuid`,
+    ).rejects.toThrow();
   });
 });
 

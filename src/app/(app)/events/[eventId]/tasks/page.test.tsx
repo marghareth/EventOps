@@ -2,9 +2,10 @@
 // The task list page (B6-F08, B6-F09; D-097): access checked by the page, the list read for the
 // authorized event only, filters taken from the address and applied to what was read (so a Viewer
 // sees the same filters and no more tasks), the "N of M" count, "No tasks match" with a way back,
-// and no filters when the event has no tasks.
+// no filters when the event has no tasks, and the Overdue badge worked out from today's date in
+// Philippine time (B6-F10, D-098).
 import { render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireEventAccess = vi.fn();
 const getEventTasks = vi.fn();
@@ -68,6 +69,50 @@ beforeEach(() => {
   requireEventAccess.mockResolvedValue({
     user: { id: "u1" },
     access: { kind: "ok", event: { id: EVENT, name: "Santos wedding", role: "OWNER" } },
+  });
+});
+
+describe("overdue on the task list page (B6-F10)", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("marks a task due yesterday in Manila, not one due today, and never a Done one", async () => {
+    // 16:00 UTC on 14 Nov is midnight on 15 Nov in Manila, so 15 Nov is "today".
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-14T16:00:00Z") });
+    getEventTasks.mockResolvedValue({
+      ok: true,
+      canManage: true,
+      tasks: [
+        record(1, { dueDate: "2026-11-14" }),
+        record(2, { dueDate: "2026-11-15" }),
+        record(3, { dueDate: "2026-11-14", status: "DONE" }),
+      ],
+    });
+    render(
+      await TasksPage({
+        params: Promise.resolve({ eventId: EVENT }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    const items = screen.getAllByRole("listitem");
+    expect(within(items[0]!).getByText("Overdue")).toBeVisible();
+    expect(within(items[1]!).queryByText("Overdue")).toBeNull();
+    expect(within(items[2]!).queryByText("Overdue")).toBeNull();
+  });
+
+  it("is still marked for a Viewer, and by the filtered list too", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-20T00:00:00Z") });
+    getEventTasks.mockResolvedValue({
+      ok: true,
+      canManage: false,
+      tasks: [record(1, { dueDate: "2026-11-14", priority: "HIGH" }), record(2)],
+    });
+    render(
+      await TasksPage({
+        params: Promise.resolve({ eventId: EVENT }),
+        searchParams: Promise.resolve({ priority: "high" }),
+      }),
+    );
+    expect(screen.getByText("Overdue")).toBeVisible();
   });
 });
 

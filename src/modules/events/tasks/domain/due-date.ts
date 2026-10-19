@@ -26,6 +26,12 @@ export function isCalendarDate(value: string): boolean {
 export const isDueDateInRange = (value: string) =>
   value >= TASK_DUE_DATE_RANGE.min && value <= TASK_DUE_DATE_RANGE.max;
 
+/** Today's calendar date in the Philippines for a given instant: "2026-10-18". */
+export function manilaToday(now: Date): string {
+  // Asia/Manila is UTC+8 all year (no daylight saving), so this is exact for every instant.
+  return new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 /** "YYYY-MM-DD" from a DATE column value (Prisma returns midnight UTC of that day). */
 export function toCalendarDate(value: Date): string {
   return value.toISOString().slice(0, 10);

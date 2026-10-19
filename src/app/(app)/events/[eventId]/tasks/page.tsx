@@ -1,6 +1,6 @@
 // src/app/(app)/events/[eventId]/tasks/page.tsx
-// The event's tasks (B6-F01 create, B6-F02 edit, B6-F03 delete, B6-F08 list, B6-F09 filters; D-094,
-// D-095, D-097). Every member can read them (event.view);
+// The event's tasks (B6-F01 create, B6-F02 edit, B6-F03 delete, B6-F08 list, B6-F09 filters, B6-F10 overdue;
+// D-094, D-095, D-097, D-098). Every member can read them (event.view);
 // Owners and Coordinators also get "Add task", Edit and Delete (tasks.manage). Checks access itself
 // (D-027); the read authorizes again, and every action checks once more.
 import type { Metadata } from "next";
@@ -18,6 +18,7 @@ import {
   filterTasks,
   getEventTasks,
   isNarrowed,
+  manilaToday,
   parseTaskListQuery,
   isTaskReference,
   formatTaskReference,
@@ -134,7 +135,13 @@ export default async function TasksPage({ params, searchParams }: Props) {
           />
         </div>
       ) : (
-        <TaskList tasks={shown} eventId={event.id} basePath={basePath} canManage={canManage} />
+        <TaskList
+          tasks={shown}
+          eventId={event.id}
+          basePath={basePath}
+          canManage={canManage}
+          today={manilaToday(new Date())}
+        />
       )}
     </div>
   );
