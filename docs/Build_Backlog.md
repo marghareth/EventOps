@@ -150,6 +150,10 @@ _Last updated: 2026-10-14._
 | **B6-F10 Overdue Detection**: a task is overdue when it is not Done, has a due date, and that day is before today in Philippine time; shown as an Overdue badge on the list (D-098) | B6 | In review: rule, badge, list and page tests pass (Philippine midnight edge, Done, due today, no date); no browser check yet |
 | **B6-F11 Event-Scoped Task Data**: every task belongs to one event; reads, writes and links are checked against it (D-099) | B6 | In review: already built (D-002, D-094, D-095); verified and tests added; 25 database tests passed on PostgreSQL 18 |
 | **B6-F12 Task Authorization**: members read, Owners and Coordinators write, checked on the server and again in storage (D-099) | B6 | In review: already built (D-035, D-094); verified and tests added (pages, storage, role change); no browser check yet |
+| **B6-F13 Task Validation**: title, description, status, priority, due date and assignee validated on the server; a NUL character is refused with a clear message (D-100) | B6 | In review: schema, action and database tests pass |
+| **B6-F14 Task Audit and Activity Records**: created, updated and deleted entries in the audit registry, written in the same transaction, worded on Activity (D-100) | B6 | In review: already built; verified, and a database test words real stored entries |
+| **B6-F15 Task Error and Empty States**: empty, filtered-empty, loading, error, validation and failed-save states (D-100) | B6 | In review: already built; verified; Viewer empty state test added |
+| **B6-F16 Responsive Task Interface**: list, filters and forms at 375 and 1280 px with no sideways scroll and 44 px controls; filter form made shorter on phones (D-100) | B6 | In review: measured in Chromium at 375 and 1280 px on rendered pages (not the running app) |
 
 ### Signature features
 

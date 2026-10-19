@@ -23,6 +23,7 @@ let db: PrismaClient;
 const { createEvent } = await import("../create-event");
 const { prismaTaskRepository } = await import("./infrastructure/prisma-task-repository");
 const { updateTask } = await import("./application/update-task");
+const { describeAuditEntry } = await import("@/modules/events/audit/public");
 
 const YEAR = 2082;
 const userIds: string[] = [];
@@ -339,6 +340,55 @@ describe("task writes are scoped to one event and one role", () => {
       input: input("Next"),
     });
     expect(next).toMatchObject({ ok: true, number: 2 });
+  });
+});
+
+describe("Activity wording for stored entries (B6-F14, D-100)", () => {
+  it("words a created, edited and deleted task from what was really stored", async () => {
+    const w = await world();
+    const created = await w.repository.createTask({
+      eventId: w.eventA,
+      actorId: w.ownerA,
+      input: input("Confirm florist", {
+        priority: "HIGH",
+        status: "IN_PROGRESS",
+        dueDate: "2082-11-15",
+      }),
+    });
+    if (!created.ok) throw new Error("setup failed");
+    const current = await w.repository.findTask(w.eventA, created.id);
+    await updateTask(w.repository, {
+      eventId: w.eventA,
+      taskId: created.id,
+      actorId: w.coordinatorA,
+      version: current!.updatedAt,
+      input: input("Confirm florist", { priority: "HIGH", status: "DONE", dueDate: null }),
+    });
+    await w.repository.deleteTask({ eventId: w.eventA, taskId: created.id, actorId: w.ownerA });
+    const entries = await db.auditLog.findMany({
+      where: { eventId: w.eventA, entityId: created.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(entries.map((entry) => [entry.action, entry.actorId])).toEqual([
+      ["task.created", w.ownerA],
+      ["task.updated", w.coordinatorA],
+      ["task.deleted", w.ownerA],
+    ]);
+    const words = entries.map((entry) =>
+      describeAuditEntry({
+        action: entry.action as Parameters<typeof describeAuditEntry>[0]["action"],
+        details: entry.details,
+      }),
+    );
+    expect(words[0]).toEqual({
+      summary: "Added the task Confirm florist (TSK-0002)",
+      lines: ["Priority: High", "Status: In progress", "Due Nov 15, 2082"],
+    });
+    expect(words[1]?.lines).toEqual([
+      "Status: In progress → Done",
+      "Due date: Nov 15, 2082 → none",
+    ]);
+    expect(words[2]?.summary).toBe("Removed the task Confirm florist (TSK-0002)");
   });
 });
 

@@ -49,8 +49,8 @@ has a strict schema, so unlisted fields are refused, not silently stored.
 | `budget_item.created`               | A budget item is added (B5-F02, D-085)                                 | `budget_item`               | Readable ID (`BUD-0001`), name, category name, estimated, committed, paid. No notes                                                        |
 | `budget_item.updated`               | An item is saved with at least one change (B5-F02)                     | `budget_item`               | Readable ID; category name, name and the three amounts old → new; notes only as "changed"                                                  |
 | `budget_item.deleted`               | An item is removed (B5-F02)                                            | `budget_item`               | Readable ID and name at that moment                                                                                                        |
-| `task.created`                      | A task is added (B6-F01, D-094)                                        | `task`                      | Readable ID (`TSK-0001`), title, and, since D-095, priority and the assignee's display name (or none). No description                      |
-| `task.updated`                      | A task is saved with at least one change (B6-F02, B6-F04, B6-F05)      | `task`                      | Readable ID, current title; title and priority old → new; assignee old → new by display name (none is null); description only as "changed" |
+| `task.created`                      | A task is added (B6-F01, D-094)                                        | `task`                      | Readable ID (`TSK-0001`), title, and, since D-095, priority, status, due date and the assignee's display name (or none). No description                      |
+| `task.updated`                      | A task is saved with at least one change (B6-F02, B6-F04 to B6-F07)      | `task`                      | Readable ID, current title; title, priority, status and due date old → new; assignee old → new by display name (none is null); description only as "changed" |
 | `task.deleted`                      | A task is removed (B6-F03, D-095)                                      | `task`                      | Readable ID and title. The record is gone; the entry keeps who it was                                                                      |
 
 Not recorded:
@@ -162,12 +162,12 @@ values).
 
 A save that changes nothing, a refused save and an over-budget result write no entry.
 
-### Task actions on Activity (B6-F01 to B6-F05, D-094, D-095)
+### Task actions on Activity (B6-F01 to B6-F07, D-094 to D-096)
 
 | Action         | Activity says                                                                                                                         | Never shown                 |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| `task.created` | Added the task, with its title and ID; lines for its priority and "Assigned to <name>"                                                | The description             |
-| `task.updated` | Edited the task: title old → new, "Description changed", "Priority: Medium → High", "Assignee: Unassigned → <name>" (or → Unassigned) | The text of the description |
+| `task.created` | Added the task, with its title and ID; lines for its priority, status, due date and "Assigned to <name>"                                                | The description             |
+| `task.updated` | Edited the task: title old → new, "Description changed", "Priority: Medium → High", "Status: Not started → Done", "Due date: none → Nov 15, 2026", "Assignee: Unassigned → <name>" (or → Unassigned) | The text of the description |
 | `task.deleted` | Removed the task, with its title and ID                                                                                               | The description             |
 
 The assignee's display name is the one personal detail a task entry holds; it is what makes "who was
