@@ -18,6 +18,8 @@ export {
   type QuoteChanges,
   type SupplierChanges,
   type TaskChanges,
+  type ImpactAssumptionChanges,
+  IMPACT_SEVERITIES,
   type AuditAction,
   type EventChanges,
 } from "./actions";

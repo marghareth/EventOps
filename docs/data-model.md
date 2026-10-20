@@ -716,6 +716,40 @@ member reads. A task is permanently deleted after a confirmation (D-095); it has
 yet, and its number is never reused. Audit: `task.created`, `task.updated` and `task.deleted`
 (`docs/audit.md`).
 
+## Impact (B7, D-101 to D-103)
+
+Impact analyses are simulations: nothing here changes the event. The rules are in
+[impact-rules.md](impact-rules.md).
+
+**`event_impact_assumptions`**: at most one row per event (primary key `eventId`), deleted with it.
+
+| Field                   | Rule                                                                                                 |
+| ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| `cateringCostPerHead`   | Optional `DECIMAL(12,2)`, 0 or more (CHECK). No default.                                             |
+| `accessibleSeatsPer100` | Optional `DECIMAL(5,2)`, 0 to 100 (CHECK). No default.                                               |
+| `cateringCategoryId`    | Optional. Composite foreign key `(eventId, cateringCategoryId)` to `budget_categories(eventId, id)`. |
+| `updatedAt`             | The edit version (D-032).                                                                            |
+
+Deleting a budget category clears `cateringCategoryId` first (trigger
+`budget_categories_clear_impact_catering`, migration `20261020090000_impact`), so the deletion is never
+blocked. Edited by `impact.assumptions` (Owner, Coordinator).
+
+**`impact_analyses`**: saved analyses, append-only (trigger `impact_analyses_append_only`, like the
+audit log), deleted only with their event.
+
+| Field             | Rule                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| `number`          | Per-event sequence behind `IMP-0001`, from `events.lastImpactNumber`; never reused. 1 or more.         |
+| `fromAttendees`   | The stored expected attendees when saved. 0 to 1,000,000.                                              |
+| `toAttendees`     | The proposed expected attendees. 0 to 1,000,000.                                                       |
+| `overallSeverity` | `CRITICAL`, `NEEDS_ATTENTION`, `INFO` or `PASSED` (enum `impact_severity`).                            |
+| `result`          | JSONB object (CHECK): the snapshot (version 1), validated on write and read by `impactSnapshotSchema`. |
+| `createdById`     | Who saved it; SET NULL if the user is deleted.                                                         |
+
+`(eventId, number)` is unique and `(eventId, createdAt)` is indexed for the history list. Saved by
+`impact.record` (Owner, Coordinator); read by every member. Audit: `impact_assumptions.updated` and
+`impact_analysis.created` (`docs/audit.md`).
+
 ## CHECK constraints (D-010)
 
 Prisma cannot express these, so they are written by hand at the end of the migration that creates

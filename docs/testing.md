@@ -1,4 +1,4 @@
-<!-- docs/TESTING.md -->
+<!-- docs/testing.md -->
 
 # Testing
 
@@ -453,6 +453,25 @@ script outside the repository, so no dependency was added (option 2a). It is not
 moment after a client navigation the guest list is rendered twice, so a text match finds two
 elements or none. Seen on the Batch 2 commit before any Batch 3 change (1 run in 3); not fixed in
 Batch 3, reported to the technical lead.
+
+## Impact tests (B7-F16, D-101 to D-104)
+
+| What                                                                                                                                                          | Where                                          | Layer     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | --------- |
+| Every rule, boundary and severity, run with the budget's real D-088 rule; the brand book's 180 → 220 example; determinism                                     | `impact/application/impact-rules.test.ts`      | Unit      |
+| Severity order, seat rounding, ratio parsing, keyword matching                                                                                                | `impact/domain/run-impact.test.ts`             | Unit      |
+| Server validation (proposal, assumptions, snapshot); one severity list across domain, audit and database                                                      | `impact/schema.test.ts`                        | Unit      |
+| Actions ask for their own permission; a refusal never reaches storage                                                                                         | `impact/actions.test.ts`                       | Unit      |
+| Assumptions form: values, hidden fields, error summary, refusals                                                                                              | `impact/ui/AssumptionsForm.test.tsx`           | Component |
+| Page: roles, results, invalid, no change, history, notices, unavailable; loading and error screens                                                            | `app/(app)/events/[eventId]/impact/*.test.tsx` | Component |
+| Owner, Coordinator, Viewer, non-member, other event's owner, signed out; substituted category ID; stale saves; append-only; trigger; CHECKs; Activity wording | `impact/impact.db.test.ts`                     | Database  |
+| The whole flow in Chromium: invalid number, 180 → 220, keyboard-only assumptions, save, Activity, event unchanged, 375 and 1280 px, Viewer                    | `e2e/lifecycle/impact-flow.spec.ts`            | Browser   |
+
+**Proof the authorization tests catch a removed check.** Each was removed in turn and the suite run:
+the `impact.record` and `impact.assumptions` checks in the actions (caught by `actions.test.ts`; the
+database test alone did not catch them, because the storage layer still refused), the role check in
+the numbering statement, the event scope of the category lookup, and the stale "from" check (caught
+by `impact.db.test.ts`). 5 of 5 caught.
 
 ## Event lifecycle tests (B1-14, D-039)
 

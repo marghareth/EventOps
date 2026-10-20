@@ -52,6 +52,8 @@ has a strict schema, so unlisted fields are refused, not silently stored.
 | `task.created`                      | A task is added (B6-F01, D-094)                                        | `task`                      | Readable ID (`TSK-0001`), title, and, since D-095, priority, status, due date and the assignee's display name (or none). No description                      |
 | `task.updated`                      | A task is saved with at least one change (B6-F02, B6-F04 to B6-F07)      | `task`                      | Readable ID, current title; title, priority, status and due date old → new; assignee old → new by display name (none is null); description only as "changed" |
 | `task.deleted`                      | A task is removed (B6-F03, D-095)                                      | `task`                      | Readable ID and title. The record is gone; the entry keeps who it was                                                                      |
+| `impact_assumptions.updated`        | The impact assumptions are saved with at least one change (B7-F12, D-102) | `event`                  | Only the changed values old → new: cost per head, accessible seats per 100 guests, catering category by name (not set is null)            |
+| `impact_analysis.created`           | An impact analysis is saved to the history (B7-F11, D-103)             | `impact_analysis`           | Readable ID (`IMP-0001`), expected attendees from and to, overall severity. The items stay in the saved analysis                           |
 
 Not recorded:
 
@@ -169,6 +171,15 @@ A save that changes nothing, a refused save and an over-budget result write no e
 | `task.created` | Added the task, with its title and ID; lines for its priority, status, due date and "Assigned to <name>"                                                | The description             |
 | `task.updated` | Edited the task: title old → new, "Description changed", "Priority: Medium → High", "Status: Not started → Done", "Due date: none → Nov 15, 2026", "Assignee: Unassigned → <name>" (or → Unassigned) | The text of the description |
 | `task.deleted` | Removed the task, with its title and ID                                                                                               | The description             |
+
+### Impact actions on Activity (B7, D-102, D-103)
+
+| Action                       | Activity says                                                                                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `impact_assumptions.updated` | Changed the impact assumptions; "Catering cost per head: not set → ₱300.00", "Accessible seats per 100 guests: 2.5 → 4", "Catering budget category: not set → “Catering”" |
+| `impact_analysis.created`    | Saved the impact analysis IMP-0001: expected attendees 180 → 220; "Overall: Critical"                                                                                     |
+
+Previewing an analysis is a read and writes no entry. An unchanged or refused save writes none.
 
 The assignee's display name is the one personal detail a task entry holds; it is what makes "who was
 this given to" readable after the member leaves. Removing a member from an event unassigns their
