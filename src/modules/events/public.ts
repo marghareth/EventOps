@@ -56,7 +56,7 @@ export { EventCreatedNotice } from "./ui/EventCreatedNotice";
 export { EventDeletedNotice } from "./ui/EventDeletedNotice";
 export { EventHeader } from "./ui/EventHeader";
 export { EventList } from "./ui/EventList";
-export { EventDetailsCard, SectionTiles } from "./ui/EventOverview";
+export { EventDetailsCard } from "./ui/EventOverview";
 
 // The context's public types (D-001). Not every one is imported yet; they are the contract other
 // contexts build on, so knip is told they are intentional.
@@ -70,5 +70,3 @@ export type { Permission } from "./permissions";
 export type { EventDetails, EventListItem } from "./list";
 /** @public */
 export type { SampleAttendee, SampleAttendeeInput } from "./sample-data";
-/** @public */
-export type { SectionTile } from "./ui/EventOverview";

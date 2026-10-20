@@ -32,10 +32,17 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         >
           <Link
             href="/events"
-            className="flex min-h-16 items-center gap-2 border-b border-line px-5 font-display text-h4 font-extrabold"
+            className="m-3 mb-0 flex min-h-14 items-center gap-3 rounded-xl px-2 hover:bg-mist"
           >
-            <BrandMark className="size-7" />
-            EventOps
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-ink">
+              <BrandMark className="size-6" inverted />
+            </span>
+            <span className="flex min-w-0 flex-col">
+              <span className="font-display text-h4 leading-tight font-extrabold">EventOps</span>
+              <span aria-hidden="true" className="text-xs text-ink-3">
+                Event operations
+              </span>
+            </span>
           </Link>
           <Sidebar className="flex-1 overflow-y-auto" />
         </aside>
@@ -45,7 +52,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <main
             id="main"
             tabIndex={-1}
-            className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 focus:outline-none md:px-8 md:py-8"
+            className="mx-auto w-full max-w-310 flex-1 px-4 py-6 focus:outline-none md:px-8 md:py-7"
           >
             {isDemoAuthEnabled() ? (
               <DemoAuthBanner sampleData={isSampleDataMode()} className="mb-6" />

@@ -10,6 +10,7 @@
 // a grid of columns from the md breakpoint, so nothing scrolls sideways at 375 px. The same markup
 // serves both, so a screen reader never meets the items twice. A budget with categories but no
 // items says so (B5-F15).
+import { Decor } from "@/components/shared/Decor";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { deleteCategoryAction, deleteItemAction } from "../actions";
@@ -65,41 +66,43 @@ export function BudgetList({
         warnings={warnings}
         eventWithinBudget={eventSummary.status === "WITHIN_BUDGET"}
       />
-      <section aria-labelledby="budget-totals" className="rounded-xl bg-white p-5 shadow-xs">
+      <section aria-labelledby="budget-totals">
         <h2 id="budget-totals" className="text-h3 font-bold">
           Event totals
         </h2>
+        {/* D-118: one bento tile per total; the remaining (or over) tile is the emphasized one. */}
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <div className="min-w-0">
-            <dt className="text-sm text-ink-2">Total allocated</dt>
-            <dd className="text-xl font-extrabold tabular-nums wrap-break-word sm:text-2xl">
-              {formatPesos(eventSummary.allocated)}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-sm text-ink-2">Total estimated</dt>
-            <dd className="text-xl font-extrabold tabular-nums wrap-break-word sm:text-2xl">
-              {formatPesos(eventSummary.estimated)}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-sm text-ink-2">Total committed</dt>
-            <dd className="text-xl font-extrabold tabular-nums wrap-break-word sm:text-2xl">
-              {formatPesos(eventSummary.committed)}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-sm text-ink-2">Total paid</dt>
-            <dd className="text-xl font-extrabold tabular-nums wrap-break-word sm:text-2xl">
-              {formatPesos(eventSummary.paid)}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-sm text-ink-2">
+          {(
+            [
+              ["Total allocated", eventSummary.allocated],
+              ["Total estimated", eventSummary.estimated],
+              ["Total committed", eventSummary.committed],
+              ["Total paid", eventSummary.paid],
+            ] as const
+          ).map(([label, amount]) => (
+            <div
+              key={label}
+              className="flex min-w-0 flex-col gap-2 rounded-xl bg-white p-5 shadow-xs"
+            >
+              <dt className="text-sm font-semibold text-ink-2">{label}</dt>
+              <dd className="font-display text-2xl font-extrabold tracking-[-0.02em] tabular-nums wrap-break-word">
+                {formatPesos(amount)}
+              </dd>
+            </div>
+          ))}
+          <div
+            className={
+              eventSummary.overBy === null
+                ? "relative flex min-w-0 flex-col gap-2 overflow-hidden rounded-[28px] bg-lime p-5 text-ink"
+                : "relative flex min-w-0 flex-col gap-2 overflow-hidden rounded-[28px] bg-ink p-5 text-white"
+            }
+          >
+            <Decor shape="circle" className="-top-12 -right-12 size-32 text-white/30" />
+            <dt className="relative text-sm font-semibold">
               {eventSummary.overBy === null ? "Remaining" : "Over by"}
             </dt>
-            <dd className="flex flex-col items-start gap-1">
-              <span className="text-xl font-extrabold tabular-nums wrap-break-word sm:text-2xl">
+            <dd className="relative flex flex-col items-start gap-2">
+              <span className="font-display text-2xl font-extrabold tracking-[-0.02em] tabular-nums wrap-break-word">
                 {formatPesos(eventSummary.overBy ?? eventSummary.remaining)}
               </span>
               <BudgetStatusBadge status={eventSummary.status} />

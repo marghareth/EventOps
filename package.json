@@ -26,6 +26,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:status": "prisma migrate status",
+    "db:seed:demo": "node scripts/seed-demo.mjs",
     "check": "npm run lint && npm run typecheck && npm run knip && npm test",
     "postinstall": "prisma generate",
     "prepare": "husky"

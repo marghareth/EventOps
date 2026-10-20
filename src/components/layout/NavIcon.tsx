@@ -22,9 +22,25 @@ export type NavIconName =
   | "close"
   | "logout"
   | "chevron-down"
-  | "arrow-left";
+  | "chevron-right"
+  | "arrow-left"
+  | "arrow-up-right"
+  | "map-pin";
 
 const SHAPES: Record<NavIconName, ReactNode> = {
+  "chevron-right": <path d="m9 18 6-6-6-6" />,
+  "arrow-up-right": (
+    <>
+      <path d="M7 7h10v10" />
+      <path d="M7 17 17 7" />
+    </>
+  ),
+  "map-pin": (
+    <>
+      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+      <circle cx="12" cy="10" r="3" />
+    </>
+  ),
   calendar: (
     <>
       <rect width="18" height="18" x="3" y="4" rx="2" />
@@ -158,7 +174,14 @@ export function NavIcon({ name, className }: { name: NavIconName; className?: st
 }
 
 /** The EventOps mark: one change radiating outward (brand book, "Logo concept"). */
-export function BrandMark({ className }: { className?: string }) {
+export function BrandMark({
+  className,
+  inverted = false,
+}: {
+  className?: string;
+  inverted?: boolean;
+}) {
+  // Brand book logo: the inverted version (lime ripple, white center) sits on ink backgrounds.
   return (
     <svg
       aria-hidden="true"
@@ -166,9 +189,16 @@ export function BrandMark({ className }: { className?: string }) {
       viewBox="0 0 48 48"
       className={cn("size-8", className)}
     >
-      <circle cx="24" cy="24" r="22" fill="none" stroke="#0B4FD9" strokeWidth="2" opacity=".6" />
-      <circle cx="24" cy="24" r="14" fill="none" stroke="#0B4FD9" strokeWidth="3" />
-      <circle cx="24" cy="24" r="6" fill="#1E1E20" />
+      <circle cx="24" cy="24" r="22" fill="none" stroke="#6967FB" strokeWidth="2" opacity=".6" />
+      <circle
+        cx="24"
+        cy="24"
+        r="14"
+        fill="none"
+        stroke={inverted ? "#C8F904" : "#6967FB"}
+        strokeWidth="3"
+      />
+      <circle cx="24" cy="24" r="6" fill={inverted ? "#FFFFFF" : "#0E1A1F"} />
     </svg>
   );
 }

@@ -1,5 +1,7 @@
 // src/app/fonts.ts
-import { Manrope, Inter } from "next/font/google";
+// Manrope for display text, headings and big numbers; Plus Jakarta Sans for body text, tables and
+// labels (D-118, replaces Inter). Both are self-hosted by next/font at build time.
+import { Manrope, Plus_Jakarta_Sans } from "next/font/google";
 
 export const manrope = Manrope({
   subsets: ["latin"],
@@ -7,9 +9,9 @@ export const manrope = Manrope({
   variable: "--font-manrope",
   display: "swap",
 });
-export const inter = Inter({
+export const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-jakarta",
   display: "swap",
 });

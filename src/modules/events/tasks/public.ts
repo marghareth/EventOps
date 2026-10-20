@@ -7,6 +7,7 @@ export { manilaToday } from "./domain/due-date";
 export { isTaskOverdue } from "./overdue";
 export type { TaskRecord } from "./application/ports";
 export { TaskForm } from "./ui/TaskForm";
+export { TaskGroups } from "./ui/TaskGroups";
 export { TaskList } from "./ui/TaskList";
 export { TaskNotice, type TaskNoticeKind } from "./ui/TaskNotice";
 export {

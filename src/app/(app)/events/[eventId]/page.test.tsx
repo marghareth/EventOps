@@ -73,24 +73,10 @@ describe("event overview", () => {
     expect(within(details).getAllByText("Not set")).toHaveLength(2); // venue and capacity
   });
 
-  it("links a tile to every Tier 1 section, each marked as not set up", async () => {
+  it("no longer shows the placeholder section tiles (D-118)", async () => {
     await renderPage();
-    const tiles = within(screen.getByRole("region", { name: "Sections" })).getAllByRole("link");
-    expect(tiles.map((tile) => tile.getAttribute("href"))).toEqual(
-      [
-        "health",
-        "attendees",
-        "accessibility",
-        "suppliers",
-        "budget",
-        "tasks",
-        "impact",
-        "import",
-        "activity",
-        "settings",
-      ].map((segment) => `/events/${ID}/${segment}`),
-    );
-    expect(tiles[1]).toHaveTextContent("AttendeesNot set up yet");
+    expect(screen.queryByRole("region", { name: "Sections" })).toBeNull();
+    expect(screen.queryByText("Not set up yet")).toBeNull();
   });
 
   it("shows the Event created notice only for a well-formed reference", async () => {

@@ -1,6 +1,6 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
-import { inter, manrope } from "./fonts";
+import { jakarta, manrope } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${manrope.variable} ${inter.variable}`}>
+    <html lang="en" className={`${manrope.variable} ${jakarta.variable}`}>
       <body>
         {/* First focusable element: lets keyboard users jump past the navigation. Every page's
             main content has id="main". */}
