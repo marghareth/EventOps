@@ -8,6 +8,7 @@ export type NavIconName =
   | "calendar"
   | "plus"
   | "dashboard"
+  | "pulse"
   | "users"
   | "accessibility"
   | "truck"
@@ -128,6 +129,7 @@ const SHAPES: Record<NavIconName, ReactNode> = {
     </>
   ),
   "chevron-down": <path d="m6 9 6 6 6-6" />,
+  pulse: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
   "arrow-left": (
     <>
       <path d="m12 19-7-7 7-7" />

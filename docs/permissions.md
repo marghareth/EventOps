@@ -76,6 +76,8 @@ Each row's action and database tests are written when its feature is built.
 | `suppliers.manage`      | B4-03 to B4-22 | `suppliers/authorization.db.test.ts` (real actions and reads) | `suppliers/suppliers.db.test.ts`, `suppliers/quotes.db.test.ts`, `suppliers/payments.db.test.ts` |
 | `impact.assumptions`    | B7-F12         | `impact/actions.test.ts`, `impact/impact.db.test.ts` (real actions) | `impact/impact.db.test.ts` |
 | `impact.record`         | B7-F11         | `impact/actions.test.ts`, `impact/impact.db.test.ts` (real actions) | `impact/impact.db.test.ts` (role re-checked in the numbering statement) |
+| `event.view` (Event Health) | B8-F17     | `health/health.db.test.ts` (every role, non-member, other event, signed out) | `health/health.db.test.ts` (reads only) |
+| `audit.view` (recent activity) | B8-F13  | `health/health.db.test.ts` (Viewer gets none) | — |
 
 End to end, through the real server actions, API route and database: `authorization.db.test.ts`
 (B1-09) covers the required security matrix, cross-event access and role escalation attempts.

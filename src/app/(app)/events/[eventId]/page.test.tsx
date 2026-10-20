@@ -1,6 +1,8 @@
 // src/app/(app)/events/[eventId]/page.test.tsx
-// Event overview (B1-04): checks access itself, shows the details and the section tiles. B3-11: the
-// accessibility alert appears only while the event is Not ready or Almost ready.
+// Event overview (B1-04): checks access itself, shows the details and the section tiles. B8 (D-107):
+// the dashboard with Event Health status and score, summaries, the attention list (top 5, Critical
+// first, with a link to the Critical view) and recent activity only when the read returns it. The
+// Batch 3 accessibility alert is replaced by the health attention list.
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventDetails } from "@/modules/events/public";
@@ -8,7 +10,7 @@ import type { EventDetails } from "@/modules/events/public";
 type MemberRole = EventDetails["role"];
 
 const requireEventAccess = vi.fn();
-const getAccessibilityAlerts = vi.fn();
+const getEventHealth = vi.fn();
 
 vi.mock("@/modules/events/access", () => ({
   requireEventAccess: (...args: unknown[]) => requireEventAccess(...args),
@@ -16,16 +18,14 @@ vi.mock("@/modules/events/access", () => ({
 }));
 vi.mock("@/modules/events/actions", () => ({ createEventAction: vi.fn() }));
 vi.mock("@/modules/events/queries", () => ({ getMyEvents: vi.fn() }));
-vi.mock("@/modules/events/accessibility/queries", () => ({
-  getAccessibilityAlerts: (...args: unknown[]) => getAccessibilityAlerts(...args),
+vi.mock("@/modules/events/health/queries", () => ({
+  getEventHealth: (...args: unknown[]) => getEventHealth(...args),
 }));
-vi.mock("@/modules/events/accessibility/actions", () => ({}));
 
 const { default: EventOverviewPage } = await import("./page");
-const { deriveAlerts } = await import("@/modules/events/accessibility/domain/alerts");
-const { detectGaps } = await import("@/modules/events/accessibility/domain/gaps");
-const { assessCoverage } = await import("@/modules/events/accessibility/domain/readiness");
-const { readinessStatus } = await import("@/modules/events/accessibility/domain/readiness-status");
+const { evaluateHealth } = await import("@/modules/events/health/domain/score");
+const { dashboardSummary } = await import("@/modules/events/health/domain/summary");
+type HealthState = import("@/modules/events/health/domain/health-state").HealthState;
 
 const ID = "3f2c1b8e-9a4d-4c1e-8b2a-6d5f4e3c2b1a";
 const event = {
@@ -54,13 +54,7 @@ async function renderPage(created?: string) {
 beforeEach(() => {
   vi.resetAllMocks();
   requireEventAccess.mockResolvedValue({ user: {}, access: { kind: "ok", event } });
-  getAccessibilityAlerts.mockResolvedValue({
-    ok: true,
-    status: "NO_REQUIRED_NEEDS",
-    event: null,
-    alerts: [],
-    canManage: true,
-  });
+  getEventHealth.mockResolvedValue(healthFor(EMPTY_STATE, { status: "hidden" }));
 });
 
 describe("event overview", () => {
@@ -84,6 +78,7 @@ describe("event overview", () => {
     const tiles = within(screen.getByRole("region", { name: "Sections" })).getAllByRole("link");
     expect(tiles.map((tile) => tile.getAttribute("href"))).toEqual(
       [
+        "health",
         "attendees",
         "accessibility",
         "suppliers",
@@ -95,7 +90,7 @@ describe("event overview", () => {
         "settings",
       ].map((segment) => `/events/${ID}/${segment}`),
     );
-    expect(tiles[0]).toHaveTextContent("AttendeesNot set up yet");
+    expect(tiles[1]).toHaveTextContent("AttendeesNot set up yet");
   });
 
   it("shows the Event created notice only for a well-formed reference", async () => {
@@ -123,90 +118,153 @@ describe("event overview", () => {
     else expect(link).not.toBeInTheDocument();
   });
 });
-describe("event overview: accessibility alert (B3-11, D-066)", () => {
-  const guest = (n: number) => ({
-    id: `a${n}`,
-    number: n,
-    name: `Guest ${n}`,
-    rsvpStatus: "CONFIRMED" as const,
-  });
-  /** Alerts as the server builds them, from the real domain rules. */
-  function alertsFor(
-    types: (
-      "CAPTIONING" | "SIGN_LANGUAGE" | "OTHER" | "STEP_FREE_ENTRANCE" | "ACCESSIBLE_RESTROOM"
-    )[],
-  ) {
-    const coverage = assessCoverage({
-      requirements: types.map((type, i) => ({
-        id: `q${i}`,
-        type,
-        priority: "REQUIRED" as const,
-        attendee: guest(i + 1),
-      })),
-      resources: [],
-    });
-    const status = readinessStatus(coverage);
-    const alerts = deriveAlerts(status, detectGaps(coverage));
-    return { ok: true, status, event: alerts.event, alerts: alerts.gaps, canManage: false };
-  }
-
-  it("shows the alert with its issues and a link to fix them when the event is Not ready", async () => {
-    getAccessibilityAlerts.mockResolvedValue(alertsFor(["CAPTIONING", "OTHER"]));
+describe("event overview: the health dashboard (B8-F11 to B8-F13, D-107)", () => {
+  it("asks for health with recent activity", async () => {
     await renderPage();
-    expect(getAccessibilityAlerts).toHaveBeenCalledWith(ID);
-    const region = screen.getByRole("region", { name: "Accessibility alert" });
-    expect(region).toHaveTextContent("Critical: Accessibility: Not ready");
-    expect(region).toHaveTextContent("2 issues need attention.");
-    expect(
-      within(region)
-        .getAllByRole("listitem")
-        .map((li) => li.textContent),
-    ).toEqual(["Captioning is not set up", "A need to check by hand"]);
-    expect(within(region).getByRole("link", { name: "Review accessibility" })).toHaveAttribute(
+    expect(getEventHealth).toHaveBeenCalledWith(ID, { withActivity: true });
+  });
+
+  it("shows status, score, summaries and the attention list, Critical first, with a Critical link", async () => {
+    getEventHealth.mockResolvedValue(healthFor(TROUBLED, { status: "hidden" }));
+    await renderPage();
+    const health = screen.getByRole("region", { name: "Event health" });
+    expect(health).toHaveTextContent("At risk");
+    expect(health).toHaveTextContent("health score");
+    expect(within(health).getByRole("list", { name: "Event summary" })).toHaveTextContent(
+      "Suppliers0 of 1suppliers confirmed",
+    );
+    const attention = within(
+      screen.getByRole("region", { name: "Needs your attention" }),
+    ).getByRole("list", { name: "Needs your attention" });
+    const items = within(attention).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("Critical");
+    expect(items[0]).toHaveTextContent("1 payment is overdue");
+    expect(within(items[0]!).getByRole("link", { name: "Open Suppliers" })).toHaveAttribute(
       "href",
-      `/events/${ID}/accessibility`,
+      `/events/${ID}/suppliers`,
     );
-    expect(within(region).queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("link", { name: "View 2 critical issues" })).toHaveAttribute(
+      "href",
+      `/events/${ID}/health?show=critical`,
+    );
   });
 
-  it("lists three issues and counts the rest", async () => {
-    getAccessibilityAlerts.mockResolvedValue(
-      alertsFor([
-        "CAPTIONING",
-        "SIGN_LANGUAGE",
-        "STEP_FREE_ENTRANCE",
-        "ACCESSIBLE_RESTROOM",
-        "OTHER",
-      ]),
-    );
+  it("lists at most five issues and links to the rest", async () => {
+    getEventHealth.mockResolvedValue(healthFor(MANY_ISSUES, { status: "hidden" }));
     await renderPage();
-    const items = within(screen.getByRole("region", { name: "Accessibility alert" })).getAllByRole(
-      "listitem",
+    const attention = screen.getByRole("list", { name: "Needs your attention" });
+    expect(within(attention).getAllByRole("listitem")).toHaveLength(5);
+    expect(screen.getByRole("link", { name: /^See all \d+ issues$/ })).toHaveAttribute(
+      "href",
+      `/events/${ID}/health`,
     );
-    expect(items).toHaveLength(4);
-    expect(items[3]).toHaveTextContent("and 2 more");
   });
 
-  it.each(["READY", "NO_REQUIRED_NEEDS"] as const)(
-    "shows no alert when the status is %s",
-    async (status) => {
-      getAccessibilityAlerts.mockResolvedValue({
-        ok: true,
-        status,
-        event: null,
-        alerts: [],
-        canManage: true,
-      });
-      await renderPage();
-      expect(screen.queryByRole("region", { name: "Accessibility alert" })).toBeNull();
-      expect(screen.queryByText(/couldn't check accessibility/)).toBeNull();
-    },
-  );
-
-  it("says so when the alert can't be read, and keeps the page", async () => {
-    getAccessibilityAlerts.mockRejectedValue(new Error("database down"));
+  it("says so when there is nothing to check yet", async () => {
     await renderPage();
-    expect(screen.getByText("We couldn't check accessibility alerts")).toBeVisible();
+    expect(screen.getByText("Nothing to check yet")).toBeVisible();
+    expect(screen.getByText("Nothing to check yet.")).toBeVisible();
+  });
+
+  it("shows recent activity when the read returns it, and nothing when hidden", async () => {
+    getEventHealth.mockResolvedValue(
+      healthFor(EMPTY_STATE, {
+        status: "ok",
+        entries: [
+          {
+            id: "1",
+            summary: "Added the task Confirm florist (TSK-0001)",
+            who: "Mika",
+            when: "Oct 20, 2026, 8:00 AM PHT",
+          },
+        ],
+      }),
+    );
+    const { unmount } = render(
+      await EventOverviewPage({
+        params: Promise.resolve({ eventId: ID }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    const recent = screen.getByRole("region", { name: "Recent activity" });
+    expect(recent).toHaveTextContent("Added the task Confirm florist (TSK-0001)");
+    expect(recent).toHaveTextContent("Mika · Oct 20, 2026, 8:00 AM PHT");
+    unmount();
+    getEventHealth.mockResolvedValue(healthFor(EMPTY_STATE, { status: "hidden" }));
+    await renderPage();
+    expect(screen.queryByRole("region", { name: "Recent activity" })).toBeNull();
+  });
+
+  it("no longer shows the Batch 3 accessibility alert", async () => {
+    getEventHealth.mockResolvedValue(healthFor(TROUBLED, { status: "hidden" }));
+    await renderPage();
+    expect(screen.queryByRole("region", { name: "Accessibility alert" })).toBeNull();
+  });
+
+  it("says so when health can't be read, and keeps the page", async () => {
+    getEventHealth.mockRejectedValue(new Error("database down"));
+    await renderPage();
+    expect(screen.getByText("We couldn't check the event's health")).toBeVisible();
     expect(screen.getByRole("region", { name: "Event details" })).toBeInTheDocument();
   });
 });
+
+const EMPTY_STATE: HealthState = {
+  expectedAttendees: 0,
+  capacity: null,
+  attendees: [],
+  confirmedHeadcount: 0,
+  suppliers: [],
+  budget: { hasCategories: false, allocatedText: "₱0.00", remainingText: "₱0.00", warnings: [] },
+  accessibility: { status: "NO_REQUIRED_NEEDS", alerts: [] },
+  tasks: [],
+};
+
+const TROUBLED: HealthState = {
+  ...EMPTY_STATE,
+  attendees: [{ reference: "ATT-0001", name: "Ana", rsvpStatus: "PENDING", hasContact: true }],
+  suppliers: [
+    {
+      reference: "SUP-0001",
+      name: "Casa Verde",
+      confirmed: false,
+      overduePayments: 1,
+      hasContact: true,
+    },
+  ],
+  tasks: [
+    {
+      reference: "TSK-0001",
+      title: "Confirm florist",
+      priority: "HIGH",
+      done: false,
+      overdue: true,
+      assigned: true,
+    },
+  ],
+};
+
+const MANY_ISSUES: HealthState = {
+  ...TROUBLED,
+  capacity: 1,
+  confirmedHeadcount: 0,
+  expectedAttendees: 0,
+  attendees: [{ reference: "ATT-0001", name: "Ana", rsvpStatus: "PENDING", hasContact: false }],
+  suppliers: [
+    {
+      reference: "SUP-0001",
+      name: "Casa Verde",
+      confirmed: false,
+      overduePayments: 1,
+      hasContact: false,
+    },
+  ],
+};
+
+function healthFor(state: HealthState, activity: unknown) {
+  return {
+    ok: true,
+    health: { ...evaluateHealth(state), summary: dashboardSummary(state, "No required needs") },
+    activity,
+  };
+}

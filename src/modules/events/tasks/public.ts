@@ -4,6 +4,7 @@
 export { getAssigneeOptions, getEventTasks, getTaskForEdit, type AssigneeOption } from "./queries";
 export { formatTaskReference, isTaskReference } from "./domain/task";
 export { manilaToday } from "./domain/due-date";
+export { isTaskOverdue } from "./overdue";
 export type { TaskRecord } from "./application/ports";
 export { TaskForm } from "./ui/TaskForm";
 export { TaskList } from "./ui/TaskList";

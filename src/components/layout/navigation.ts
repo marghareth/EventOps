@@ -23,6 +23,8 @@ const GLOBAL_ITEMS: NavItem[] = [
 // Order follows the brand book's dashboard-first structure.
 const EVENT_SECTIONS: { segment: string; label: string; icon: NavIconName }[] = [
   { segment: "", label: "Overview", icon: "dashboard" },
+  // B8 (D-107): the full Event Health check list and the Critical Alert View.
+  { segment: "health", label: "Health", icon: "pulse" },
   { segment: "attendees", label: "Attendees", icon: "users" },
   { segment: "accessibility", label: "Accessibility", icon: "accessibility" },
   { segment: "suppliers", label: "Suppliers", icon: "truck" },

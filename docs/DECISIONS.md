@@ -2982,3 +2982,72 @@ permission).
    kinds and well-formed `IMP-` references from the address).
 4. **Layout:** one column of cards at every width, 44 px controls, no sideways scroll (checked in
    Chromium at 375 and 1280 px).
+
+---
+
+## D-105 Event Health: the checks
+
+**Status:** Approved by the technical lead on 2026-10-20 (B8 plan: "approve" to the 13 checks as
+listed). By approving the task check (T1), the technical lead also confirms D-098 point 1:
+"incomplete" means Not started or In progress.
+
+**Context.** Batch 8 (B8-F01 to B8-F20). PROJECT_RULES section 5.4: reuse existing domain
+calculations; never a second calculation for a new screen.
+
+**Decision.**
+
+1. **Thirteen fixed checks** across attendees (A1 to A5), suppliers (S1 to S3), budget (B1, B2),
+   accessibility (X1) and tasks (T1, T2), as listed in `docs/health-rules.md`. Each counts once.
+2. **Outcomes:** Critical, Needs attention, Passed, Not checked (nothing to check yet; left out of the
+   score).
+3. **A supplier is "confirmed" when it has an Accepted quote** (D-076).
+4. **Reuse through public interfaces (D-001).** The reader calls each context's own authorized read
+   and rule: `getAttendeeHealthFacts` and `expectedHeadcount` (attendees), `getEventSuppliers` with
+   its overview (suppliers), `getEventBudget`, `summarizeEventBudget`, `overBudgetWarnings` and
+   `formatPesos` (budget), `getAccessibilityOverview`, `getAccessibilityAlerts` and
+   `READINESS_STATUS_DEFINITIONS` (accessibility), `getEventTasks`, `isTaskOverdue` and `manilaToday`
+   (tasks). The budget, tasks and accessibility public files gained those exports; no rule changed.
+5. **New attendee read `getAttendeeHealthFacts`** (`event.view`): returns each guest's number, name,
+   RSVP, plus-ones and only **whether** they have an email or phone. Viewers can't see contact details
+   (`attendees.private`), so no contact value ever leaves the attendees module this way.
+6. **Never stored** (schema rule "Event health is computed on demand"). No migration.
+
+---
+
+## D-106 Event Health: score and status
+
+**Status:** Approved by the technical lead on 2026-10-20 (B8 plan, options 3a and 4a).
+
+**Decision.**
+
+1. **Score (3a):** passed checks ÷ checks evaluated × 100, rounded down; Not checked left out. No
+   score while nothing is evaluated.
+2. **Status (4a):** At risk if any check is Critical; otherwise Needs attention if any needs
+   attention; otherwise Ready. The score never decides the status. No status while nothing is
+   evaluated ("Nothing to check yet").
+3. **Issue order:** Critical first, then Needs attention; within each, the area order, then the check
+   order.
+
+---
+
+## D-107 Dashboard, Health page and Critical Alert View
+
+**Status:** Approved by the technical lead on 2026-10-20 (B8 plan, options 1a, 5a, 6a and point 7).
+
+**Decision.**
+
+1. **Overview is the dashboard (1a):** health status and score, a summary tile per area (confirmed of
+   expected, suppliers confirmed, budget left, accessibility status, open and overdue tasks), "Needs
+   your attention" with the top 5 issues and links to the rest and to the critical ones, and recent
+   activity. If health can't be read, a warning says so and the rest of the page stays.
+2. **Health page** (`/events/<id>/health`, linked in the sidebar after Overview): every issue and
+   every check by area, with reasons.
+3. **Critical Alert View (5a):** `?show=critical` on the Health page: only Critical issues from the
+   current records, each with why and a link to its section. It uses Event Health's checks and the
+   same severity look as Impact (B7). Impact simulations are not included (they are not facts).
+   Nothing is stored, sent or dismissed; no QR, push, SMS or alert engine (PROJECT_RULES 2.2).
+4. **The Batch 3 accessibility alert on the Overview is replaced** by the health attention list
+   (point 7), so accessibility gaps appear once. `EventAccessibilityAlert` was removed; the guest
+   page's alerts are unchanged. The Batch 3 browser test now looks for the gap in the attention list.
+5. **Recent activity (6a):** the last 5 entries of the existing Activity feed, worded by
+   `describeAuditEntry`, shown only to Owners and Coordinators (`audit.view`). Viewers don't see it.

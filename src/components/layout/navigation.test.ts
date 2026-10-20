@@ -33,11 +33,12 @@ describe("navigationFor", () => {
     expect(nav.items.map((item) => item.label)).toEqual(["My events", "New event"]);
   });
 
-  it("shows the ten Tier 1 sections inside an event, in order", () => {
+  it("shows the eleven Tier 1 sections inside an event, in order", () => {
     const nav = navigationFor(`/events/${ID}/budget`);
     expect(nav.kind).toBe("event");
     expect(nav.items.map((item) => item.label)).toEqual([
       "Overview",
+      "Health",
       "Attendees",
       "Accessibility",
       "Suppliers",
@@ -49,7 +50,8 @@ describe("navigationFor", () => {
       "Settings",
     ]);
     expect(nav.items[0].href).toBe(`/events/${ID}`);
-    expect(nav.items[1].href).toBe(`/events/${ID}/attendees`);
+    expect(nav.items[1].href).toBe(`/events/${ID}/health`);
+    expect(nav.items[2].href).toBe(`/events/${ID}/attendees`);
   });
 
   it("never links Tier 2 sections", () => {
@@ -68,7 +70,7 @@ describe("navigationFor", () => {
 describe("isCurrent", () => {
   const nav = navigationFor(`/events/${ID}`);
   const overview = nav.items[0];
-  const attendees = nav.items[1];
+  const attendees = nav.items.find((item) => item.label === "Attendees")!;
 
   it("marks Overview only on the exact event path", () => {
     expect(isCurrent(overview, `/events/${ID}`)).toBe(true);
