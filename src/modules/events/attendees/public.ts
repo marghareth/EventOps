@@ -16,7 +16,12 @@ export {
   type GuestListQuery,
 } from "./guest-list-query";
 export { expectedHeadcount } from "./headcount";
-export { getAttendeeDetails, getAttendeeForEditing, getEventAttendees } from "./read";
+export {
+  getAttendeeDetails,
+  getAttendeeForEditing,
+  getAttendeeHealthFacts,
+  getEventAttendees,
+} from "./read";
 export {
   isAttendeeReference,
   RSVP_LABEL,

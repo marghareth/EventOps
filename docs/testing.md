@@ -473,6 +473,20 @@ database test alone did not catch them, because the storage layer still refused)
 the numbering statement, the event scope of the category lookup, and the stale "from" check (caught
 by `impact.db.test.ts`). 5 of 5 caught.
 
+## Event Health tests (B8-F18, D-105 to D-107)
+
+| What | Where | Layer |
+| ---- | ----- | ----- |
+| Every check and boundary, the score (rounding, Not checked left out), the status (never from the score), issue order, the empty event | `health/domain/score.test.ts` | Unit |
+| Overview dashboard: status, summaries, top 5 attention list, Critical link, recent activity only when returned, unreadable health | `app/(app)/events/[eventId]/page.test.tsx` | Component |
+| Health page and Critical view: issues, checks by area, Critical only, nothing critical, nothing to check, unavailable; loading and error screens | `app/(app)/events/[eventId]/health/*.test.tsx` | Component |
+| Seeded problems in every area from stored data; Owner, Coordinator and Viewer see the same health; recent activity only for Owner and Coordinator; non-member, other event's Owner, unknown event, signed out; no other event's records; no contact values; writes nothing; the attendee facts read | `health/health.db.test.ts` | Database |
+| New event, real problems, At risk, Critical view and its fix link, Health page from the sidebar, 375 and 1280 px, Viewer | `e2e/lifecycle/health-flow.spec.ts` | Browser |
+
+**Proof the tests catch a removed safeguard.** Each was removed in turn: the attendee facts read's own
+authorization, a contact value added to its result, the health read's authorization, and the
+supplier contact rule. 4 of 4 caught by `health.db.test.ts`.
+
 ## Event lifecycle tests (B1-14, D-039)
 
 The whole event foundation is tested as one story, twice:

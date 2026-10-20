@@ -59,40 +59,7 @@ function AlertBanner({
   );
 }
 
-/** How many gap headlines the event alert lists before "and N more". */
-const LISTED = 3;
-
-/** The event Overview's one accessibility alert, with the issues behind it. */
-export function EventAccessibilityAlert({
-  alert,
-  issues,
-  accessibilityPath,
-}: {
-  alert: AccessibilityAlert;
-  issues: AccessibilityAlert[];
-  accessibilityPath: string;
-}) {
-  const more = issues.length - LISTED;
-  return (
-    <section aria-label="Accessibility alert">
-      <AlertBanner
-        alert={alert}
-        action={
-          <Button asChild size="sm" variant="outline">
-            <Link href={accessibilityPath}>Review accessibility</Link>
-          </Button>
-        }
-      >
-        <ul className="mt-2 list-disc pl-5 text-sm text-ink">
-          {issues.slice(0, LISTED).map((issue) => (
-            <li key={issue.key}>{issue.title}</li>
-          ))}
-          {more > 0 ? <li>and {more} more</li> : null}
-        </ul>
-      </AlertBanner>
-    </section>
-  );
-}
+// The event-level alert that was on the Overview was replaced by Event Health (B8, D-107 point 4).
 
 /** The alerts about one guest, on their page. Managers get the link to fix the resource. */
 export function GuestAccessibilityAlerts({

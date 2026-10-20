@@ -6,7 +6,7 @@ export { formatBudgetItemReference, isBudgetItemReference } from "./domain/budge
 export { formatPesos, parsePesos } from "./domain/budget.money";
 // For the impact context (B7-F06, D-101): the over-budget check is the budget's own rule (D-088),
 // reused rather than copied. Pure functions; no data access.
-export { summarizeEventBudget } from "./domain/budget-summary";
+export { overBudgetWarnings, summarizeEventBudget } from "./domain/budget-summary";
 export { fromCentavos, toCentavos } from "./domain/budget.totals";
 export type { CategoryRecord, CategoryWithItems, ItemRecord } from "./application/ports";
 export { BudgetList } from "./ui/BudgetList";

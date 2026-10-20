@@ -9,6 +9,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B8 Event Health (B8-F01 to B8-F20; D-105 to D-107).**
+  - Thirteen health checks across attendees, suppliers, budget, accessibility and tasks, each with
+    an outcome (Critical, Needs attention, Passed or Not checked, always with an icon and a word), a
+    plain reason and a link to the section that fixes it. Fixed rules only, reused from each area;
+    never AI and never stored.
+  - A health score (passed ÷ checked, rounded down) and a status (At risk, Needs attention, Ready)
+    decided by severities, not the score.
+  - The Overview is now a dashboard: status and score, a summary per area, "Needs your attention"
+    (top 5) and, for Owners and Coordinators, the last 5 Activity entries. It replaces the Batch 3
+    accessibility alert there, so a gap shows once.
+  - A new Health page (sidebar, after Overview) with every issue and check, and a "Critical only"
+    view: the Critical Alert View, each issue saying why it is critical and where to fix it.
+  - New attendee read `getAttendeeHealthFacts`: whether each guest has an email or phone, never the
+    values. No new permission, no migration.
+
 - **B7 Impact Detection (B7-F01 to B7-F18; D-101 to D-104).**
   - A new Impact page: enter a different expected attendance (for example 180 → 220) and see what it
     would affect: seating against the venue capacity, the catering cost, the budget (whole event and

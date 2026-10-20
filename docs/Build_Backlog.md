@@ -14,7 +14,7 @@ batches PROJECT_RULES names are filled in.
 **Status values.** Not started · In progress · In review (built and tested, awaiting the technical
 lead) · Done (accepted) · Blocked.
 
-_Last updated: 2026-10-20 (Batch 7 rows added; earlier rows not re-checked)._
+_Last updated: 2026-10-20 (Batch 7 and 8 rows added; earlier rows not re-checked)._
 
 ## Tier 1: required baseline
 
@@ -161,8 +161,8 @@ _Last updated: 2026-10-20 (Batch 7 rows added; earlier rows not re-checked)._
 | ----------------------------------------------------------- | ------- | ------------------------- |
 | Impact Detection engine (deterministic)                     | B7      | In review: B7-F01 to B7-F18 |
 | Accessibility readiness (required vs available)             | B3      | In review: B3-07 to B3-11 |
-| Event Health dashboard                                      |         | Not started               |
-| **Critical Alert View** (approved Tier 2 → Tier 1 addition) | Batch 8 | Not started               |
+| Event Health dashboard                                      | B8      | In review: B8-F01 to B8-F20 |
+| **Critical Alert View** (approved Tier 2 → Tier 1 addition) | Batch 8 | In review: B8-F14, B8-F15 |
 | AI spreadsheet import with review step                      |         | Not started               |
 | Configurable assumptions panel                              | B7      | In review: B7-F12           |
 
@@ -188,6 +188,31 @@ _Last updated: 2026-10-20 (Batch 7 rows added; earlier rows not re-checked)._
 | **B7-F16 Impact Calculation Tests**: rules, boundaries, severities, assumptions, determinism (docs/testing.md)                                                | B7    | In review: all pass                                                              |
 | **B7-F17 Impact Error and Empty States**: invalid number, nothing to analyze, empty history, unavailable, loading, error, refusals (D-104)                    | B7    | In review: page and state tests pass                                             |
 | **B7-F18 Responsive Impact Interface**: one column of cards, 44 px controls, no sideways scroll (D-104)                                                       | B7    | In review: measured in Chromium at 375 and 1280 px on the running app            |
+
+### Event Health (Batch 8)
+
+| Item | Batch | Status |
+| ---- | ----- | ------ |
+| **B8-F01 Event Health Checks**: 13 fixed checks across five areas (D-105) | B8 | In review: unit, database and browser tests pass |
+| **B8-F02 Attendee Data Health**: replies, contact (yes/no only), capacity, expected attendance (D-105) | B8 | In review: unit and database tests pass |
+| **B8-F03 Supplier Confirmation Health**: Accepted quote, overdue payments, phone or email (D-105) | B8 | In review: unit and database tests pass |
+| **B8-F04 Budget Health**: the budget's own over-budget result for the event and each category (D-105) | B8 | In review: unit and database tests pass |
+| **B8-F05 Accessibility Health**: Batch 3 readiness: Not ready Critical, Almost ready Needs attention (D-105) | B8 | In review: unit and database tests pass |
+| **B8-F06 Task Health**: overdue (High priority Critical) and unassigned High-priority tasks (D-105) | B8 | In review: unit and database tests pass |
+| **B8-F07 Event Health Score**: passed ÷ checked, rounded down, Not checked left out (D-106) | B8 | In review: unit tests pass |
+| **B8-F08 Health Status Classification**: At risk, Needs attention, Ready from severities (D-106) | B8 | In review: unit tests pass |
+| **B8-F09 Health Issue List**: issues Critical first on the Health page (D-106, D-107) | B8 | In review: page tests pass |
+| **B8-F10 Health Issue Explanations**: each issue: the check, the reason, the records and the fix (D-105) | B8 | In review: unit and page tests pass |
+| **B8-F11 Dashboard Overview**: status, score and five summary tiles on the Overview (D-107) | B8 | In review: page and browser tests pass |
+| **B8-F12 Attention List**: top 5 issues on the Overview with links to the rest (D-107) | B8 | In review: page and browser tests pass |
+| **B8-F13 Recent Activity Summary**: last 5 Activity entries, Owners and Coordinators only (D-107) | B8 | In review: page, database and browser tests pass |
+| **B8-F14 Critical Alert View**: Health → Critical only, current Critical issues (D-107) | B8 | In review: page and browser tests pass |
+| **B8-F15 Critical Alert Details and Navigation**: why each issue is critical and a link to its section (D-107) | B8 | In review: page and browser tests pass |
+| **B8-F16 Event-Scoped Health Data**: built only from the event's own authorized reads (D-105) | B8 | In review: database tests pass |
+| **B8-F17 Health Authorization**: event.view for health, audit.view for recent activity (D-107) | B8 | In review: matrix tests pass; 4 of 4 removed safeguards caught |
+| **B8-F18 Health Calculation Tests**: checks, boundaries, score, status, order, empty event (docs/testing.md) | B8 | In review: all pass |
+| **B8-F19 Health Error and Empty States**: nothing to check, nothing critical, unreadable health, loading, error (D-107) | B8 | In review: page and state tests pass |
+| **B8-F20 Responsive Dashboard and Alerts**: one column on a phone, 44 px links (D-107) | B8 | In review: measured in Chromium at 375 and 1280 px on the running app |
 
 ### Engineering
 

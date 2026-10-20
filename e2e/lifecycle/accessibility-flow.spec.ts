@@ -1,4 +1,4 @@
-// e2e/lifecycle/accessibility-readiness.spec.ts
+// e2e/lifecycle/accessibility-flow.spec.ts
 // B3-16: the accessibility workflow in a real browser, end to end, against a reset test database.
 // Sign in → open the event → open a guest → add an accessibility need → save → set up an event
 // resource → open readiness → see the status and the gap → add the missing resource → see readiness
@@ -79,9 +79,11 @@ test("2. open the event from the list, then a guest from the guest list", async 
   await page.goto("/events");
   await page.getByRole("link", { name: EVENT }).click();
   await expect(page).toHaveURL(new RegExp(`${eventPath}$`));
-  // Nothing to check yet: no alert on the Overview.
+  // Nothing to check yet: no accessibility issue on the Overview's attention list (B8, D-107).
   await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Accessibility alert" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Needs your attention" })).not.toContainText(
+    "Accessibility is",
+  );
 
   await page.getByRole("link", { name: "Attendees" }).first().click();
   await expect(page).toHaveURL(new RegExp(`${eventPath}/attendees$`));
@@ -141,11 +143,11 @@ test("5. readiness: Not ready, with the missing resource named as the gap", asyn
   // The seats are enough, so they are not a gap.
   await expect(gaps(page)).not.toContainText("accessible seats");
 
-  // The same gap is raised as an alert on the Overview.
+  // The same gap is raised on the Overview, as an Event Health issue (B8, D-107 point 4).
   await page.goto(eventPath);
-  const alert = page.getByRole("region", { name: "Accessibility alert" });
-  await expect(alert).toContainText("Accessibility: Not ready");
-  await expect(alert).toContainText("Captioning is not set up");
+  const attention = page.getByRole("region", { name: "Needs your attention" });
+  await expect(attention).toContainText("Accessibility is Not ready");
+  await expect(attention).toContainText("Captioning is not set up");
 });
 
 test("6. add the missing resource: Almost ready while arranged, then Ready", async ({ page }) => {
@@ -167,10 +169,12 @@ test("6. add the missing resource: Almost ready while arranged, then Ready", asy
   await expect(readiness(page)).toContainText("2 of 2 Required needs covered.");
   await expect(gaps(page)).toContainText("Nothing is missing. Every need is covered.");
 
-  // No alert left anywhere.
+  // No accessibility issue left on the Overview.
   await page.goto(eventPath);
   await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Accessibility alert" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Needs your attention" })).not.toContainText(
+    "Accessibility is",
+  );
 });
 
 test("7. Activity records every change, never the note", async ({ page }) => {

@@ -21,7 +21,9 @@ test.beforeAll(async () => resetDemoData(database()));
 test.afterAll(async () => resetDemoData(database()));
 
 const impactPath = () => `${eventPath}/impact`;
-const results = (page: Page) => page.getByRole("list", { name: "Identified impacts" });
+/** Scoped to main: while Next swaps pages, the old page's copy can still be in the DOM. */
+const main = (page: Page) => page.locator("#main");
+const results = (page: Page) => main(page).getByRole("list", { name: "Identified impacts" });
 const card = (page: Page, title: string | RegExp) =>
   results(page).getByRole("listitem").filter({ hasText: title });
 
@@ -67,8 +69,8 @@ test("1. sign in, create the event and open Impact from the sidebar", async ({ p
   await page.getByRole("link", { name: "Impact" }).first().click();
   await expect(page).toHaveURL(new RegExp(`${impactPath()}$`));
   await expect(page.getByRole("heading", { level: 1, name: "Impact" })).toBeVisible();
-  await expect(page.getByText("Now 180.")).toBeVisible();
-  await expect(page.getByText("No saved analyses yet")).toBeVisible();
+  await expect(main(page).getByText("Now 180.")).toBeVisible();
+  await expect(main(page).getByText("No saved analyses yet")).toBeVisible();
 });
 
 test("2. an invalid number is explained on the field", async ({ page }) => {
@@ -76,7 +78,7 @@ test("2. an invalid number is explained on the field", async ({ page }) => {
   const field = page.getByLabel(/Proposed expected attendees/);
   await field.fill("two hundred");
   await page.getByRole("button", { name: "See the impact" }).click();
-  await expect(page.getByText("Enter a whole number from 0 to 1,000,000.")).toBeVisible();
+  await expect(main(page).getByText("Enter a whole number from 0 to 1,000,000.")).toBeVisible();
   await expect(page.getByLabel(/Proposed expected attendees/)).toHaveAttribute(
     "aria-invalid",
     "true",
@@ -88,8 +90,8 @@ test("3. 180 → 220: seating is Critical, catering waits for a cost per head", 
   await page.getByLabel(/Proposed expected attendees/).fill("220");
   await page.getByRole("button", { name: "See the impact" }).click();
   await expect(page).toHaveURL(/\?to=220$/);
-  await expect(page.getByText("This change has critical impacts")).toBeVisible();
-  await expect(page.getByText("180 → 220 (+40)", { exact: true })).toBeVisible();
+  await expect(main(page).getByText("This change has critical impacts")).toBeVisible();
+  await expect(main(page).getByText("180 → 220 (+40)", { exact: true })).toBeVisible();
   await expect(card(page, "20 more people than the venue holds")).toContainText("Critical");
   await expect(card(page, "Catering cost not estimated")).toContainText("Info");
   await expect(card(page, "1 task may need review")).toContainText("TSK-0001");
@@ -106,7 +108,7 @@ test("4. set the assumptions with the keyboard; the estimate follows", async ({ 
   await page.getByRole("button", { name: "Save assumptions" }).focus();
   await page.keyboard.press("Enter");
 
-  await expect(page.getByText("Assumptions saved.")).toBeVisible();
+  await expect(main(page).getByText("Assumptions saved.")).toBeVisible();
   await expect(page).toHaveURL(/to=220/);
   await expect(card(page, "Catering may increase by ₱12,000.00")).toContainText("Needs attention");
   await expect(card(page, "“Catering” may go over budget by ₱7,000.00")).toContainText("Critical");
@@ -117,8 +119,8 @@ test("4. set the assumptions with the keyboard; the estimate follows", async ({ 
 test("5. save the analysis; the event still says 180", async ({ page }) => {
   await page.goto(`${impactPath()}?to=220`);
   await page.getByRole("button", { name: "Save to history" }).click();
-  await expect(page.getByText("Analysis IMP-0001 was saved to the history.")).toBeVisible();
-  const saved = page.getByRole("list", { name: "Saved analyses" });
+  await expect(main(page).getByText("Analysis IMP-0001 was saved to the history.")).toBeVisible();
+  const saved = main(page).getByRole("list", { name: "Saved analyses" });
   await expect(saved).toContainText("IMP-0001");
   await expect(saved).toContainText("Simulation: not a change to the event.");
   await saved.getByText("Expected attendees 180 → 220").click();
@@ -133,9 +135,9 @@ test("5. save the analysis; the event still says 180", async ({ page }) => {
 
   await page.goto(`${eventPath}/activity`);
   await expect(
-    page.getByText("Saved the impact analysis IMP-0001: expected attendees 180 → 220"),
+    main(page).getByText("Saved the impact analysis IMP-0001: expected attendees 180 → 220"),
   ).toBeVisible();
-  await expect(page.getByText("Changed the impact assumptions")).toBeVisible();
+  await expect(main(page).getByText("Changed the impact assumptions")).toBeVisible();
 });
 
 for (const width of [375, 1280]) {
@@ -156,6 +158,6 @@ test("7. a Viewer sees the results and the history, but can't save or edit", asy
   await expect(card(page, "50 more people than the venue holds")).toBeVisible();
   await expect(page.getByRole("button", { name: "Save to history" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save assumptions" })).toHaveCount(0);
-  await expect(page.getByText("Owners and Coordinators can change these.")).toBeVisible();
-  await expect(page.getByRole("list", { name: "Saved analyses" })).toContainText("IMP-0001");
+  await expect(main(page).getByText("Owners and Coordinators can change these.")).toBeVisible();
+  await expect(main(page).getByRole("list", { name: "Saved analyses" })).toContainText("IMP-0001");
 });

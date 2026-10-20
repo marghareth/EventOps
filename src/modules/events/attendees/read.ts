@@ -116,3 +116,44 @@ export async function getAttendeeDetails(
   }
   return attendee ? { ok: true, attendee, fields } : { ok: false, reason: "not-found" };
 }
+/** What Event Health reads about one guest (B8-F02, D-105). Never a contact value, only whether one exists. */
+export type AttendeeHealthFact = {
+  number: number;
+  name: string;
+  rsvpStatus: GuestListRow["rsvpStatus"];
+  plusOnes: number;
+  /** True when the guest has an email or a phone. The values themselves are never returned. */
+  hasContact: boolean;
+};
+
+export type AttendeeHealthFacts =
+  | { ok: true; attendees: AttendeeHealthFact[] }
+  | { ok: false; reason: Extract<EventAuthorization, { ok: false }>["reason"] };
+
+/**
+ * The guest list facts Event Health needs (B8-F02, D-105). Every member (event.view): Viewers can't
+ * see contact details (attendees.private), so the contact fields are read here only to answer "is
+ * there one", and only that yes or no leaves this function.
+ */
+export async function getAttendeeHealthFacts(eventId: string): Promise<AttendeeHealthFacts> {
+  const auth = await authorizeEvent(
+    eventId,
+    "event.view",
+    `/events/${encodeURIComponent(eventId)}`,
+  );
+  if (!auth.ok) return { ok: false, reason: auth.reason };
+  const fields: GuestListFields = { dietaryNeeds: false, contact: true };
+  const rows = isSampleDataMode()
+    ? sampleListAttendees(auth.event.id).map((a) => toGuestListRow(a, fields)) // D-041
+    : await listGuestList(getDb(), auth.event.id, fields);
+  return {
+    ok: true,
+    attendees: rows.map(({ number, name, rsvpStatus, plusOnes, email, phone }) => ({
+      number,
+      name,
+      rsvpStatus,
+      plusOnes,
+      hasContact: Boolean(email?.trim() || phone?.trim()),
+    })),
+  };
+}

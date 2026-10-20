@@ -750,6 +750,11 @@ audit log), deleted only with their event.
 `impact.record` (Owner, Coordinator); read by every member. Audit: `impact_assumptions.updated` and
 `impact_analysis.created` (`docs/audit.md`).
 
+## Event Health (B8, D-105 to D-107)
+
+Nothing is stored: Event Health is worked out on every read from the records above, by the rules in
+[health-rules.md](health-rules.md). No table, column or migration.
+
 ## CHECK constraints (D-010)
 
 Prisma cannot express these, so they are written by hand at the end of the migration that creates

@@ -287,3 +287,40 @@ export function storedImpactState(eventId: string) {
     };
   });
 }
+
+/**
+ * The Event Health flow's problems (B8, D-105): a guest who hasn't replied and has no contact, a
+ * supplier with no Accepted quote and an overdue deposit, and an overdue High-priority task nobody is
+ * assigned to. Written straight to the test database the way the app stores them.
+ */
+export function seedHealthProblems(eventId: string): Promise<void> {
+  return withClient(async (client) => {
+    await client.query(
+      `INSERT INTO attendees (id, "eventId", number, name, "rsvpStatus", "plusOnes", "updatedAt")
+       VALUES ($1, $2, 1, 'Remedios Cruz', 'PENDING', 0, now())`,
+      [randomUUID(), eventId],
+    );
+    await client.query(`UPDATE events SET "lastAttendeeNumber" = 1 WHERE id = $1`, [eventId]);
+    const supplierId = randomUUID();
+    await client.query(
+      `INSERT INTO suppliers (id, "eventId", number, name, category, phone, "updatedAt")
+       VALUES ($1, $2, 1, 'Casa Verde Catering', 'CATERING', '0917 555 0101', now())`,
+      [supplierId, eventId],
+    );
+    await client.query(
+      `INSERT INTO supplier_payments (id, "eventId", "supplierId", number, kind, amount, "dueDate", "updatedAt")
+       VALUES ($1, $2, $3, 1, 'DEPOSIT', '30000.00', DATE '2020-01-15', now())`,
+      [randomUUID(), eventId, supplierId],
+    );
+    await client.query(
+      `UPDATE events SET "lastSupplierNumber" = 1, "lastPaymentNumber" = 1 WHERE id = $1`,
+      [eventId],
+    );
+    await client.query(
+      `INSERT INTO tasks (id, "eventId", number, title, priority, status, "dueDate", "updatedAt")
+       VALUES ($1, $2, 1, 'Sign the venue contract', 'HIGH', 'NOT_STARTED', DATE '2020-01-15', now())`,
+      [randomUUID(), eventId],
+    );
+    await client.query(`UPDATE events SET "lastTaskNumber" = 1 WHERE id = $1`, [eventId]);
+  });
+}
