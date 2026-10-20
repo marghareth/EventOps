@@ -134,6 +134,8 @@ export const SUPPLIER_CATEGORIES = [
 ] as const;
 /** The supplier's readable ID, for example SUP-0001 (D-068). */
 const supplierReference = z.string().regex(/^SUP-\d{4,}$/);
+/** The kind of file an import read (B9-F01, D-109). */
+const importFileType = z.enum(["csv", "xlsx"]);
 const supplierCategory = z.enum(SUPPLIER_CATEGORIES);
 /** A category with, for Other, what the supplier provides: compared and shown together. */
 const supplierCategoryValue = z
@@ -355,6 +357,9 @@ export const AUDIT_ACTIONS = {
         first: attendeeReference,
         last: attendeeReference,
         skipped: z.number().int().min(0),
+        // Added in Batch 9 (D-109); entries written before then don't have them.
+        fileType: importFileType.optional(),
+        aiSuggested: z.boolean().optional(),
       })
       .strict(),
   },
@@ -430,6 +435,23 @@ export const AUDIT_ACTIONS = {
   "supplier.deleted": {
     entityType: "supplier",
     details: z.object({ reference: supplierReference, name: z.string() }).strict(),
+  },
+  /**
+   * Suppliers were imported from a file (B9-F17, D-109): how many, the ID range, rows not imported,
+   * the file type and whether AI suggested the column matching. Never names, contacts or the file.
+   */
+  "suppliers.imported": {
+    entityType: "event",
+    details: z
+      .object({
+        count: z.number().int().min(1),
+        first: supplierReference,
+        last: supplierReference,
+        skipped: z.number().int().min(0),
+        fileType: importFileType,
+        aiSuggested: z.boolean(),
+      })
+      .strict(),
   },
   /**
    * A quote was added to a supplier (B4-09, D-075): its readable ID, the supplier's, the amount in

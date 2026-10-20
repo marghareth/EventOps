@@ -19,12 +19,7 @@ import type { BudgetCheck, RuleContext } from "../registry";
 /** Not a real category: carries the projected increase when no catering category is chosen. */
 const PROJECTION_ID = "impact-projection";
 
-export function budgetOverrunRule({
-  state,
-  assumptions,
-  catering,
-  tools,
-}: RuleContext): ImpactItem[] {
+export function budgetOverrunRule({ state, assumptions, catering, tools }: RuleContext): ImpactItem[] {
   const pesos = tools.formatPesos;
   const categories = state.budget;
   const used: ImpactAssumptionUsed[] = [
@@ -51,7 +46,7 @@ export function budgetOverrunRule({
   }
 
   const chosenId = assumptions.cateringCategoryId;
-  const chosen = chosenId ? (categories.find((c) => c.id === chosenId) ?? null) : null;
+  const chosen = chosenId ? categories.find((c) => c.id === chosenId) ?? null : null;
   used.push({
     label: ASSUMPTION_LABEL.cateringCategoryId,
     value: chosenId === null ? "Not set" : chosen ? chosen.name : "Not found",
@@ -88,12 +83,7 @@ export function budgetOverrunRule({
     return "";
   })();
 
-  const judge = (
-    key: string,
-    scope: string,
-    before: BudgetCheck,
-    after: BudgetCheck,
-  ): ImpactItem => {
+  const judge = (key: string, scope: string, before: BudgetCheck, after: BudgetCheck): ImpactItem => {
     const base = {
       key,
       area: "BUDGET",
@@ -140,8 +130,7 @@ export function budgetOverrunRule({
       area: "BUDGET",
       severity: "INFO",
       title: "Catering budget category not found",
-      reason:
-        "The category chosen in the assumptions no longer exists. Choose another to check it.",
+      reason: "The category chosen in the assumptions no longer exists. Choose another to check it.",
       basis: "RECORDED",
       assumptions: used,
       fix: { target: "assumptions", label: "Choose a catering category" },

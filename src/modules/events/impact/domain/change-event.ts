@@ -22,16 +22,13 @@ const isHeadcount = (value: number) =>
 /** A checked change. Throws for numbers the validated forms could never produce. */
 export function expectedAttendanceChange(from: number, to: number): ExpectedAttendanceChange {
   if (!isHeadcount(from) || !isHeadcount(to)) {
-    throw new InvalidChange(
-      `Expected attendees must be whole numbers from 0 to ${MAX_EXPECTED_ATTENDEES}.`,
-    );
+    throw new InvalidChange(`Expected attendees must be whole numbers from 0 to ${MAX_EXPECTED_ATTENDEES}.`);
   }
   return { kind: "EXPECTED_ATTENDEES", from, to };
 }
 
 /** Signed difference in people: positive when attendance goes up. */
-export const attendanceDelta = (change: ExpectedAttendanceChange): number =>
-  change.to - change.from;
+export const attendanceDelta = (change: ExpectedAttendanceChange): number => change.to - change.from;
 
 export const formatCount = (value: number): string => value.toLocaleString("en-US");
 

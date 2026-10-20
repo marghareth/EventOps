@@ -27,10 +27,7 @@ export const TASK_KEYWORDS: readonly { word: string; pattern: RegExp }[] = [
 ];
 
 const normalize = (text: string) =>
-  text
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
+  text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
 /** The listed words a text mentions, in list order. */
 export function mentionedKeywords(text: string): string[] {

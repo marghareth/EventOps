@@ -163,10 +163,10 @@ describe("Attendees page", () => {
     ["OWNER", true],
     ["COORDINATOR", true],
     ["VIEWER", false],
-  ] as const)("shows Import CSV to a %s: %s (B2-14)", async (role, shown) => {
+  ] as const)("shows Import spreadsheet to a %s: %s (B2-14)", async (role, shown) => {
     access(role);
     await renderList();
-    const link = screen.queryByRole("link", { name: "Import CSV" });
+    const link = screen.queryByRole("link", { name: "Import spreadsheet" });
     if (shown) expect(link).toHaveAttribute("href", `/events/${ID}/import`);
     else expect(link).not.toBeInTheDocument();
   });

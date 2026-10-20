@@ -40,19 +40,13 @@ export function estimateCatering(
   };
 }
 
-const people = (n: number) =>
-  Math.abs(n) === 1 ? "1 person" : `${formatCount(Math.abs(n))} people`;
+const people = (n: number) => (Math.abs(n) === 1 ? "1 person" : `${formatCount(Math.abs(n))} people`);
 /** "40 more people" / "1 fewer person". */
 const morePeople = (n: number) =>
   `${formatCount(Math.abs(n))} ${n > 0 ? "more" : "fewer"} ${Math.abs(n) === 1 ? "person" : "people"}`;
 
 export function cateringCostRule({ change, catering, tools }: RuleContext): ImpactItem[] {
-  const base = {
-    key: "catering-cost",
-    area: "CATERING",
-    basis: "ESTIMATE",
-    references: [],
-  } as const;
+  const base = { key: "catering-cost", area: "CATERING", basis: "ESTIMATE", references: [] } as const;
   const delta = attendanceDelta(change);
 
   if (catering.status === "NOT_SET") {

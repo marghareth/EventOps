@@ -31,6 +31,7 @@ describe("audit action registry", () => {
       "supplier.created",
       "supplier.updated",
       "supplier.deleted",
+      "suppliers.imported",
       "quote.created",
       "quote.updated",
       "payment.created",

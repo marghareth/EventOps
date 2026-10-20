@@ -199,9 +199,9 @@ describe("previewing an analysis (B7-F01, B7-F14)", () => {
       expect(page.proposal.result.items.find((i) => i.key === "seating-capacity")?.severity).toBe(
         "CRITICAL",
       );
-      expect(page.proposal.result.items.find((i) => i.key === "related-tasks")?.references).toEqual(
-        ["TSK-0001"],
-      );
+      expect(page.proposal.result.items.find((i) => i.key === "related-tasks")?.references).toEqual([
+        "TSK-0001",
+      ]);
       expect(await snapshot(w.eventA, w.eventB)).toEqual(before);
     }
   });
@@ -293,9 +293,7 @@ describe("editing the assumptions (B7-F12, B7-F14, B7-F15)", () => {
     const w = await world();
     signedIn = w.owner;
     await act(() => saveAssumptionsAction(w.eventA, { status: "idle" }, assumptionsForm()));
-    const stored = await db.eventImpactAssumptions.findUniqueOrThrow({
-      where: { eventId: w.eventA },
-    });
+    const stored = await db.eventImpactAssumptions.findUniqueOrThrow({ where: { eventId: w.eventA } });
     const before = await snapshot(w.eventA, w.eventB);
     const again = await act(() =>
       saveAssumptionsAction(
@@ -341,9 +339,7 @@ describe("editing the assumptions (B7-F12, B7-F14, B7-F15)", () => {
       ),
     );
     expect(result).toMatchObject({
-      state: {
-        fieldErrors: { cateringCategoryId: "Choose a budget category of this event, or none." },
-      },
+      state: { fieldErrors: { cateringCategoryId: "Choose a budget category of this event, or none." } },
     });
     expect(await snapshot(w.eventA, w.eventB)).toEqual(before);
     await expect(
@@ -359,11 +355,7 @@ describe("editing the assumptions (B7-F12, B7-F14, B7-F15)", () => {
     await act(() => saveAssumptionsAction(w.eventA, { status: "idle" }, assumptionsForm()));
     // A form opened before that first save still carries "no version".
     const stale = await act(() =>
-      saveAssumptionsAction(
-        w.eventA,
-        { status: "idle" },
-        assumptionsForm({ cateringCostPerHead: "1" }),
-      ),
+      saveAssumptionsAction(w.eventA, { status: "idle" }, assumptionsForm({ cateringCostPerHead: "1" })),
     );
     expect(stale).toMatchObject({
       state: { message: expect.stringContaining("Someone else changed the assumptions") },
@@ -400,14 +392,10 @@ describe("editing the assumptions (B7-F12, B7-F14, B7-F15)", () => {
   it("enforces the value ranges in the database too", async () => {
     const w = await world();
     await expect(
-      db.eventImpactAssumptions.create({
-        data: { eventId: w.eventA, cateringCostPerHead: "-0.01" },
-      }),
+      db.eventImpactAssumptions.create({ data: { eventId: w.eventA, cateringCostPerHead: "-0.01" } }),
     ).rejects.toThrow();
     await expect(
-      db.eventImpactAssumptions.create({
-        data: { eventId: w.eventA, accessibleSeatsPer100: "100.01" },
-      }),
+      db.eventImpactAssumptions.create({ data: { eventId: w.eventA, accessibleSeatsPer100: "100.01" } }),
     ).rejects.toThrow();
   });
 
@@ -421,14 +409,10 @@ describe("editing the assumptions (B7-F12, B7-F14, B7-F15)", () => {
         assumptionsForm({ cateringCategoryId: w.cateringA }),
       ),
     );
-    const before = await db.eventImpactAssumptions.findUniqueOrThrow({
-      where: { eventId: w.eventA },
-    });
+    const before = await db.eventImpactAssumptions.findUniqueOrThrow({ where: { eventId: w.eventA } });
     await db.budgetItem.deleteMany({ where: { categoryId: w.cateringA } });
     await db.budgetCategory.delete({ where: { id: w.cateringA } });
-    const after = await db.eventImpactAssumptions.findUniqueOrThrow({
-      where: { eventId: w.eventA },
-    });
+    const after = await db.eventImpactAssumptions.findUniqueOrThrow({ where: { eventId: w.eventA } });
     expect(after.cateringCategoryId).toBeNull();
     expect(after.cateringCostPerHead?.toFixed(2)).toBe("300.00");
     expect(after.updatedAt.getTime()).toBeGreaterThanOrEqual(before.updatedAt.getTime());
@@ -437,13 +421,7 @@ describe("editing the assumptions (B7-F12, B7-F14, B7-F15)", () => {
 
 describe("saving an analysis to the history (B7-F11, B7-F13, B7-F14)", () => {
   const save = (eventId: string, values: Record<string, string>) =>
-    act(() =>
-      saveAnalysisAction(
-        eventId,
-        { status: "idle" },
-        form({ version: "", from: "180", ...values }),
-      ),
-    );
+    act(() => saveAnalysisAction(eventId, { status: "idle" }, form({ version: "", from: "180", ...values })));
 
   it("numbers analyses per event, keeps a snapshot and records Activity", async () => {
     const w = await world();
@@ -508,11 +486,7 @@ describe("saving an analysis to the history (B7-F11, B7-F13, B7-F14)", () => {
         version: 1,
         from: 180,
         to: 220,
-        assumptions: {
-          cateringCostPerHead: null,
-          accessibleSeatsPer100: null,
-          cateringCategory: null,
-        },
+        assumptions: { cateringCostPerHead: null, accessibleSeatsPer100: null, cateringCategory: null },
         overall: "INFO",
         counts: { CRITICAL: 0, NEEDS_ATTENTION: 0, INFO: 1, PASSED: 0 },
         items: [

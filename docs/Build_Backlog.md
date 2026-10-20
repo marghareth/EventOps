@@ -14,7 +14,7 @@ batches PROJECT_RULES names are filled in.
 **Status values.** Not started · In progress · In review (built and tested, awaiting the technical
 lead) · Done (accepted) · Blocked.
 
-_Last updated: 2026-10-20 (Batch 7 and 8 rows added; earlier rows not re-checked)._
+_Last updated: 2026-10-20 (Batch 7, 8 and 9 rows added; earlier rows not re-checked)._
 
 ## Tier 1: required baseline
 
@@ -163,31 +163,31 @@ _Last updated: 2026-10-20 (Batch 7 and 8 rows added; earlier rows not re-checked
 | Accessibility readiness (required vs available)             | B3      | In review: B3-07 to B3-11 |
 | Event Health dashboard                                      | B8      | In review: B8-F01 to B8-F20 |
 | **Critical Alert View** (approved Tier 2 → Tier 1 addition) | Batch 8 | In review: B8-F14, B8-F15 |
-| AI spreadsheet import with review step                      |         | Not started               |
+| AI spreadsheet import with review step                      | Batch 9 | In review: B9-F12 to B9-F16 |
 | Configurable assumptions panel                              | B7      | In review: B7-F12           |
 
 ### Impact Detection (Batch 7)
 
-| Item                                                                                                                                                          | Batch | Status                                                                           |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------- |
-| **B7-F01 Change Impact Analysis**: analyze a proposed change with the deterministic engine; one kind (expected attendees) (D-101)                             | B7    | In review: unit, page and database tests pass; browser flow passes               |
-| **B7-F02 Expected Attendance Change Simulator**: proposed number in the address, current number from the stored event; never changes the event (D-101, D-104) | B7    | In review: page, database and browser tests pass                                 |
-| **B7-F03 Catering Cost Impact**: change × cost per head in centavos; Info without a cost per head; increase Needs attention (D-101, D-102)                    | B7    | In review: rule tests pass; catering severity needs confirmation (D-101 point 4) |
-| **B7-F04 Seating Capacity Impact**: proposed vs venue capacity; over is Critical, at capacity passes; not a seating chart (D-101)                             | B7    | In review: rule tests pass                                                       |
-| **B7-F05 Accessibility Gap Impact**: Batch 3 alerts as still unresolved at their severity, plus the per-100 seat estimate rounded up (D-101, D-102)           | B7    | In review: rule tests pass                                                       |
-| **B7-F06 Budget Overrun Impact**: budget's own D-088 rule on committed + estimated increase, for the event and the catering category (D-101)                  | B7    | In review: rule tests pass with the real budget rule                             |
-| **B7-F07 Related Task Impact**: open tasks mentioning a fixed word list, listed by ID (D-101)                                                                 | B7    | In review: rule tests pass                                                       |
-| **B7-F08 Impact Severity Classification**: Critical, Needs attention, Info, Passed; overall is the worst; ordered (D-101)                                     | B7    | In review: unit tests pass                                                       |
-| **B7-F09 Impact Explanation**: every item has a reason, its assumptions, Estimate or From your records, and where to act (D-101)                              | B7    | In review: unit and page tests pass                                              |
-| **B7-F10 Impact Results Summary**: overall severity, change, counts by severity, simulation statement (D-104)                                                 | B7    | In review: page tests pass; checked in a browser                                 |
-| **B7-F11 Impact History**: Save to history with IMP numbers, snapshot re-validated on read, append-only, newest 20 (D-103)                                    | B7    | In review: database and browser tests pass                                       |
-| **B7-F12 Editable Impact Assumptions**: three optional values per event, stale saves refused, Activity (D-102)                                                | B7    | In review: form, action, database and browser tests pass                         |
-| **B7-F13 Event-Scoped Impact Data**: composite key to the event's budget category; reads through each context's authorized read (D-102)                       | B7    | In review: database tests pass (substituted IDs)                                 |
-| **B7-F14 Impact Authorization**: event.view to preview, impact.assumptions to edit, new impact.record to save; checked in action and storage (D-103)          | B7    | In review: matrix tests pass; 5 of 5 removed checks caught                       |
-| **B7-F15 Impact Validation**: proposal, assumptions and snapshot validated on the server; CHECKs in the database (D-102, D-103)                               | B7    | In review: schema and database tests pass                                        |
-| **B7-F16 Impact Calculation Tests**: rules, boundaries, severities, assumptions, determinism (docs/testing.md)                                                | B7    | In review: all pass                                                              |
-| **B7-F17 Impact Error and Empty States**: invalid number, nothing to analyze, empty history, unavailable, loading, error, refusals (D-104)                    | B7    | In review: page and state tests pass                                             |
-| **B7-F18 Responsive Impact Interface**: one column of cards, 44 px controls, no sideways scroll (D-104)                                                       | B7    | In review: measured in Chromium at 375 and 1280 px on the running app            |
+| Item | Batch | Status |
+| ---- | ----- | ------ |
+| **B7-F01 Change Impact Analysis**: analyze a proposed change with the deterministic engine; one kind (expected attendees) (D-101) | B7 | In review: unit, page and database tests pass; browser flow passes |
+| **B7-F02 Expected Attendance Change Simulator**: proposed number in the address, current number from the stored event; never changes the event (D-101, D-104) | B7 | In review: page, database and browser tests pass |
+| **B7-F03 Catering Cost Impact**: change × cost per head in centavos; Info without a cost per head; increase Needs attention (D-101, D-102) | B7 | In review: rule tests pass; catering severity needs confirmation (D-101 point 4) |
+| **B7-F04 Seating Capacity Impact**: proposed vs venue capacity; over is Critical, at capacity passes; not a seating chart (D-101) | B7 | In review: rule tests pass |
+| **B7-F05 Accessibility Gap Impact**: Batch 3 alerts as still unresolved at their severity, plus the per-100 seat estimate rounded up (D-101, D-102) | B7 | In review: rule tests pass |
+| **B7-F06 Budget Overrun Impact**: budget's own D-088 rule on committed + estimated increase, for the event and the catering category (D-101) | B7 | In review: rule tests pass with the real budget rule |
+| **B7-F07 Related Task Impact**: open tasks mentioning a fixed word list, listed by ID (D-101) | B7 | In review: rule tests pass |
+| **B7-F08 Impact Severity Classification**: Critical, Needs attention, Info, Passed; overall is the worst; ordered (D-101) | B7 | In review: unit tests pass |
+| **B7-F09 Impact Explanation**: every item has a reason, its assumptions, Estimate or From your records, and where to act (D-101) | B7 | In review: unit and page tests pass |
+| **B7-F10 Impact Results Summary**: overall severity, change, counts by severity, simulation statement (D-104) | B7 | In review: page tests pass; checked in a browser |
+| **B7-F11 Impact History**: Save to history with IMP numbers, snapshot re-validated on read, append-only, newest 20 (D-103) | B7 | In review: database and browser tests pass |
+| **B7-F12 Editable Impact Assumptions**: three optional values per event, stale saves refused, Activity (D-102) | B7 | In review: form, action, database and browser tests pass |
+| **B7-F13 Event-Scoped Impact Data**: composite key to the event's budget category; reads through each context's authorized read (D-102) | B7 | In review: database tests pass (substituted IDs) |
+| **B7-F14 Impact Authorization**: event.view to preview, impact.assumptions to edit, new impact.record to save; checked in action and storage (D-103) | B7 | In review: matrix tests pass; 5 of 5 removed checks caught |
+| **B7-F15 Impact Validation**: proposal, assumptions and snapshot validated on the server; CHECKs in the database (D-102, D-103) | B7 | In review: schema and database tests pass |
+| **B7-F16 Impact Calculation Tests**: rules, boundaries, severities, assumptions, determinism (docs/testing.md) | B7 | In review: all pass |
+| **B7-F17 Impact Error and Empty States**: invalid number, nothing to analyze, empty history, unavailable, loading, error, refusals (D-104) | B7 | In review: page and state tests pass |
+| **B7-F18 Responsive Impact Interface**: one column of cards, 44 px controls, no sideways scroll (D-104) | B7 | In review: measured in Chromium at 375 and 1280 px on the running app |
 
 ### Event Health (Batch 8)
 
@@ -214,11 +214,37 @@ _Last updated: 2026-10-20 (Batch 7 and 8 rows added; earlier rows not re-checked
 | **B8-F19 Health Error and Empty States**: nothing to check, nothing critical, unreadable health, loading, error (D-107) | B8 | In review: page and state tests pass |
 | **B8-F20 Responsive Dashboard and Alerts**: one column on a phone, 44 px links (D-107) | B8 | In review: measured in Chromium at 375 and 1280 px on the running app |
 
+### Import and AI (Batch 9)
+
+| Item | Batch | Status |
+| ---- | ----- | ------ |
+| **B9-F01 File Upload**: CSV or .xlsx, read in memory, never stored (D-109) | B9 | In review: action, database and browser tests pass |
+| **B9-F02 CSV Parsing**: the Batch 2 parser and limits, unchanged (D-052) | B9 | In review: parser and database tests pass |
+| **B9-F03 XLSX Parsing**: own reader with Node zlib, values only, chosen sheet, zip-bomb limits (D-109) | B9 | In review: reader, database and browser tests pass |
+| **B9-F04 Import Type Selection**: Attendees or Suppliers at upload; switch offered when the columns look like the other (D-109) | B9 | In review: component, database and browser tests pass |
+| **B9-F05 Column Mapping**: each column to a field of the chosen list, each once, required fields (D-109) | B9 | In review: unit and database tests pass |
+| **B9-F06 Automatic Header Matching**: equal header, then contained word, each field once (D-110) | B9 | In review: unit tests pass |
+| **B9-F07 Data Type Detection**: emails, dates, phones, numbers, yes/no, text by majority; shown in the matching (D-110) | B9 | In review: unit and component tests pass |
+| **B9-F08 Keyword-Based Field Detection**: word lists with type fit; supplier category words, else Other (D-110) | B9 | In review: unit and database tests pass |
+| **B9-F09 Import Preview**: totals, matching, rows to import, rows needing correction, duplicates (D-052, D-109) | B9 | In review: component and database tests pass |
+| **B9-F10 Import Validation**: every row with its list's add-form schema, every step on the server (D-109) | B9 | In review: unit and database tests pass |
+| **B9-F11 Import Error Reporting**: file, sheet, mapping and row reasons; download of rows needing correction (D-109) | B9 | In review: unit, component and database tests pass |
+| **B9-F12 Open-Weight AI Extraction**: Qwen2.5 7B Instruct via Ollama suggests type and matching (D-108, D-111) | B9 | In review: fake-server tests pass; real model not yet tried (manual check) |
+| **B9-F13 AI Model Fallback**: off, unreachable, HTTP error, 20 s or invalid answer → rules, labelled (D-112) | B9 | In review: unit and database tests pass |
+| **B9-F14 Schema Validation of AI Output**: strict JSON shape, refused as a whole (D-111) | B9 | In review: unit tests pass |
+| **B9-F15 Business Validation of AI Output**: indexes, chosen type's fields, each once, required (D-111) | B9 | In review: unit and database tests pass |
+| **B9-F16 Human Confirmation**: "Suggested by AI" label, every column editable, preview and confirm before saving (D-111) | B9 | In review: component, database and browser tests pass |
+| **B9-F17 Import Persistence**: one transaction per import, numbers, `suppliers.imported` and `attendees.imported` with file type and AI flag (D-109) | B9 | In review: database tests incl. all-or-nothing pass |
+| **B9-F18 Import Failure Handling**: nothing saved on any failure; changed numbers shown before confirming again (D-052, D-109) | B9 | In review: database tests pass |
+| **B9-F19 Event-Scoped Import Authorization**: `import.run` every step, role re-checked in the transaction, only the event in the address (D-109) | B9 | In review: database and browser tests pass |
+| **B9-F20 Import Tests**: docs/testing.md, Import tests | B9 | In review: all pass; one manual check with a real model left |
+| **B9-F21 Responsive Import Interface**: one column, tables scroll inside their region, 44 px controls (D-109) | B9 | In review: browser test at 375 px; Excel step checked at 1280 px |
+
 ### Engineering
 
 | Item                                                                                                    | Batch | Status                                                                                              |
 | ------------------------------------------------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------- |
-| Unit tests: impact engine, accessibility, budget, authorization, import validation                      |       | In progress: accessibility, authorization and CSV import done; impact engine and budget not started |
+| Unit tests: impact engine, accessibility, budget, authorization, import validation                      |       | In progress: accessibility, authorization, CSV and Excel import, AI output validation done; budget not re-checked |
 | GitHub Actions CI: lint → typecheck → knip → test → build                                               |       | In progress: every step passes locally (2026-10-14); a run on GitHub not yet seen                   |
 | ESLint, Prettier, commitlint, Prisma migrations                                                         |       | In progress: tooling configured; import-boundary rules verified                                     |
 | Shared UI states: loading, empty, error, success, not found, no access                                  |       | Done: built and tested (51 tests)                                                                   |

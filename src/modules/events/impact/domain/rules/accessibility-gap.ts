@@ -47,11 +47,7 @@ function recordedGaps({ state }: RuleContext): ImpactItem[] {
 }
 
 function seatEstimate({ state, change, assumptions }: RuleContext): ImpactItem {
-  const base = {
-    key: "accessibility-seats-estimate",
-    area: "ACCESSIBILITY",
-    references: [],
-  } as const;
+  const base = { key: "accessibility-seats-estimate", area: "ACCESSIBILITY", references: [] } as const;
   const ratio = assumptions.accessibleSeatsPer100;
   const proposed = formatCount(change.to);
   if (ratio === null) {

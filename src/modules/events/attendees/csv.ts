@@ -121,7 +121,8 @@ export function parseCsv(input: string): CsvResult {
       error: `The file has ${header.cells.length} columns. The limit is ${CSV_LIMITS.columns}.`,
     };
   }
-  if (data.length === 0) return { ok: false, error: "The file has a header row but no guests." };
+  if (data.length === 0)
+    return { ok: false, error: "The file has a header row but no rows below it." };
   if (data.length > CSV_LIMITS.rows) {
     return {
       ok: false,
@@ -162,13 +163,16 @@ function quote(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-/** Writes rows as CSV (CRLF line ends), formula-safe. `bom` adds a byte-order mark for Excel. */
+/**
+ * Writes rows as CSV (CRLF line ends), formula-safe. `bom` adds a byte-order mark for Excel.
+ * `exact: true` skips the formula guard, for text EventOps reads back itself and never offers as a
+ * download (the import carries a converted Excel sheet this way, D-109).
+ */
 export function toCsv(
   rows: readonly (readonly string[])[],
-  options: { bom?: boolean } = {},
+  options: { bom?: boolean; exact?: boolean } = {},
 ): string {
-  const body = rows
-    .map((row) => row.map((v) => quote(neutralizeFormula(v))).join(","))
-    .join("\r\n");
+  const cell = options.exact ? quote : (v: string) => quote(neutralizeFormula(v));
+  const body = rows.map((row) => row.map(cell).join(",")).join("\r\n");
   return `${options.bom ? "﻿" : ""}${body}\r\n`;
 }

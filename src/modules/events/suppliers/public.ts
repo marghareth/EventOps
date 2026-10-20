@@ -9,6 +9,17 @@ export { createQuoteAction, updateQuoteAction } from "./quote-actions";
 export { formatQuoteReference, isQuoteReference, toQuoteFormValues } from "./quote-schema";
 export { supplierCategoryText } from "./categories";
 export {
+  REQUIRED_SUPPLIER_IMPORT_FIELDS,
+  SUPPLIER_IMPORT_FIELDS,
+  SUPPLIER_IMPORT_FIELD_LABEL,
+  SUPPLIER_IMPORT_HEADER_WORDS,
+  buildSupplierImportPreview,
+  readSupplierMapping,
+  suppliersToImport,
+} from "./import-rules";
+export { importSuppliers } from "./import-suppliers";
+export { listSupplierIdentities } from "./queries";
+export {
   SUPPLIER_ACTIVITY_LIMIT,
   getEventSuppliers,
   getPaymentFormContext,

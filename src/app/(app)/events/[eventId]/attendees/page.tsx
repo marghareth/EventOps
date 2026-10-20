@@ -121,7 +121,7 @@ export default async function AttendeesPage({ params, searchParams }: Props) {
             ) : null}
             {canImport ? (
               <Button asChild variant="secondary">
-                <Link href={`/events/${event.id}/import`}>Import CSV</Link>
+                <Link href={`/events/${event.id}/import`}>Import spreadsheet</Link>
               </Button>
             ) : null}
             {canManage ? (

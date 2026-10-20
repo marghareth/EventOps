@@ -75,6 +75,41 @@ describe("describeAuditEntry", () => {
     ).toEqual({ summary: "Imported 1 attendee from a CSV file (ATT-0003)", lines: [] });
   });
 
+  it("describes Batch 9 imports: the file type and whether AI suggested the matching (D-109)", () => {
+    expect(
+      describeAuditEntry({
+        action: "attendees.imported",
+        details: {
+          count: 2,
+          first: "ATT-0001",
+          last: "ATT-0002",
+          skipped: 0,
+          fileType: "xlsx",
+          aiSuggested: true,
+        },
+      }),
+    ).toEqual({
+      summary: "Imported 2 attendees from an Excel file (ATT-0001 to ATT-0002)",
+      lines: ["Column matching suggested by AI and checked before importing"],
+    });
+    expect(
+      describeAuditEntry({
+        action: "suppliers.imported",
+        details: {
+          count: 1,
+          first: "SUP-0005",
+          last: "SUP-0005",
+          skipped: 3,
+          fileType: "csv",
+          aiSuggested: false,
+        },
+      }),
+    ).toEqual({
+      summary: "Imported 1 supplier from a CSV file (SUP-0005)",
+      lines: ["3 rows not imported"],
+    });
+  });
+
   it("lists attendee changes, personal ones without values", () => {
     expect(
       describeAuditEntry({

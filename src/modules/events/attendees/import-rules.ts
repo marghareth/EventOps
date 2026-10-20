@@ -45,7 +45,7 @@ export type ColumnMapping = (ImportField | null)[];
 const key = (header: string) => fold(header).replace(/[^a-z0-9]/g, "");
 
 /** Header names (letters and digits only, lower case) that suggest a field. Not AI: a fixed list. */
-const HEADER_SYNONYMS: Record<ImportField, readonly string[]> = {
+export const HEADER_SYNONYMS: Record<ImportField, readonly string[]> = {
   name: ["name", "guest", "guestname", "fullname", "attendee", "attendeename", "nameofguest"],
   email: ["email", "emailaddress", "mail"],
   phone: [

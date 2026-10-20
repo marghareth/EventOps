@@ -9,6 +9,8 @@
 //   Viewer of A      → reads allowed; writes, import and export denied (D-035)
 //   Coordinator of A → every attendee operation allowed
 //   Signed out       → everything denied
+// Import moved to the import context in Batch 9 (D-109); its own matrix is in
+// import/import.db.test.ts ("who can import").
 //
 // Only the signed-in identity is mocked.
 import { randomUUID } from "node:crypto";
@@ -55,8 +57,6 @@ const { createEvent } = await import("../create-event");
 const { createAttendeeAction } = await import("./actions");
 const { getAttendeeDetails, getAttendeeForEditing, getEventAttendees } = await import("./read");
 const { updateAttendeeAction, deleteAttendeeAction } = await import("./actions");
-const { importStepAction } = await import("./import-actions");
-const { initialImportState } = await import("./import-state");
 const { GET: exportRoute } = await import("@/app/api/events/[eventId]/attendees/export/route");
 const { initialAttendeeFormState } = await import("./form-state");
 
@@ -247,16 +247,6 @@ const OPERATIONS = {
   },
   "delete an attendee": (eventId: string, attendeeId: string) =>
     action(() => deleteAttendeeAction(eventId, attendeeId)),
-  "import attendees": (eventId: string) => {
-    const data = form({
-      intent: "confirm",
-      csv: "Name\nImported Guest",
-      fileName: "g.csv",
-      "map-0": "name",
-      expected: "1",
-    });
-    return action(() => importStepAction(eventId, initialImportState, data));
-  },
   "export the guest list": async (eventId: string) => {
     const response = await exportRoute(
       new Request(`http://localhost/api/events/${eventId}/attendees/export`),
@@ -308,12 +298,7 @@ const ACTORS: {
     name: "User A on Event A with Attendee B",
     as: (w) => w.userA,
     target: (w) => [w.eventA, w.attendeeB],
-    allowed: [
-      "read the guest list",
-      "create an attendee",
-      "import attendees",
-      "export the guest list",
-    ],
+    allowed: ["read the guest list", "create an attendee", "export the guest list"],
   },
   {
     name: "Signed out on Event A",

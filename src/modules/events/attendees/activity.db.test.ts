@@ -45,8 +45,9 @@ const { createPrismaClient } = await import("@/lib/db");
 const { createEvent } = await import("../create-event");
 const { createAttendeeAction } = await import("./actions");
 const { updateAttendeeAction, deleteAttendeeAction } = await import("./actions");
-const { importStepAction } = await import("./import-actions");
-const { initialImportState } = await import("./import-state");
+// The import wizard lives in the import context (B9, D-109) and has its own end-to-end tests;
+// here the attendees' own import use case is called, as the wizard does after authorizing.
+const { importAttendees } = await import("./import-attendees");
 const { GET: exportRoute } = await import("@/app/api/events/[eventId]/attendees/export/route");
 const { getEventActivity } = await import("../activity");
 const { describeAuditEntry } = await import("@/modules/events/audit/public");
@@ -174,20 +175,23 @@ describe("attendee activity (B2-21)", () => {
     };
     await save({ name: "Maria S. Lim", notes: SECRETS.newNotes, plusOnes: "2" });
     await save({ rsvpStatus: "CONFIRMED" });
-    await action(() =>
-      importStepAction(
-        eventId,
-        initialImportState,
-        form({
-          intent: "confirm",
-          csv: "Name,Email\nBen Lim,ben.secret@example.com",
-          fileName: "g.csv",
-          "map-0": "name",
-          "map-1": "email",
-          expected: "1",
-        }),
-      ),
-    );
+    await importAttendees(db, {
+      eventId,
+      importerId: owner.id,
+      attendees: [
+        {
+          name: "Ben Lim",
+          email: "ben.secret@example.com",
+          phone: null,
+          rsvpStatus: "PENDING",
+          plusOnes: 0,
+          category: null,
+          dietaryNeeds: null,
+          notes: null,
+        },
+      ],
+      skipped: 0,
+    });
     await exportRoute(new Request("http://x"), { params: Promise.resolve({ eventId }) });
     await action(() => deleteAttendeeAction(eventId, maria.id));
 
@@ -244,19 +248,25 @@ describe("attendee activity (B2-21)", () => {
       ),
     );
     await action(() => deleteAttendeeAction(eventId, maria.id));
-    await action(() =>
-      importStepAction(
+    expect(
+      await importAttendees(db, {
         eventId,
-        initialImportState,
-        form({
-          intent: "confirm",
-          csv: "Name\nX",
-          fileName: "g.csv",
-          "map-0": "name",
-          expected: "1",
-        }),
-      ),
-    );
+        importerId: viewer.id,
+        attendees: [
+          {
+            name: "X",
+            email: null,
+            phone: null,
+            rsvpStatus: "PENDING",
+            plusOnes: 0,
+            category: null,
+            dietaryNeeds: null,
+            notes: null,
+          },
+        ],
+        skipped: 0,
+      }),
+    ).toEqual({ ok: false });
     await exportRoute(new Request("http://x"), { params: Promise.resolve({ eventId }) });
 
     expect(await db.auditLog.count({ where: { eventId } })).toBe(before);

@@ -128,9 +128,10 @@ describe("the Impact page", () => {
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent("Critical");
     expect(items[0]).toHaveTextContent("20 more people than the venue holds");
-    expect(
-      within(items[0]!).getByRole("link", { name: "Review the venue capacity" }),
-    ).toHaveAttribute("href", `/events/${EVENT}/settings`);
+    expect(within(items[0]!).getByRole("link", { name: "Review the venue capacity" })).toHaveAttribute(
+      "href",
+      `/events/${EVENT}/settings`,
+    );
     expect(items[1]).toHaveTextContent("Catering cost per head:₱300.00");
     expect(screen.getByRole("button", { name: "Save to history" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Save assumptions" })).toBeVisible();
@@ -159,11 +160,7 @@ describe("the Impact page", () => {
   it("shows an invalid number as a field error and keeps what was typed", async () => {
     getImpactWorkspace.mockResolvedValue(
       workspace({
-        proposal: {
-          status: "invalid",
-          raw: "abc",
-          message: "Enter a whole number from 0 to 1,000,000.",
-        },
+        proposal: { status: "invalid", raw: "abc", message: "Enter a whole number from 0 to 1,000,000." },
       }),
     );
     await render_({ to: "abc" });

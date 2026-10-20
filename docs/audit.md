@@ -28,7 +28,8 @@ has a strict schema, so unlisted fields are refused, not silently stored.
 | `attendee.created`                  | An attendee is added (B2-01)                                           | `attendee`                  | Readable ID (`ATT-0001`) and name                                                                                                          |
 | `attendee.updated`                  | An attendee is edited (B2-01)                                          | `attendee`                  | Readable ID; name, RSVP, plus-ones and category old → new; email, phone, dietary needs and notes only as "changed"                         |
 | `attendee.deleted`                  | An attendee is removed (B2-01)                                         | `attendee`                  | Readable ID and name, so the log still says who was removed                                                                                |
-| `attendees.imported`                | Attendees are imported from a CSV file (B2-18)                         | `event`                     | How many were added, the first and last new IDs, and how many rows were not imported. No names or file contents                            |
+| `attendees.imported`                | Attendees are imported from a CSV or Excel file (B2-18, B9-F17)        | `event`                     | How many were added, the first and last new IDs, how many rows were not imported, and since Batch 9 the file type and whether AI suggested the matching (D-109). No names or file contents |
+| `suppliers.imported`                | Suppliers are imported from a CSV or Excel file (B9-F17)               | `event`                     | How many were added, the first and last new IDs, rows not imported, the file type and whether AI suggested the matching (D-109). No names, contacts or file contents |
 | `attendees.exported`                | The guest list is downloaded as CSV (B2-19)                            | `event`                     | How many attendees were exported. Refused attempts are not recorded                                                                        |
 | `accessibility_requirement.created` | An accessibility need is added to an attendee (B3-03)                  | `accessibility_requirement` | The attendee's readable ID, the type and the priority                                                                                      |
 | `accessibility_requirement.updated` | An accessibility need is edited (B3-03)                                | `accessibility_requirement` | Readable ID and current type; type and priority old → new; the note only as "changed"                                                      |
@@ -72,7 +73,7 @@ Add an action only when the feature that needs it is built, in the registry and 
 | Add               | `attendee.created`   | ID and name                            | Contact details, dietary needs, notes              |
 | Edit, RSVP change | `attendee.updated`   | Name, RSVP, plus-ones, category        | Email, phone, dietary needs, notes: "changed" only |
 | Remove            | `attendee.deleted`   | ID and name                            | Everything else                                    |
-| Import            | `attendees.imported` | Count, first and last ID, rows skipped | Names, file name, file contents                    |
+| Import            | `attendees.imported` | Count, first and last ID, rows skipped, file type, AI suggested (yes/no) | Names, file name, file contents |
 | Export            | `attendees.exported` | Count                                  | Who or what was in the file                        |
 
 Refused actions and saves that change nothing record nothing. Proved by
@@ -174,10 +175,10 @@ A save that changes nothing, a refused save and an over-budget result write no e
 
 ### Impact actions on Activity (B7, D-102, D-103)
 
-| Action                       | Activity says                                                                                                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Action                       | Activity says                                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `impact_assumptions.updated` | Changed the impact assumptions; "Catering cost per head: not set → ₱300.00", "Accessible seats per 100 guests: 2.5 → 4", "Catering budget category: not set → “Catering”" |
-| `impact_analysis.created`    | Saved the impact analysis IMP-0001: expected attendees 180 → 220; "Overall: Critical"                                                                                     |
+| `impact_analysis.created`    | Saved the impact analysis IMP-0001: expected attendees 180 → 220; "Overall: Critical"                  |
 
 Previewing an analysis is a read and writes no entry. An unchanged or refused save writes none.
 

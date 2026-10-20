@@ -1,7 +1,7 @@
 // src/app/(app)/events/[eventId]/suppliers/page.tsx
 // The event's supplier list (B4-03, D-068). Every member can read it, contact details included
 // (event.view); Owners and Coordinators also get "Add supplier" and an Edit link per supplier
-// (suppliers.manage). Checks access itself (D-027); the read authorizes again, and every action
+// (suppliers.manage), and "Import suppliers" (import.run, B9-F04). Checks access itself (D-027); the read authorizes again, and every action
 // checks once more. Search (B4-17, D-082) and filters (B4-18, D-083) come from the address and run
 // on the server inside the authorized read.
 import type { Metadata } from "next";
@@ -9,7 +9,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { UnauthorizedState } from "@/components/shared/UnauthorizedState";
 import { Button } from "@/components/ui/button";
-import { requireEventAccess } from "@/modules/events/public";
+import { can, requireEventAccess } from "@/modules/events/public";
 import {
   SupplierList,
   SupplierListControls,
@@ -52,6 +52,7 @@ export default async function SuppliersPage({ params, searchParams }: Props) {
     );
   }
   const { suppliers, total, canManage } = result;
+  const canImport = can(event.role, "import.run");
   const listHref = `/events/${event.id}/suppliers`;
   const addHref = `${listHref}/new`;
 
@@ -78,10 +79,19 @@ export default async function SuppliersPage({ params, searchParams }: Props) {
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-h2 font-extrabold">Suppliers</h1>
-        {canManage ? (
-          <Button asChild>
-            <Link href={addHref}>Add supplier</Link>
-          </Button>
+        {canManage || canImport ? (
+          <div className="flex flex-wrap gap-3">
+            {canImport ? (
+              <Button asChild variant="secondary">
+                <Link href={`/events/${event.id}/import?type=suppliers`}>Import suppliers</Link>
+              </Button>
+            ) : null}
+            {canManage ? (
+              <Button asChild>
+                <Link href={addHref}>Add supplier</Link>
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {total > 0 ? (

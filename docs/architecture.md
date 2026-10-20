@@ -62,3 +62,28 @@ are never stored, so they can't go stale or be set by hand, and the browser neve
 | `audit`               | Six registered actions, written in the same transaction as the change; the Activity feed reads them                                                                  |
 | Event Overview page   | Shows the event-level alert from `getAccessibilityAlerts`                                                                                                            |
 | Batch 8 (not started) | The Critical Alert View can reuse `deriveAlerts` instead of building a second alert mechanism (D-066)                                                                |
+## Import context (Batch 9)
+
+`src/modules/events/import/` is a downstream context (D-001, D-109): it orchestrates importing a
+file into attendees or suppliers, and owns no records. Upstream contexts never import it.
+
+| Layer          | Folder / file                                                  | What it holds                                                                                              |
+| -------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Domain         | `domain/`                                                      | File policy and import types (`file-policy.ts`), type detection (`column-types.ts`), header matching (`field-matching.ts`). Pure |
+| Application    | `application/`                                                 | The column suggestion with its business checks and fallback (`suggest-columns.ts`), the `ColumnSuggester` port |
+| Infrastructure | `infrastructure/`                                              | The Excel reader (`parsers/xlsx-parser.ts`, Node zlib) and the Ollama suggester with its prompt and output schema (`extractors/`) |
+| Server entry   | `actions.ts`, `targets.ts`, `composition.ts`                   | The step action (authorize with `import.run`, re-read, re-check); each list's public rules side by side; the suggester from settings |
+| UI             | `ui/ImportWizard.tsx`, `import-state.ts`                       | The steps; it shows what the server returns                                                                |
+
+```
+importStepAction (authorize import.run, every step)
+  → readUpload: CSV (attendees' parser) or Excel (xlsx-parser → CSV text → same parser)
+  → suggestColumns: detect types → match headers (rules)  [+ model → schema check → business check]
+  → user reviews the matching
+  → buildPreview: attendees' or suppliers' own row rules and duplicates (their public.ts)
+  → user confirms the count
+  → saveImport: importAttendees / importSuppliers, one transaction with one Activity entry
+```
+
+The attendees and suppliers contexts keep their fields, mapping checks, row validation and
+persistence; the import context never duplicates them. The model never writes anything (docs/ai.md).

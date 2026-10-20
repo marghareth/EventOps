@@ -562,13 +562,42 @@ export function describeAuditEntry(entry: Pick<AuditEntryView, "action" | "detai
     };
   }
   if (entry.action === "attendees.imported") {
-    const { count, first, last, skipped } = entry.details as AuditDetails<"attendees.imported">;
-    const people = count === 1 ? "1 attendee" : `${count} attendees`;
-    const range = count === 1 ? first : `${first} to ${last}`;
-    const lines = skipped ? [`${skipped === 1 ? "1 row" : `${skipped} rows`} not imported`] : [];
-    return { summary: `Imported ${people} from a CSV file (${range})`, lines };
+    return describeImport(
+      ["attendee", "attendees"],
+      entry.details as AuditDetails<"attendees.imported">,
+    );
+  }
+  if (entry.action === "suppliers.imported") {
+    return describeImport(
+      ["supplier", "suppliers"],
+      entry.details as AuditDetails<"suppliers.imported">,
+    );
   }
   return { summary: "Made a change (details unavailable)", lines: [] };
+}
+/**
+ * An import by counts and ID range (D-052, D-109), never names. Entries from before Batch 9 have no
+ * file type: they were CSV files.
+ */
+function describeImport(
+  [one, many]: [string, string],
+  details: {
+    count: number;
+    first: string;
+    last: string;
+    skipped: number;
+    fileType?: "csv" | "xlsx";
+    aiSuggested?: boolean;
+  },
+): { summary: string; lines: string[] } {
+  const { count, first, last, skipped } = details;
+  const what = count === 1 ? `1 ${one}` : `${count} ${many}`;
+  const range = count === 1 ? first : `${first} to ${last}`;
+  const file = details.fileType === "xlsx" ? "an Excel file" : "a CSV file";
+  const lines = skipped ? [`${skipped === 1 ? "1 row" : `${skipped} rows`} not imported`] : [];
+  if (details.aiSuggested)
+    lines.push("Column matching suggested by AI and checked before importing");
+  return { summary: `Imported ${what} from ${file} (${range})`, lines };
 }
 /** Impact severities as shown in Activity (D-101). A test keeps it equal to the domain's. */
 export const IMPACT_SEVERITY_AUDIT_LABEL: Record<
