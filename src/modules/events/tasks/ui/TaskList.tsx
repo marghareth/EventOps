@@ -33,6 +33,9 @@ export function TaskList({
   basePath,
   canManage,
   today,
+  label = "Tasks",
+  headingLevel = 2,
+  showStatus = true,
 }: {
   tasks: TaskRecord[];
   eventId: string;
@@ -40,9 +43,13 @@ export function TaskList({
   canManage: boolean;
   /** The Philippine day, "YYYY-MM-DD", worked out once per request. */
   today: string;
+  label?: string;
+  headingLevel?: 2 | 3;
+  showStatus?: boolean;
 }) {
+  const TaskHeading = headingLevel === 3 ? "h3" : "h2";
   return (
-    <ul aria-label="Tasks" className="flex flex-col gap-3">
+    <ul aria-label={label} className="flex flex-col gap-3">
       {tasks.map((task) => {
         const reference = formatTaskReference(task.number);
         return (
@@ -52,7 +59,9 @@ export function TaskList({
           >
             <div className="min-w-0">
               <p className="font-mono text-sm text-ink-2">{reference}</p>
-              <h2 className="mt-0.5 text-h4 font-bold wrap-break-word">{task.title}</h2>
+              <TaskHeading className="mt-0.5 text-h4 font-bold wrap-break-word">
+                {task.title}
+              </TaskHeading>
               {task.description ? (
                 <p className="mt-1 text-sm wrap-break-word whitespace-pre-line text-ink-2">
                   {task.description}
@@ -64,10 +73,12 @@ export function TaskList({
                 >
                   {TASK_PRIORITY_LABEL[task.priority]} priority
                 </span>
-                <span className="inline-flex items-center rounded-lg border border-line bg-white px-2.5 py-1 text-[13px] leading-tight font-medium text-ink">
-                  <span className="sr-only">Status: </span>
-                  {TASK_STATUS_LABEL[task.status]}
-                </span>
+                {showStatus ? (
+                  <span className="inline-flex items-center rounded-lg border border-line bg-white px-2.5 py-1 text-[13px] leading-tight font-medium text-ink">
+                    <span className="sr-only">Status: </span>
+                    {TASK_STATUS_LABEL[task.status]}
+                  </span>
+                ) : null}
                 <span>
                   {task.dueDate ? (
                     <>

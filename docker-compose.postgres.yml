@@ -1,0 +1,28 @@
+# docker-compose.postgres.yml
+# Local PostgreSQL for `npm run dev` with dev-only demo sign-in (D-024). Optional: any PostgreSQL
+# 16 or later works. Version 17 matches CI and the current Supabase major version.
+#   docker compose -f docker-compose.postgres.yml up -d
+#   npm run db:deploy        # applies every migration to DIRECT_URL from .env.local
+#   npm run dev
+# The values below are for this machine only. Never use them for Supabase or any shared database.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: eventops_dev
+    ports:
+      # Bound to this machine only.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres:

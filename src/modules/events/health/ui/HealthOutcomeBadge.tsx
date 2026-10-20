@@ -26,7 +26,7 @@ export function HealthOutcomeBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-[13px] font-medium whitespace-nowrap",
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-semibold whitespace-nowrap",
         style.className,
         className,
       )}

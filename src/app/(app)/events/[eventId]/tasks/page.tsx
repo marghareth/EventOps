@@ -10,7 +10,7 @@ import { UnauthorizedState } from "@/components/shared/UnauthorizedState";
 import { Button } from "@/components/ui/button";
 import { requireEventAccess } from "@/modules/events/public";
 import {
-  TaskList,
+  TaskGroups,
   TaskListControls,
   TaskNotice,
   assigneeFilterOptions,
@@ -138,7 +138,8 @@ export default async function TasksPage({ params, searchParams }: Props) {
           />
         </div>
       ) : (
-        <TaskList
+        // D-118: grouped by status, each group collapsible; same rows, filters and order.
+        <TaskGroups
           tasks={shown}
           eventId={event.id}
           basePath={basePath}

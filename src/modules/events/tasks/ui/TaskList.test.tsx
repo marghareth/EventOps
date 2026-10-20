@@ -78,6 +78,24 @@ describe("TaskList", () => {
     expect(within(second!).getByText("No due date")).toBeVisible();
   });
 
+  it("supports grouped-list labels and heading levels without repeating the status", () => {
+    render(
+      <TaskList
+        tasks={[tasks[0]!]}
+        eventId="e1"
+        basePath="/events/e1/tasks"
+        canManage={false}
+        today="2026-10-18"
+        label="In progress tasks"
+        headingLevel={3}
+        showStatus={false}
+      />,
+    );
+    expect(screen.getByRole("list", { name: "In progress tasks" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Confirm florist" })).toBeVisible();
+    expect(screen.queryByText("In progress")).toBeNull();
+  });
+
   it("shows the priority as a word, never colour alone (B6-F05)", () => {
     renderList();
     const [first, second] = screen.getAllByRole("listitem");
