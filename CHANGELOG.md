@@ -9,6 +9,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B10 UX and accessibility polish (B10-F01 to B10-F20; D-113 to D-117).**
+  - An automated accessibility review in the browser tests: axe (WCAG 2.2 A and AA) on every core
+    screen and on forms with errors, dialogs and the import, plus phone and tablet layouts, keyboard
+    focus and 44 px touch targets. Results and the remaining manual checks are in
+    docs/accessibility-review.md.
+  - The import shows its three steps and which one you're on.
+  - The Overview's "View critical issues" link sits next to "Needs your attention", issue cards
+    have a coloured edge by severity, and each "Open …" link says which issue it fixes to screen
+    readers.
+  - An event page that fails now keeps the sidebar, so you can go to another section.
+
 - **B9 Import and AI (B9-F01 to B9-F21; D-108 to D-112).**
   - One import for attendees **and suppliers**, from **CSV or Excel (.xlsx)** files. Choose what
     you're importing at the start (the Suppliers page has a new "Import suppliers" link); if the
@@ -735,6 +746,12 @@ build` fails if it is set.
 
 ### Fixed
 
+- The task list crashed with the Overdue filter on (`?overdue=only`) (B10, D-115).
+- Two supplier test files held component code instead of tests; the supplier browser test failed
+  on text repeated by the category filter, and its Viewer step looked for the email on the list
+  (D-073 keeps it on the supplier's page) (B10, D-115).
+- The import page moved focus on load, so the skip link wasn't the first Tab stop (B10).
+
 - **Database client.** `src/lib/db.ts` had lost `createPrismaClient`, which 31 database test files
   import, so the database tests could not run. It is restored, and the shared client again validates
   `DATABASE_URL` and `DIRECT_URL` with `src/lib/env.server.ts` before connecting.
@@ -763,6 +780,11 @@ build` fails if it is set.
   sign-in are marked dynamic, so the build never tries to prerender them.
 
 ### Changed
+
+- **Budget (B10, D-114).** Uses the shared form fields, messages and colours like the rest of the
+  app; deleting a category or item now asks in the same confirmation dialog as tasks and
+  suppliers; on a tablet the items show as cards instead of scrolling sideways.
+- **Shared text field** uses the design tokens (it had the old red for errors).
 
 - **Import (Batch 2 → Batch 9).** The attendee import moved to the new import context and became
   the general import; the guest list's "Import CSV" link is now "Import spreadsheet". The empty-file

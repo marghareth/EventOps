@@ -61,7 +61,10 @@ export default async function TasksPage({ params, searchParams }: Props) {
   const assignees = assigneeFilterOptions(tasks);
   const filters = parseTaskListQuery(query, new Set(assignees.map((a) => a.id)));
   const narrowed = isNarrowed(filters);
-  const shown = filterTasks(tasks, filters);
+  // One "today" for the whole page, so the Overdue filter and the overdue badges agree. Without it
+  // the Overdue filter crashed the page (?overdue=only); fixed in B10 (D-115).
+  const today = manilaToday(new Date());
+  const shown = filterTasks(tasks, filters, today);
 
   // After a change: only a known kind and a well-formed reference are used. The title shown comes
   // from the stored record, never from the address.
@@ -140,7 +143,7 @@ export default async function TasksPage({ params, searchParams }: Props) {
           eventId={event.id}
           basePath={basePath}
           canManage={canManage}
-          today={manilaToday(new Date())}
+          today={today}
         />
       )}
     </div>

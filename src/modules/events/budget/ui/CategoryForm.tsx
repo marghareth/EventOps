@@ -7,12 +7,13 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { Banner } from "@/components/shared/Banner";
 import { FormErrorSummary, type FormErrorItem } from "@/components/shared/FormErrorSummary";
+import { FormField } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createCategoryAction, updateCategoryAction } from "../actions";
 import type { CategoryFormState } from "../form-state";
-import { FormField } from "./FormField";
 
 type Props = {
   eventId: string;
@@ -50,17 +51,13 @@ export function CategoryForm({ eventId, cancelHref, category }: Props) {
       {category ? <input type="hidden" name="version" value={category.version} /> : null}
 
       {state.status === "error" && state.message ? (
-        <p role="alert" className="rounded-lg border border-[#F2B8B8] bg-[#FBE9E9] p-3 text-sm">
+        <Banner severity="critical" title="Couldn't save the category">
           {state.message}
-        </p>
+        </Banner>
       ) : null}
-      {state.status === "success" ? (
-        <p role="status" className="rounded-lg border border-[#B7CFF0] bg-[#E5ECFD] p-3 text-sm">
-          {state.message}
-        </p>
-      ) : null}
+      {state.status === "success" ? <Banner severity="info" title={state.message} /> : null}
 
-      <FormField id="category-name" label="Category name" error={fieldErrors.name}>
+      <FormField required id="category-name" label="Category name" error={fieldErrors.name}>
         {(control) => (
           <Input
             {...control}
@@ -74,6 +71,7 @@ export function CategoryForm({ eventId, cancelHref, category }: Props) {
       </FormField>
 
       <FormField
+        required
         id="category-allocation"
         label="Allocation (₱)"
         hint="The amount you set aside for this category. Use 0 if you haven't decided."

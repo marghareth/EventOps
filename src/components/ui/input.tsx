@@ -11,11 +11,11 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       type={type}
       data-slot="input"
       className={cn(
-        "h-11 w-full min-w-0 rounded-lg border border-input bg-background px-3 py-2 text-base shadow-xs",
-        "placeholder:text-muted-foreground",
-        "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        "aria-invalid:border-[#C62828] aria-invalid:ring-[#C62828]/20",
+        // The design system field (B10-F01, D-114): the same look as fieldControlClass.
+        "h-11 w-full min-w-0 rounded-md border-[1.5px] border-line bg-field px-3.5 text-base text-ink",
+        "placeholder:text-ink-3 hover:border-stone focus:border-blue",
+        "disabled:cursor-not-allowed disabled:bg-paper disabled:text-ink-3",
+        "aria-invalid:border-critical aria-invalid:bg-critical-tint",
         className,
       )}
       {...props}

@@ -44,13 +44,61 @@ const PREVIEW_LIMIT = 100;
 const count = (n: number, one: string, many: string) =>
   n === 1 ? `1 ${one}` : `${n.toLocaleString("en-US")} ${many}`;
 
-function StepHeading({ children }: { children: string }) {
+/**
+ * The step's heading takes focus when a step appears, so screen readers hear the new step. Not on
+ * the page's first load: focus then stays at the top, so the skip link comes first (B10-F12).
+ */
+function StepHeading({ children, focus = true }: { children: string; focus?: boolean }) {
   const ref = useRef<HTMLHeadingElement>(null);
-  useEffect(() => ref.current?.focus(), []);
+  useEffect(() => {
+    if (focus) ref.current?.focus();
+  }, [focus]);
   return (
     <h2 ref={ref} tabIndex={-1} className="text-h3 font-bold outline-none">
       {children}
     </h2>
+  );
+}
+
+const STEPS = ["Choose a file", "Match columns", "Check and import"] as const;
+
+/**
+ * Where the user is in the import (B10-F18, D-117): the three steps, the current one marked with
+ * aria-current="step" and in words, earlier ones as done. Not colour alone: numbers, words and a
+ * check mark.
+ */
+function StepProgress({ current }: { current: 1 | 2 | 3 | 4 }) {
+  return (
+    <ol aria-label="Import steps" className="mb-5 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+      {STEPS.map((label, index) => {
+        const number = index + 1;
+        const done = number < current;
+        const here = number === current;
+        return (
+          <li
+            key={label}
+            aria-current={here ? "step" : undefined}
+            className={`flex items-center gap-2 ${here ? "font-semibold text-ink" : "text-ink-2"}`}
+          >
+            <span
+              aria-hidden="true"
+              className={`grid size-7 place-items-center rounded-full border-[1.5px] font-display text-xs font-bold ${
+                here
+                  ? "border-blue bg-blue text-white"
+                  : done
+                    ? "border-success bg-success-tint text-success"
+                    : "border-line bg-white text-ink-2"
+              }`}
+            >
+              {done ? "✓" : number}
+            </span>
+            {label}
+            {done ? <span className="sr-only"> (done)</span> : null}
+            {here ? <span className="sr-only"> (current step)</span> : null}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -212,7 +260,8 @@ export function ImportWizard({ action, listHrefs, initialType = "attendees", max
         className={card}
         aria-busy={pending}
       >
-        <StepHeading>1. Choose a file</StepHeading>
+        <StepProgress current={1} />
+        <StepHeading focus={state !== initialImportState}>1. Choose a file</StepHeading>
         <p className="mt-2 text-ink-2">
           A CSV or Excel (.xlsx) file with a header row and one entry per row. Up to{" "}
           {maxRows.toLocaleString("en-US")} rows; CSV up to 500 KB, Excel up to 750 KB (the values
@@ -307,6 +356,7 @@ export function ImportWizard({ action, listHrefs, initialType = "attendees", max
         aria-busy={pending}
       >
         <Carry state={state} />
+        <StepProgress current={2} />
         <StepHeading>2. Match your columns</StepHeading>
         <p className="mt-2 text-ink-2">
           Importing <strong className="text-ink">{words.many}</strong> from {state.fileName}
@@ -444,6 +494,7 @@ export function ImportWizard({ action, listHrefs, initialType = "attendees", max
         <Carry state={state} />
         <input type="hidden" name="expected" value={toImport} />
         <section className={card} aria-labelledby="import-summary">
+          <StepProgress current={3} />
           <StepHeading>3. Check before importing</StepHeading>
           <h3 id="import-summary" className="sr-only">
             Summary
@@ -561,6 +612,7 @@ export function ImportWizard({ action, listHrefs, initialType = "attendees", max
   const words = IMPORT_TYPE_WORDS[state.importType];
   return (
     <div className={card}>
+      <StepProgress current={4} />
       <StepHeading>Import complete</StepHeading>
       <Banner
         severity="success"

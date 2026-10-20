@@ -1,64 +1,54 @@
-// src/modules/events/suppliers/ui/RemoveSupplierSection.tsx
-// Remove supplier (B4-05, D-072): a destructive action behind a confirmation dialog, on the edit
-// page. The page shows this only to roles that may manage suppliers; the server action checks the
-// role again (D-035, D-036). Cancel, Escape or closing the dialog removes nothing.
-"use client";
+// src/modules/events/suppliers/ui/RemoveSupplierSection.test.tsx
+// Remove supplier (B4-05, D-072; B10-F09): the shared confirm dialog names the supplier and says it
+// can't be undone, starts on Cancel, removes nothing when cancelled, and shows a refusal. This file
+// held a copy of the component instead of tests; replaced in B10.
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { DeleteSupplierFormState } from "../form-state";
+import { RemoveSupplierSection } from "./RemoveSupplierSection";
 
-import { startTransition, useActionState, useState } from "react";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { StateIcon } from "@/components/shared/StateIcon";
-import { Button } from "@/components/ui/button";
-import { initialDeleteSupplierState, type DeleteSupplierFormState } from "../form-state";
+const action =
+  vi.fn<(s: DeleteSupplierFormState, f: FormData) => Promise<DeleteSupplierFormState>>();
 
-type RemoveSupplierSectionProps = {
-  action: (state: DeleteSupplierFormState, formData: FormData) => Promise<DeleteSupplierFormState>;
-  name: string;
-  reference: string;
-};
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close ??= function close(this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  };
+});
+beforeEach(() => action.mockReset());
 
-export function RemoveSupplierSection({ action, name, reference }: RemoveSupplierSectionProps) {
-  const [open, setOpen] = useState(false);
-  const [state, formAction, pending] = useActionState(action, initialDeleteSupplierState);
+const renderSection = () =>
+  render(<RemoveSupplierSection action={action} name="Bloom Co." reference="SUP-0003" />);
 
-  return (
-    <section
-      aria-labelledby="remove-supplier-heading"
-      className="mt-6 rounded-xl border border-critical-line bg-white p-6 shadow-xs sm:p-8"
-    >
-      <h2 id="remove-supplier-heading" className="text-h4 font-bold">
-        Remove supplier
-      </h2>
-      <p className="mt-1 mb-4 text-sm text-ink-2">
-        Permanently removes this supplier and their contact details from the event. Activity keeps a
-        note that they were removed. You can&apos;t undo this.
-      </p>
-      <Button variant="destructive" onClick={() => setOpen(true)}>
-        Remove supplier
-      </Button>
+describe("RemoveSupplierSection", () => {
+  it("is a labelled section that says removing can't be undone", () => {
+    renderSection();
+    expect(screen.getByRole("region", { name: "Remove supplier" })).toHaveTextContent(
+      "You can't undo this.",
+    );
+  });
 
-      <ConfirmDialog
-        open={open}
-        title="Remove this supplier?"
-        description={
-          <>
-            <strong className="font-semibold text-ink">{name}</strong> (
-            <span className="font-mono">{reference}</span>) will be removed from the supplier list.
-            You can&apos;t undo this.
-          </>
-        }
-        confirmLabel="Remove supplier"
-        destructive
-        pending={pending}
-        onConfirm={() => startTransition(() => formAction(new FormData()))}
-        onCancel={() => setOpen(false)}
-      >
-        {state.status === "error" && state.message ? (
-          <p role="alert" className="flex items-start gap-1.5 text-sm font-medium text-critical">
-            <StateIcon name="error" className="mt-0.5 size-4" />
-            <span>{state.message}</span>
-          </p>
-        ) : null}
-      </ConfirmDialog>
-    </section>
-  );
-}
+  it("asks first with focus on Cancel, and cancelling removes nothing", async () => {
+    renderSection();
+    await userEvent.click(screen.getByRole("button", { name: "Remove supplier" }));
+    const dialog = screen.getByRole("alertdialog", { name: "Remove this supplier?" });
+    expect(dialog).toHaveTextContent("Bloom Co. (SUP-0003) will be removed");
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  it("removes on confirm and shows a refusal in the dialog", async () => {
+    action.mockResolvedValue({ status: "error", message: "We couldn't remove the supplier." });
+    renderSection();
+    await userEvent.click(screen.getByRole("button", { name: "Remove supplier" }));
+    const buttons = screen.getAllByRole("button", { name: "Remove supplier" });
+    await userEvent.click(buttons[buttons.length - 1]!);
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't remove the supplier.");
+  });
+});

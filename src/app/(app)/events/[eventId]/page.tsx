@@ -101,9 +101,22 @@ export default async function EventOverviewPage({ params, searchParams }: Props)
           </section>
 
           <section aria-labelledby="overview-attention" className="flex flex-col gap-4">
-            <h2 id="overview-attention" className="text-h3 font-bold">
-              Needs your attention
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="overview-attention" className="text-h3 font-bold">
+                Needs your attention
+              </h2>
+              {/* B10-F17 (D-117): the way to the critical issues sits next to the heading, so it
+                  is seen before the list. */}
+              {health.health.counts.CRITICAL > 0 ? (
+                <Link
+                  href={`${base}/health?show=critical`}
+                  className="inline-flex min-h-11 items-center text-sm font-semibold text-blue underline underline-offset-2"
+                >
+                  View {health.health.counts.CRITICAL} critical{" "}
+                  {health.health.counts.CRITICAL === 1 ? "issue" : "issues"}
+                </Link>
+              ) : null}
+            </div>
             {health.health.issues.length === 0 ? (
               <p role="status" className="rounded-xl bg-white p-5 text-sm text-ink-2 shadow-xs">
                 {health.health.status === null
@@ -117,25 +130,16 @@ export default async function EventOverviewPage({ params, searchParams }: Props)
                   eventId={event.id}
                   label="Needs your attention"
                 />
-                <p className="flex flex-wrap gap-x-6">
-                  {health.health.counts.CRITICAL > 0 ? (
-                    <Link
-                      href={`${base}/health?show=critical`}
-                      className="inline-flex min-h-11 items-center text-sm font-semibold text-blue underline underline-offset-2"
-                    >
-                      View {health.health.counts.CRITICAL} critical{" "}
-                      {health.health.counts.CRITICAL === 1 ? "issue" : "issues"}
-                    </Link>
-                  ) : null}
-                  {health.health.issues.length > ATTENTION_LIMIT ? (
+                {health.health.issues.length > ATTENTION_LIMIT ? (
+                  <p>
                     <Link
                       href={`${base}/health`}
                       className="inline-flex min-h-11 items-center text-sm font-semibold text-blue underline underline-offset-2"
                     >
                       See all {health.health.issues.length} issues
                     </Link>
-                  ) : null}
-                </p>
+                  </p>
+                ) : null}
               </>
             )}
           </section>

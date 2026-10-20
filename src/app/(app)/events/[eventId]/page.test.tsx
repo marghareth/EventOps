@@ -139,7 +139,7 @@ describe("event overview: the health dashboard (B8-F11 to B8-F13, D-107)", () =>
     const items = within(attention).getAllByRole("listitem");
     expect(items[0]).toHaveTextContent("Critical");
     expect(items[0]).toHaveTextContent("1 payment is overdue");
-    expect(within(items[0]!).getByRole("link", { name: "Open Suppliers" })).toHaveAttribute(
+    expect(within(items[0]!).getByRole("link", { name: /^Open Suppliers/ })).toHaveAttribute(
       "href",
       `/events/${ID}/suppliers`,
     );
@@ -147,6 +147,19 @@ describe("event overview: the health dashboard (B8-F11 to B8-F13, D-107)", () =>
       "href",
       `/events/${ID}/health?show=critical`,
     );
+  });
+
+  it("names each fix link's issue, and puts the Critical link before the list (B10-F17)", async () => {
+    getEventHealth.mockResolvedValue(healthFor(TROUBLED, { status: "hidden" }));
+    await renderPage();
+    const region = screen.getByRole("region", { name: "Needs your attention" });
+    const items = within(region).getAllByRole("listitem");
+    expect(within(items[0]!).getByRole("link", { name: /^Open Suppliers/ })).toHaveAccessibleName(
+      expect.stringContaining("1 payment is overdue"),
+    );
+    const critical = within(region).getByRole("link", { name: "View 2 critical issues" });
+    const list = within(region).getByRole("list", { name: "Needs your attention" });
+    expect(critical.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("lists at most five issues and links to the rest", async () => {

@@ -142,7 +142,7 @@ describe("the Health page", () => {
     expect(items).toHaveLength(1);
     expect(items[0]).toHaveTextContent("Critical");
     expect(items[0]).toHaveTextContent("Unpaid payments are past their due date");
-    expect(within(items[0]!).getByRole("link", { name: "Open Suppliers" })).toHaveAttribute(
+    expect(within(items[0]!).getByRole("link", { name: /^Open Suppliers/ })).toHaveAttribute(
       "href",
       `/events/${EVENT}/suppliers`,
     );

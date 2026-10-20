@@ -52,6 +52,8 @@ describe("ImportWizard", () => {
   it("starts with the import type, a labelled CSV or Excel picker, and says nothing is saved yet", () => {
     render(<ImportWizard action={vi.fn()} listHrefs={HREFS} maxRows={2000} />);
     expect(screen.getByRole("heading", { name: "1. Choose a file" })).toBeVisible();
+    // On the page's first load focus stays at the top, so the skip link comes first (B10-F12).
+    expect(screen.getByRole("heading", { name: "1. Choose a file" })).not.toHaveFocus();
     const group = screen.getByRole("group", { name: "What are you importing?" });
     expect(within(group).getByRole("radio", { name: /Attendees/ })).toBeChecked();
     expect(within(group).getByRole("radio", { name: /Suppliers/ })).not.toBeChecked();
@@ -65,6 +67,28 @@ describe("ImportWizard", () => {
       "href",
       LIST,
     );
+  });
+
+  it("shows where the user is in the import, in words (B10-F18)", async () => {
+    render(<ImportWizard action={vi.fn()} listHrefs={HREFS} maxRows={2000} />);
+    const steps = within(screen.getByRole("list", { name: "Import steps" })).getAllByRole(
+      "listitem",
+    );
+    expect(steps.map((s) => s.textContent)).toEqual([
+      "1Choose a file (current step)",
+      "2Match columns",
+      "3Check and import",
+    ]);
+    expect(steps[0]).toHaveAttribute("aria-current", "step");
+  });
+
+  it("marks earlier steps as done on the preview", async () => {
+    await at(preview);
+    const steps = within(screen.getByRole("list", { name: "Import steps" })).getAllByRole(
+      "listitem",
+    );
+    expect(steps[0]).toHaveTextContent("Choose a file (done)");
+    expect(steps[2]).toHaveAttribute("aria-current", "step");
   });
 
   it("can start with suppliers chosen (from the Suppliers page)", () => {
@@ -432,5 +456,7 @@ describe("ImportWizard", () => {
     await userEvent.click(screen.getByRole("button", { name: "Upload and continue" }));
     await vi.waitFor(() => expect(action).toHaveBeenCalledTimes(1));
     expect(await screen.findByRole("alert")).toHaveTextContent("Choose a .csv or .xlsx file.");
+    // A step the server returned does take focus, so the error is heard.
+    expect(screen.getByRole("heading", { name: "1. Choose a file" })).toHaveFocus();
   });
 });

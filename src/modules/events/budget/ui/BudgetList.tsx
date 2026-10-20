@@ -27,18 +27,18 @@ import { OverBudgetWarning } from "./OverBudgetWarning";
  * budget, the actions. Written out in full so Tailwind can see every class.
  */
 const COLUMNS = {
-  read: "md:grid-cols-[5.5rem_minmax(0,1fr)_9rem_9rem_9rem]",
-  manage: "md:grid-cols-[5.5rem_minmax(0,1fr)_9rem_9rem_9rem_13rem]",
+  read: "xl:grid-cols-[5.5rem_minmax(0,1fr)_9rem_9rem_9rem]",
+  manage: "xl:grid-cols-[5.5rem_minmax(0,1fr)_9rem_9rem_9rem_13rem]",
 } as const;
 
 /**
- * One amount. On a phone it reads "Estimated ........ ₱500.00"; from md up the label is hidden
+ * One amount. On a phone it reads "Estimated ........ ₱500.00"; from xl up (wide enough for the columns, B10-F03) the label is hidden
  * (the column header shows it) but stays in the page for screen readers.
  */
 function Amount({ label, value }: { label: string; value: string }) {
   return (
-    <p className="flex items-baseline justify-between gap-3 text-sm sm:block md:text-right md:text-base">
-      <span className="text-muted-foreground md:sr-only">{label}</span>
+    <p className="flex items-baseline justify-between gap-3 text-sm sm:block xl:text-right xl:text-base">
+      <span className="text-ink-2 xl:sr-only">{label}</span>
       <span className="tabular-nums sm:block">{formatPesos(value)}</span>
     </p>
   );
@@ -71,31 +71,31 @@ export function BudgetList({
         </h2>
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <div className="min-w-0">
-            <dt className="text-sm text-muted-foreground">Total allocated</dt>
+            <dt className="text-sm text-ink-2">Total allocated</dt>
             <dd className="text-xl font-extrabold tabular-nums wrap-break-word sm:text-2xl">
               {formatPesos(eventSummary.allocated)}
             </dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-sm text-muted-foreground">Total estimated</dt>
+            <dt className="text-sm text-ink-2">Total estimated</dt>
             <dd className="text-xl font-extrabold tabular-nums wrap-break-word sm:text-2xl">
               {formatPesos(eventSummary.estimated)}
             </dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-sm text-muted-foreground">Total committed</dt>
+            <dt className="text-sm text-ink-2">Total committed</dt>
             <dd className="text-xl font-extrabold tabular-nums wrap-break-word sm:text-2xl">
               {formatPesos(eventSummary.committed)}
             </dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-sm text-muted-foreground">Total paid</dt>
+            <dt className="text-sm text-ink-2">Total paid</dt>
             <dd className="text-xl font-extrabold tabular-nums wrap-break-word sm:text-2xl">
               {formatPesos(eventSummary.paid)}
             </dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-sm text-muted-foreground">
+            <dt className="text-sm text-ink-2">
               {eventSummary.overBy === null ? "Remaining" : "Over by"}
             </dt>
             <dd className="flex flex-col items-start gap-1">
@@ -106,7 +106,7 @@ export function BudgetList({
             </dd>
           </div>
         </dl>
-        <p className="mt-3 text-sm text-muted-foreground">
+        <p className="mt-3 text-sm text-ink-2">
           Allocated is what you set aside; estimated, committed and paid are sums of the amounts you
           entered, and paid is the actual cost recorded so far. Remaining is allocated minus
           committed. Estimated above the allocation does not change the status.
@@ -134,27 +134,27 @@ export function BudgetList({
                 </h2>
                 <dl className="mt-1 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:flex sm:flex-wrap">
                   <div className="min-w-0">
-                    <dt className="text-muted-foreground">Allocation</dt>
+                    <dt className="text-ink-2">Allocation</dt>
                     <dd className="font-semibold tabular-nums">
                       {formatPesos(category.allocation)}
                     </dd>
                   </div>
                   <div className="min-w-0">
-                    <dt className="text-muted-foreground">Estimated</dt>
+                    <dt className="text-ink-2">Estimated</dt>
                     <dd className="font-semibold tabular-nums">{formatPesos(totals.estimated)}</dd>
                   </div>
                   <div className="min-w-0">
-                    <dt className="text-muted-foreground">Committed</dt>
+                    <dt className="text-ink-2">Committed</dt>
                     <dd className="font-semibold tabular-nums">{formatPesos(totals.committed)}</dd>
                   </div>
                   <div className="min-w-0">
-                    <dt className="text-muted-foreground">Paid</dt>
+                    <dt className="text-ink-2">Paid</dt>
                     <dd className="font-semibold tabular-nums">{formatPesos(totals.paid)}</dd>
                   </div>
                 </dl>
                 {categorySummary ? (
                   <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">
+                    <span className="text-ink-2">
                       {categorySummary.overBy === null ? "Remaining" : "Over by"}
                     </span>
                     <span className="font-semibold tabular-nums">
@@ -179,7 +179,8 @@ export function BudgetList({
                     </Link>
                   </Button>
                   <DeleteButton
-                    label={`category ${category.name}`}
+                    kind="category"
+                    label={category.name}
                     action={deleteCategoryAction.bind(null, eventId, category.id)}
                   />
                 </div>
@@ -187,7 +188,7 @@ export function BudgetList({
             </div>
 
             {category.items.length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">
+              <p className="mt-4 text-sm text-ink-2">
                 No items in this category yet.
                 {canManage ? " Use “Add item” to plan the first one." : ""}
               </p>
@@ -195,7 +196,7 @@ export function BudgetList({
               <div className="mt-4">
                 <div
                   aria-hidden="true"
-                  className={`hidden border-b px-0 pb-2 text-sm font-semibold md:grid md:gap-x-4 ${COLUMNS[canManage ? "manage" : "read"]}`}
+                  className={`hidden border-b border-line px-0 pb-2 text-sm font-semibold xl:grid xl:gap-x-4 ${COLUMNS[canManage ? "manage" : "read"]}`}
                 >
                   <span>ID</span>
                   <span>Item</span>
@@ -206,31 +207,31 @@ export function BudgetList({
                 </div>
                 <ul
                   aria-label={`Budget items in ${category.name}`}
-                  className="flex flex-col gap-3 md:gap-0"
+                  className="flex flex-col gap-3 xl:gap-0"
                 >
                   {category.items.map((item) => {
                     const reference = formatBudgetItemReference(item.number);
                     return (
                       <li
                         key={item.id}
-                        className={`rounded-lg border p-4 md:grid md:items-start md:gap-x-4 md:rounded-none md:border-0 md:border-b md:px-0 md:py-3 ${COLUMNS[canManage ? "manage" : "read"]}`}
+                        className={`rounded-lg border border-line p-4 xl:grid xl:items-start xl:gap-x-4 xl:rounded-none xl:border-0 xl:border-b xl:border-line xl:px-0 xl:py-3 ${COLUMNS[canManage ? "manage" : "read"]}`}
                       >
-                        <p className="font-mono text-sm md:text-base">{reference}</p>
-                        <div className="mt-1 min-w-0 md:mt-0">
+                        <p className="font-mono text-sm xl:text-base">{reference}</p>
+                        <div className="mt-1 min-w-0 xl:mt-0">
                           <p className="font-medium wrap-break-word">{item.name}</p>
                           {item.notes ? (
-                            <p className="mt-0.5 text-xs wrap-break-words text-muted-foreground">
+                            <p className="mt-0.5 text-xs wrap-break-word text-ink-2">
                               {item.notes}
                             </p>
                           ) : null}
                         </div>
-                        <div className="mt-3 grid gap-1 sm:grid-cols-3 md:contents">
+                        <div className="mt-3 grid gap-1 sm:grid-cols-3 xl:contents">
                           <Amount label="Estimated" value={item.estimated} />
                           <Amount label="Committed" value={item.committed} />
                           <Amount label="Paid" value={item.paid} />
                         </div>
                         {canManage ? (
-                          <div className="mt-3 flex flex-wrap items-start gap-2 md:mt-0">
+                          <div className="mt-3 flex flex-wrap items-start gap-2 xl:mt-0">
                             <Button asChild variant="secondary" size="sm">
                               <Link href={`${basePath}/items/${item.id}/edit`}>
                                 <span aria-hidden="true">Edit</span>
@@ -240,6 +241,7 @@ export function BudgetList({
                               </Link>
                             </Button>
                             <DeleteButton
+                              kind="item"
                               label={`${reference} ${item.name}`}
                               action={deleteItemAction.bind(null, eventId, item.id)}
                             />
@@ -250,10 +252,10 @@ export function BudgetList({
                   })}
                 </ul>
                 <div
-                  className={`mt-3 grid gap-1 border-t pt-3 font-semibold md:mt-0 md:gap-x-4 ${COLUMNS[canManage ? "manage" : "read"]} md:items-start`}
+                  className={`mt-3 grid gap-1 border-t border-line pt-3 font-semibold xl:mt-0 xl:gap-x-4 ${COLUMNS[canManage ? "manage" : "read"]} xl:items-start`}
                 >
-                  <p className="md:col-span-2">Category total</p>
-                  <div className="grid gap-1 sm:grid-cols-3 md:contents">
+                  <p className="xl:col-span-2">Category total</p>
+                  <div className="grid gap-1 sm:grid-cols-3 xl:contents">
                     <Amount label="Estimated" value={totals.estimated} />
                     <Amount label="Committed" value={totals.committed} />
                     <Amount label="Paid" value={totals.paid} />

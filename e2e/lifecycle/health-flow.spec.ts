@@ -85,7 +85,10 @@ test("3. the Critical view explains each issue and links to the fix", async ({ p
   await expect(critical).toHaveCount(2);
   await expect(critical.first()).toContainText("Casa Verde Catering (SUP-0001)");
   await expect(critical.nth(1)).toContainText("An overdue High-priority task makes this Critical.");
-  await critical.first().getByRole("link", { name: "Open Suppliers" }).click();
+  await critical
+    .first()
+    .getByRole("link", { name: /^Open Suppliers/ })
+    .click();
   await expect(page).toHaveURL(new RegExp(`${eventPath}/suppliers$`));
 });
 

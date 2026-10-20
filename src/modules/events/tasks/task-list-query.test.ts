@@ -43,6 +43,7 @@ describe("parseTaskListQuery", () => {
       due: null,
       dueFrom: null,
       dueTo: null,
+      overdue: null,
     });
     expect(isNarrowed(none)).toBe(false);
   });
@@ -56,6 +57,7 @@ describe("parseTaskListQuery", () => {
         due: "set",
         dueFrom: "2026-11-01",
         dueTo: "2026-11-30",
+        overdue: "only",
       },
       members,
     );
@@ -66,6 +68,7 @@ describe("parseTaskListQuery", () => {
       due: "set",
       dueFrom: "2026-11-01",
       dueTo: "2026-11-30",
+      overdue: "only",
     });
     expect(isNarrowed(query)).toBe(true);
   });

@@ -324,3 +324,20 @@ export function seedHealthProblems(eventId: string): Promise<void> {
     await client.query(`UPDATE events SET "lastTaskNumber" = 1 WHERE id = $1`, [eventId]);
   });
 }
+
+/** The first attendee and supplier of an event, for opening their pages in the B10 review. */
+export function firstRecordIds(eventId: string) {
+  return withClient(async (client) => {
+    const one = async (table: string) =>
+      (
+        await client.query(`SELECT id FROM ${table} WHERE "eventId" = $1 ORDER BY number LIMIT 1`, [
+          eventId,
+        ])
+      ).rows[0]?.id as string | undefined;
+    return {
+      attendeeId: await one("attendees"),
+      supplierId: await one("suppliers"),
+      taskId: await one("tasks"),
+    };
+  });
+}
