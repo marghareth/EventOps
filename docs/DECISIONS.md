@@ -3051,3 +3051,119 @@ calculations; never a second calculation for a new screen.
    page's alerts are unchanged. The Batch 3 browser test now looks for the gap in the attention list.
 5. **Recent activity (6a):** the last 5 entries of the existing Activity feed, worded by
    `describeAuditEntry`, shown only to Owners and Coordinators (`audit.view`). Viewers don't see it.
+
+---
+
+## D-108 The open-weight model for import: Qwen2.5 7B Instruct through Ollama
+
+**Status:** Approved by the technical lead on 2026-10-20 (B9 plan, option 3a).
+
+**Decision.** The AI import suggestion uses **Qwen2.5 7B Instruct** (Apache-2.0, open weights),
+served by **Ollama**, called from the server only. A Docker Compose file
+(`docker-compose.ollama.yml`) runs Ollama locally, bound to 127.0.0.1. The model is asked only when
+`AI_IMPORT_ENABLED=true` and `OLLAMA_URL` is set (`OLLAMA_MODEL` optional). Vercel leaves
+`OLLAMA_URL` unset, because a serverless function can't run the model, so the deployed app uses the
+deterministic matcher (D-112). No closed-weight model is used anywhere, and no new npm dependency
+was added: the server calls Ollama's HTTP API with `fetch`.
+
+**Consequences.** docs/ai.md documents the model, license, purpose and pipeline. A real Ollama
+import is a manual check; automated tests use a fake model server.
+
+---
+
+## D-109 Import: attendees and suppliers, CSV and Excel, files never stored
+
+**Status:** Approved by the technical lead on 2026-10-20 (B9 plan, options 1a, 2a and point 7).
+
+**Decision.**
+
+1. **One wizard in the import context** (`src/modules/events/import/`) for both lists. It replaces
+   the Batch 2 attendee wizard (D-052) and keeps its steps, checks and messages: upload, match,
+   preview, confirm, result. The attendees and suppliers contexts keep their own rules (fields,
+   mapping check, row validation with the add form's schema, duplicates, one-transaction import)
+   and expose them through `public.ts`; the import context only orchestrates (D-001).
+2. **Import type chosen at upload (1a):** Attendees or Suppliers (radio, Attendees by default;
+   `?type=suppliers` from the Suppliers page's new "Import suppliers" link). If the headers look
+   like the other list, the matching step says so and offers to switch; it never switches by
+   itself.
+3. **Suppliers:** Name, Category, Contact person, Email, Phone and Notes. Name and Category are
+   required (the add form's rules, D-070). **Money is never imported**: quote and payment columns
+   have no field. Duplicates are the same name (ignoring case and accents) as an existing supplier
+   or an earlier row; skipped unless chosen.
+4. **Excel (.xlsx, 2a):** read by our own reader with Node's built-in zlib (no new dependency).
+   Values only (a formula's last calculated value, never the formula), the first sheet or the one
+   chosen. Limits: 750 KB file; 20 MB total unpacked (zip bombs); 2,000 archive entries; 50 sheets;
+   ZIP64, encrypted and unknown-compression entries refused; sheet paths can't leave the package.
+   The sheet is converted to CSV text, exactly (no formula guard, since it is only read back), and
+   must then fit the CSV limits (500 KB, 2,000 rows, 50 columns, 5,000 characters per value), so
+   every later step is the CSV path. Dates stay as Excel's numbers (no imported field is a date).
+   `.xls` is refused.
+5. **Files are read in memory and never stored.** The converted text travels between steps and is
+   re-checked by the server every step, as in D-052.
+6. **Activity (point 7):** `suppliers.imported` with count, first and last ID, rows skipped, file
+   type and whether the AI suggested the matching. `attendees.imported` gains the same two optional
+   fields (entries from before Batch 9 have neither and read as CSV). Never names, contacts or file
+   contents. Shown as "Imported 3 suppliers from an Excel file (SUP-0001 to SUP-0003)", plus "Column
+   matching suggested by AI and checked before importing" when it was.
+7. **No new permission and no migration.** `import.run` (Owner, Coordinator) for both lists; the
+   import re-checks the role inside its transaction (D-035). `aiSuggested` is carried by the
+   browser and recorded as reported: it is informational only and decides nothing.
+
+---
+
+## D-110 Data type detection and keyword rules
+
+**Status:** Approved by the technical lead on 2026-10-20 (B9 plan, point 6).
+
+**Decision.**
+
+1. **Types:** each non-empty value is an email, a date, a phone number, a number, yes/no or text
+   (in that order); a column takes the type of more than half of its non-empty values, otherwise
+   text; no values is "empty". A phone has 7 to 15 digits and starts with + or 0, has separators,
+   or has 10 or more digits; otherwise a plain number.
+2. **Header matching:** a header equal to one of a field's words wins, then a header containing one
+   of the words, then a column of emails or phones with no field yet gets Email or Phone. A field
+   whose types don't fit the column is skipped (Email only for emails; Phone for phones or numbers;
+   RSVP for yes/no; Plus-ones for numbers; text fields for text). So "Contact" holding emails is
+   Email. Each field goes to one column at most, earlier columns first.
+3. **The word lists belong to each list's context:** attendees reuse the Batch 2 synonyms (D-052);
+   suppliers have their own (`SUPPLIER_IMPORT_HEADER_WORDS`).
+4. **Supplier categories from words:** the category whose words the cell mentions most (caterer,
+   florist, photographer, lights, HMUA, chairs, invitations and so on, listed in
+   `suppliers/import-rules.ts`); a category's own name always matches; anything else is Other with
+   the cell's text as what the supplier provides (at most 60 characters, or the row needs
+   correction).
+5. **Import type from headers:** the list with more columns named by words only it uses; none when
+   even.
+
+---
+
+## D-111 What the AI suggests, and how its answer is checked
+
+**Status:** Approved by the technical lead on 2026-10-20 (B9 plan, option 4a).
+
+**Decision.**
+
+1. The AI suggests only **which list the columns look like and each column's field**.
+2. It is sent the chosen type and its fields, each header (60 characters), the detected type and at
+   most 3 sample values per column, 40 characters each. Data goes in as JSON with a system message
+   to treat it as data.
+3. **Schema check:** strict JSON `{ looksLike, columns: [{ index, field }] }`, nothing else.
+4. **Business check:** each index once and in range, only fields of the chosen type, each field
+   once, the required fields mapped: the same rules as a mapping sent from the browser.
+5. Shown as "Suggested by AI" with the model's name, above the matching and under each column it
+   matched. The user can change everything, and every row then goes through the same deterministic
+   validation as any import. Nothing is saved until the user confirms.
+
+---
+
+## D-112 Fallback when the AI is off or fails
+
+**Status:** Approved by the technical lead on 2026-10-20 (B9 plan, point 5).
+
+**Decision.** The deterministic matcher (D-110) always runs. Its suggestion is used when the model
+is off (no `OLLAMA_URL`, or `AI_IMPORT_ENABLED` not `true`, or invalid settings), unreachable,
+answers with an HTTP error, takes more than 20 seconds, or answers something that fails the schema
+check: "Matched by rules: AI wasn't available". When the answer fails the business check: "Matched
+by rules: the AI suggestion didn't pass our checks". No retry, no logging of the request, and the
+import itself never depends on the model.

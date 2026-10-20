@@ -69,7 +69,7 @@ describe("parseCsv", () => {
   it.each([
     ["", "The file is empty."],
     ["\n \n,,\n", "The file is empty."],
-    ["Name,RSVP\n", "The file has a header row but no guests."],
+    ["Name,RSVP\n", "The file has a header row but no rows below it."],
     [
       'Name\n"Ana',
       'A quoted value that starts on line 2 never ends. Check for a missing closing quote (").',

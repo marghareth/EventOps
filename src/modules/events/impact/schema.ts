@@ -11,8 +11,7 @@ import { IMPACT_AREAS, IMPACT_FIX_TARGETS, IMPACT_SEVERITIES } from "./domain/im
 export const IMPACT_MESSAGES = {
   proposedEmpty: "Enter the proposed number of expected attendees.",
   proposedFormat: `Enter a whole number from 0 to ${MAX_EXPECTED_ATTENDEES.toLocaleString("en-US")}.`,
-  costFormat:
-    "Enter a peso amount with at most two decimals, for example 350.50, or leave it blank.",
+  costFormat: "Enter a peso amount with at most two decimals, for example 350.50, or leave it blank.",
   costTooLarge: "That amount is too large. The most is ₱9,999,999,999.99.",
   ratioFormat: "Enter a number from 0 to 100 with at most two decimals, or leave it blank.",
   categoryNotFound: "Choose a budget category of this event, or none.",
@@ -52,8 +51,7 @@ const optionalRatio = z.string().transform((raw, ctx) => {
   const match = /^(\d{1,3})(?:\.(\d{1,2}))?$/.exec(text);
   const value = match ? `${Number(match[1])}.${(match[2] ?? "").padEnd(2, "0")}` : null;
   // Two-place strings of equal length compare like numbers only up to 99.99, so check 100 apart.
-  const tooLarge =
-    value !== null && Number(match?.[1]) >= 100 && value !== MAX_ACCESSIBLE_SEATS_PER_100;
+  const tooLarge = value !== null && Number(match?.[1]) >= 100 && value !== MAX_ACCESSIBLE_SEATS_PER_100;
   if (value === null || tooLarge) {
     ctx.addIssue({ code: "custom", message: IMPACT_MESSAGES.ratioFormat });
     return z.NEVER;
@@ -91,10 +89,7 @@ const snapshotItem = z
     reason: z.string().max(4000),
     basis: z.enum(["ESTIMATE", "RECORDED"]),
     assumptions: z.array(z.object({ label: z.string(), value: z.string() }).strict()).max(10),
-    fix: z
-      .object({ target: z.enum(IMPACT_FIX_TARGETS), label: z.string() })
-      .strict()
-      .nullable(),
+    fix: z.object({ target: z.enum(IMPACT_FIX_TARGETS), label: z.string() }).strict().nullable(),
     references: z.array(z.string().max(20)).max(500),
   })
   .strict();
@@ -116,9 +111,7 @@ export const impactSnapshotSchema = z
       })
       .strict(),
     overall: severity,
-    counts: z
-      .object({ CRITICAL: count, NEEDS_ATTENTION: count, INFO: count, PASSED: count })
-      .strict(),
+    counts: z.object({ CRITICAL: count, NEEDS_ATTENTION: count, INFO: count, PASSED: count }).strict(),
     items: z.array(snapshotItem).min(1).max(200),
   })
   .strict();

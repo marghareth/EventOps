@@ -1,0 +1,18 @@
+# docker-compose.ollama.yml
+# Local Ollama server for the AI import suggestion (B9-F12, D-108, D-112). Optional: without it the
+# import uses the deterministic matcher. See docs/ai.md.
+#   docker compose -f docker-compose.ollama.yml up -d
+#   docker compose -f docker-compose.ollama.yml exec ollama ollama pull qwen2.5:7b-instruct
+# Then set AI_IMPORT_ENABLED=true and OLLAMA_URL=http://localhost:11434 in .env.local.
+services:
+  ollama:
+    image: ollama/ollama:0.12.6
+    ports:
+      # Bound to this machine only: the model server has no authentication.
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama:

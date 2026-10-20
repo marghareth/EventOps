@@ -4,10 +4,7 @@
 // tasks (D-094 to D-096). Each read authorizes the signed-in user on its own (event.view), so this
 // reader can never see more than the user can. Nothing is recalculated here.
 import "server-only";
-import {
-  getAccessibilityAlerts,
-  getAccessibilityOverview,
-} from "@/modules/events/accessibility/public";
+import { getAccessibilityAlerts, getAccessibilityOverview } from "@/modules/events/accessibility/public";
 import { getEventBudget } from "@/modules/events/budget/public";
 import { formatTaskReference, getEventTasks } from "@/modules/events/tasks/public";
 import type { EventStateReader } from "../application/ports";
@@ -28,11 +25,7 @@ export const eventStateReader: EventStateReader = {
         id: category.id,
         name: category.name,
         allocation: category.allocation,
-        items: category.items.map(({ estimated, committed, paid }) => ({
-          estimated,
-          committed,
-          paid,
-        })),
+        items: category.items.map(({ estimated, committed, paid }) => ({ estimated, committed, paid })),
       })),
       accessibility: {
         alerts: alerts.alerts.map(({ key, severity, title, reason }) => ({

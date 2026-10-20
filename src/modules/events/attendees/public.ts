@@ -37,8 +37,19 @@ export { ExportButton } from "./ui/ExportButton";
 export { GuestListControls } from "./ui/GuestListControls";
 export { exportEventAttendees } from "./export-attendees";
 export { attendeesCsv, exportFileName } from "./export-csv";
-export { importStepAction } from "./import-actions";
-export { ImportWizard } from "./ui/ImportWizard";
+// Import (B2-14 to B2-18; the wizard moved to the import context in Batch 9, D-109).
+export { CSV_LIMITS, parseCsv, toCsv, type CsvTable } from "./csv";
+export { importAttendees } from "./import-attendees";
+export {
+  HEADER_SYNONYMS as ATTENDEE_IMPORT_HEADER_WORDS,
+  IMPORT_FIELDS as ATTENDEE_IMPORT_FIELDS,
+  IMPORT_FIELD_LABEL as ATTENDEE_IMPORT_FIELD_LABEL,
+  REQUIRED_IMPORT_FIELDS as REQUIRED_ATTENDEE_IMPORT_FIELDS,
+  attendeesToImport,
+  buildImportPreview as buildAttendeeImportPreview,
+  readMapping as readAttendeeMapping,
+} from "./import-rules";
+export { listAttendeeIdentities } from "./queries";
 export { HeadcountSummary } from "./ui/HeadcountSummary";
 export { RemoveAttendeeSection } from "./ui/RemoveAttendeeSection";
 export { RsvpBadge } from "./ui/RsvpBadge";

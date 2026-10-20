@@ -31,6 +31,7 @@ export {
   sampleGetQuote,
   sampleGetSupplier,
   sampleImportAttendees,
+  sampleImportSuppliers,
   sampleListAttendees,
   sampleListAuditEntries,
   sampleListEventPayments,

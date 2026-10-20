@@ -1,6 +1,7 @@
 // src/app/(app)/events/[eventId]/import/page.test.tsx
-// CSV import page (B2-14, D-052): checks access itself, gives the import steps to roles with
-// import.run (Owner, Coordinator) bound to the event in the URL, and refuses Viewers and non-members.
+// Import page (B2-14, D-052; B9-F04, F19, D-109): checks access itself, gives the import steps to
+// roles with import.run (Owner, Coordinator) bound to the event in the URL, preselects suppliers
+// from ?type=suppliers, and refuses Viewers and non-members.
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,7 +18,7 @@ vi.mock("@/modules/events/actions", () => ({
   deleteEventAction: vi.fn(),
 }));
 vi.mock("@/modules/events/queries", () => ({ getMyEvents: vi.fn() }));
-vi.mock("@/modules/events/attendees/import-actions", () => ({
+vi.mock("@/modules/events/import/actions", () => ({
   importStepAction: Object.assign((...args: unknown[]) => importStepAction(...args), {
     bind: (_this: unknown, eventId: string) => () => importStepAction(eventId),
   }),
@@ -31,8 +32,13 @@ const access = (role: "OWNER" | "COORDINATOR" | "VIEWER") =>
     user: { id: "u1" },
     access: { kind: "ok", event: { id: ID, name: "Santos wedding", role } },
   });
-const renderPage = async () =>
-  render(await ImportPage({ params: Promise.resolve({ eventId: ID }) }));
+const renderPage = async (searchParams: Record<string, string> = {}) =>
+  render(
+    await ImportPage({
+      params: Promise.resolve({ eventId: ID }),
+      searchParams: Promise.resolve(searchParams),
+    }),
+  );
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -43,9 +49,12 @@ describe("Import page (B2-14)", () => {
     access(role);
     await renderPage();
     expect(requireEventAccess).toHaveBeenCalledWith(ID);
-    expect(screen.getByRole("heading", { level: 1, name: "Import attendees" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "1. Choose a CSV file" })).toBeVisible();
-    expect(screen.getByLabelText("CSV file")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Import attendees or suppliers" }),
+    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "1. Choose a file" })).toBeVisible();
+    expect(screen.getByLabelText("CSV or Excel file")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Attendees/ })).toBeChecked();
     expect(screen.getByRole("link", { name: "Back to the guest list" })).toHaveAttribute(
       "href",
       `/events/${ID}/attendees`,
@@ -56,11 +65,27 @@ describe("Import page (B2-14)", () => {
     access("VIEWER");
     await renderPage();
     expect(screen.getByRole("heading", { name: "You don't have access to this" })).toBeVisible();
-    expect(screen.queryByLabelText("CSV file")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("CSV or Excel file")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Back to attendees" })).toHaveAttribute(
       "href",
       `/events/${ID}/attendees`,
     );
+  });
+
+  it("preselects suppliers from the Suppliers page link, and ignores unknown types", async () => {
+    access("OWNER");
+    await renderPage({ type: "suppliers" });
+    expect(screen.getByRole("radio", { name: /Suppliers/ })).toBeChecked();
+    expect(screen.getByRole("link", { name: "Back to the supplier list" })).toHaveAttribute(
+      "href",
+      `/events/${ID}/suppliers`,
+    );
+  });
+
+  it("falls back to attendees for an unknown type", async () => {
+    access("OWNER");
+    await renderPage({ type: "volunteers" });
+    expect(screen.getByRole("radio", { name: /Attendees/ })).toBeChecked();
   });
 
   it("shows nothing to a non-member (not found)", async () => {

@@ -456,16 +456,16 @@ Batch 3, reported to the technical lead.
 
 ## Impact tests (B7-F16, D-101 to D-104)
 
-| What                                                                                                                                                          | Where                                          | Layer     |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | --------- |
-| Every rule, boundary and severity, run with the budget's real D-088 rule; the brand book's 180 → 220 example; determinism                                     | `impact/application/impact-rules.test.ts`      | Unit      |
-| Severity order, seat rounding, ratio parsing, keyword matching                                                                                                | `impact/domain/run-impact.test.ts`             | Unit      |
-| Server validation (proposal, assumptions, snapshot); one severity list across domain, audit and database                                                      | `impact/schema.test.ts`                        | Unit      |
-| Actions ask for their own permission; a refusal never reaches storage                                                                                         | `impact/actions.test.ts`                       | Unit      |
-| Assumptions form: values, hidden fields, error summary, refusals                                                                                              | `impact/ui/AssumptionsForm.test.tsx`           | Component |
-| Page: roles, results, invalid, no change, history, notices, unavailable; loading and error screens                                                            | `app/(app)/events/[eventId]/impact/*.test.tsx` | Component |
-| Owner, Coordinator, Viewer, non-member, other event's owner, signed out; substituted category ID; stale saves; append-only; trigger; CHECKs; Activity wording | `impact/impact.db.test.ts`                     | Database  |
-| The whole flow in Chromium: invalid number, 180 → 220, keyboard-only assumptions, save, Activity, event unchanged, 375 and 1280 px, Viewer                    | `e2e/lifecycle/impact-flow.spec.ts`            | Browser   |
+| What                                            | Where                                                    | Layer     |
+| ----------------------------------------------- | -------------------------------------------------------- | --------- |
+| Every rule, boundary and severity, run with the budget's real D-088 rule; the brand book's 180 → 220 example; determinism | `impact/application/impact-rules.test.ts` | Unit |
+| Severity order, seat rounding, ratio parsing, keyword matching | `impact/domain/run-impact.test.ts`                 | Unit      |
+| Server validation (proposal, assumptions, snapshot); one severity list across domain, audit and database | `impact/schema.test.ts` | Unit |
+| Actions ask for their own permission; a refusal never reaches storage | `impact/actions.test.ts`                      | Unit      |
+| Assumptions form: values, hidden fields, error summary, refusals | `impact/ui/AssumptionsForm.test.tsx`             | Component |
+| Page: roles, results, invalid, no change, history, notices, unavailable; loading and error screens | `app/(app)/events/[eventId]/impact/*.test.tsx` | Component |
+| Owner, Coordinator, Viewer, non-member, other event's owner, signed out; substituted category ID; stale saves; append-only; trigger; CHECKs; Activity wording | `impact/impact.db.test.ts` | Database |
+| The whole flow in Chromium: invalid number, 180 → 220, keyboard-only assumptions, save, Activity, event unchanged, 375 and 1280 px, Viewer | `e2e/lifecycle/impact-flow.spec.ts` | Browser |
 
 **Proof the authorization tests catch a removed check.** Each was removed in turn and the suite run:
 the `impact.record` and `impact.assumptions` checks in the actions (caught by `actions.test.ts`; the
@@ -486,6 +486,28 @@ by `impact.db.test.ts`). 5 of 5 caught.
 **Proof the tests catch a removed safeguard.** Each was removed in turn: the attendee facts read's own
 authorization, a contact value added to its result, the health read's authorization, and the
 supplier contact rule. 4 of 4 caught by `health.db.test.ts`.
+
+## Import tests (B9-F20, D-108 to D-112)
+
+| What | Where | Layer |
+| ---- | ----- | ----- |
+| Value and column types, every type and the majority rule | `import/domain/column-types.test.ts` | Unit |
+| Header matching: equal, contained word, type fit ("Contact" with emails is Email), type alone, each field once; import type from headers | `import/domain/field-matching.test.ts` | Unit |
+| Supplier fields (no money), mapping check, category words and Other, row validation, duplicates | `suppliers/import-rules.test.ts` | Unit |
+| Excel reader: values, numbers, booleans, chosen sheet, empty rows, inline strings and formula results, stored parts; not xlsx, encrypted, zip bomb, a part larger than declared, 750 KB, 50 columns, long values, too many rows, path outside the package | `import/infrastructure/parsers/xlsx-parser.test.ts` | Unit |
+| AI suggestion: what the model is sent (3 samples, 40 characters), a valid answer, every fallback reason, every business check refusal | `import/application/suggest-columns.test.ts` | Unit |
+| Ollama suggester against a fake model server: valid, not JSON, wrong shape, extra keys, unknown type, bad index, HTTP error, timeout, server down | `import/infrastructure/extractors/llm-extractor.test.ts` | Unit |
+| When the model is asked (settings) | `import/composition.test.ts`, `lib/env.server.test.ts` | Unit |
+| Wizard: import type, Excel picker, sheet choice, column types, AI and rules labels, switch offer, supplier wording, preview, result | `import/ui/ImportWizard.test.tsx` | Component |
+| Import page: roles, `?type=suppliers` | `app/(app)/events/[eventId]/import/page.test.tsx` | Component |
+| Whole imports against PostgreSQL: attendees (Batch 2 cases), suppliers (categories, no money, Activity, duplicates, switch, wrong mapping, Viewer, other event, all or nothing), Excel (sheet, exact values, Activity file type, choose another sheet), AI with a fake server (used, labelled, recorded; invalid JSON, HTTP 500, wrong-type field and repeated field fall back) | `import/import.db.test.ts` | Database |
+| Suppliers from the second sheet of an Excel file via "Import suppliers", rules label, preview, result, Activity; switch offer at 375 px; Viewer gets no import | `e2e/lifecycle/import-flow.spec.ts` | Browser |
+
+**Manual check: a real model.** The automated tests never call a real model. Once, locally: start
+Ollama (`docs/ai.md`), set `AI_IMPORT_ENABLED=true` and `OLLAMA_URL=http://localhost:11434`,
+import a messy guest list with unusual headers, and check that the matching step says "Suggested
+by AI" with the model's name, that every column can be changed, and that the preview and Activity
+are as for any import. Not yet done in this environment (no model available here).
 
 ## Event lifecycle tests (B1-14, D-039)
 

@@ -845,6 +845,8 @@ export function sampleImportAttendees(args: {
   importerId: string;
   attendees: SampleAttendeeInput[];
   skipped: number;
+  fileType?: "csv" | "xlsx";
+  aiSuggested?: boolean;
   now: Date;
 }): { ok: true; count: number; first: string; last: string } | { ok: false } {
   const s = store();
@@ -862,7 +864,14 @@ export function sampleImportAttendees(args: {
     eventId: args.eventId,
     actorId: args.importerId,
     action: "attendees.imported",
-    details: { count, first, last, skipped: args.skipped },
+    details: {
+      count,
+      first,
+      last,
+      skipped: args.skipped,
+      ...(args.fileType ? { fileType: args.fileType } : {}),
+      ...(args.aiSuggested !== undefined ? { aiSuggested: args.aiSuggested } : {}),
+    },
     now: args.now,
   });
   args.attendees.forEach((attendee, i) => {
@@ -1331,6 +1340,54 @@ export function sampleCreateSupplier(args: {
   });
   s.suppliers.push({ ...args.supplier, id, eventId: args.eventId, number, updatedAt: args.now });
   return { ok: true, supplier: { id, reference } };
+}
+
+/**
+ * Stand-in for importSuppliers (B9-F17, D-109): import.run re-checked here, the next numbers in
+ * order, one suppliers.imported entry. All or nothing: the entry is checked before anything changes.
+ */
+export function sampleImportSuppliers(args: {
+  eventId: string;
+  importerId: string;
+  suppliers: SampleSupplierInput[];
+  skipped: number;
+  fileType: "csv" | "xlsx";
+  aiSuggested: boolean;
+  now: Date;
+}): { ok: true; count: number; first: string; last: string } | { ok: false } {
+  const s = store();
+  const role = roleOf(s, args.eventId, args.importerId);
+  const count = args.suppliers.length;
+  if (!s.events.some((e) => e.id === args.eventId) || !role || count === 0) return { ok: false };
+  if (!rolesAllowed("import.run").includes(role)) return { ok: false };
+  const start = (s.lastSupplierNumber.get(args.eventId) ?? 0) + 1;
+  const first = supplierReference(start);
+  const last = supplierReference(start + count - 1);
+  addAudit(s, {
+    eventId: args.eventId,
+    actorId: args.importerId,
+    action: "suppliers.imported",
+    details: {
+      count,
+      first,
+      last,
+      skipped: args.skipped,
+      fileType: args.fileType,
+      aiSuggested: args.aiSuggested,
+    },
+    now: args.now,
+  });
+  args.suppliers.forEach((supplier, i) => {
+    s.suppliers.push({
+      ...supplier,
+      id: crypto.randomUUID(),
+      eventId: args.eventId,
+      number: start + i,
+      updatedAt: args.now,
+    });
+  });
+  s.lastSupplierNumber.set(args.eventId, start + count - 1);
+  return { ok: true, count, first, last };
 }
 
 // ───────────────────────── Quotes (B4-09, D-075, D-076) ─────────────────────────

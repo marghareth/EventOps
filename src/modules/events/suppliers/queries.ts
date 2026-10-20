@@ -4,7 +4,7 @@
 import "server-only";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { toCalendarDate } from "./payment-due";
-import type { SupplierInput } from "./schema";
+import { formatSupplierReference, type SupplierInput } from "./schema";
 
 /** One supplier as the list and its forms show it. Every member may see every field (D-068). */
 export type SupplierRecord = SupplierInput & {
@@ -34,6 +34,19 @@ export async function listSuppliers(db: PrismaClient, eventId: string): Promise<
     select: SUPPLIER_SELECT,
     orderBy: [{ name: "asc" }, { number: "asc" }],
   });
+}
+
+/** Who is already a supplier, for the import's duplicate check (B9-F10): name and readable ID. */
+export async function listSupplierIdentities(
+  db: PrismaClient,
+  eventId: string,
+): Promise<{ name: string; reference: string }[]> {
+  const rows = await db.supplier.findMany({
+    where: { eventId },
+    select: { name: true, number: true },
+    orderBy: { number: "asc" },
+  });
+  return rows.map((r) => ({ name: r.name, reference: formatSupplierReference(r.number) }));
 }
 
 /** One supplier, only if it belongs to this event. Null otherwise. */

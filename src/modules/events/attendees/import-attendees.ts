@@ -4,7 +4,8 @@
 //      importer is a member whose role may import (import.run, D-035), so a refused user changes
 //      nothing,
 //   2. insert every attendee,
-//   3. record one "attendees.imported" entry (counts and ID range only).
+//   3. record one "attendees.imported" entry (counts, ID range, and since Batch 9 the file type
+//      and whether AI suggested the matching; never names or file contents).
 // If anything fails, nothing is saved and no number is used: all or none. The caller authorizes
 // first and passes only rows that passed the import rules on the server.
 import "server-only";
@@ -20,7 +21,15 @@ export type ImportResult =
 
 export async function importAttendees(
   db: PrismaClient,
-  args: { eventId: string; importerId: string; attendees: AttendeeInput[]; skipped: number },
+  args: {
+    eventId: string;
+    importerId: string;
+    attendees: AttendeeInput[];
+    skipped: number;
+    /** Batch 9 (D-109): the file type read and whether AI suggested the matching. */
+    fileType?: "csv" | "xlsx";
+    aiSuggested?: boolean;
+  },
 ): Promise<ImportResult> {
   const count = args.attendees.length;
   if (count === 0) return { ok: false };
@@ -56,7 +65,14 @@ export async function importAttendees(
         actorId: args.importerId,
         action: "attendees.imported",
         entityId: args.eventId,
-        details: { count, first, last, skipped: args.skipped },
+        details: {
+          count,
+          first,
+          last,
+          skipped: args.skipped,
+          ...(args.fileType ? { fileType: args.fileType } : {}),
+          ...(args.aiSuggested !== undefined ? { aiSuggested: args.aiSuggested } : {}),
+        },
       });
       return { ok: true, count, first, last } as const;
     },

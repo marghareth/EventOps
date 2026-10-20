@@ -118,11 +118,7 @@ export default async function ImpactPage({ params, searchParams }: Props) {
         </section>
       ) : null}
 
-      <section
-        id="assumptions"
-        aria-labelledby="impact-assumptions"
-        className="flex flex-col gap-4"
-      >
+      <section id="assumptions" aria-labelledby="impact-assumptions" className="flex flex-col gap-4">
         <h2 id="impact-assumptions" className="text-h3 font-bold">
           Assumptions
         </h2>
@@ -168,10 +164,7 @@ export default async function ImpactPage({ params, searchParams }: Props) {
         {history.length > 0 ? (
           <p className="text-sm text-ink-2">
             Showing the latest {history.length}. Saved analyses can&apos;t be edited. See{" "}
-            <Link
-              href={`/events/${event.id}/activity`}
-              className="text-blue underline underline-offset-2"
-            >
+            <Link href={`/events/${event.id}/activity`} className="text-blue underline underline-offset-2">
               Activity
             </Link>{" "}
             for who saved what.

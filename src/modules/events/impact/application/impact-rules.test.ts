@@ -67,12 +67,7 @@ describe("the brand book example: expected attendees 180 → 220", () => {
       seatsRecordedNeeds: 8,
     },
     tasks: [
-      {
-        reference: "TSK-0001",
-        title: "Confirm catering headcount",
-        description: null,
-        done: false,
-      },
+      { reference: "TSK-0001", title: "Confirm catering headcount", description: null, done: false },
       { reference: "TSK-0002", title: "Book extra chairs", description: null, done: true },
       { reference: "TSK-0003", title: "Print the programs", description: null, done: false },
     ],
@@ -141,9 +136,7 @@ describe("the brand book example: expected attendees 180 → 220", () => {
   it("sums up as Critical, most serious first", () => {
     expect(result.overall).toBe("CRITICAL");
     expect(result.counts).toEqual({ CRITICAL: 3, NEEDS_ATTENTION: 3, INFO: 0, PASSED: 1 });
-    const ranks = result.items.map((i) =>
-      ["CRITICAL", "NEEDS_ATTENTION", "INFO", "PASSED"].indexOf(i.severity),
-    );
+    const ranks = result.items.map((i) => ["CRITICAL", "NEEDS_ATTENTION", "INFO", "PASSED"].indexOf(i.severity));
     expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
     expect(result.items[0]?.area).toBe("SEATING");
   });
@@ -413,35 +406,23 @@ describe("accessibility (B7-F05)", () => {
       ).items,
       "accessibility-seats-estimate",
     );
-    expect(short).toMatchObject({
-      severity: "NEEDS_ATTENTION",
-      title: "About 1 more accessible seat may be needed",
-    });
+    expect(short).toMatchObject({ severity: "NEEDS_ATTENTION", title: "About 1 more accessible seat may be needed" });
   });
 
   it("needs no seats at a ratio of 0 and every seat at 100", () => {
     expect(
-      byKey(
-        run(state(), 220, assume({ accessibleSeatsPer100: "0.00" })).items,
-        "accessibility-seats-estimate",
-      ).severity,
+      byKey(run(state(), 220, assume({ accessibleSeatsPer100: "0.00" })).items, "accessibility-seats-estimate")
+        .severity,
     ).toBe("PASSED");
     expect(
-      byKey(
-        run(state(), 220, assume({ accessibleSeatsPer100: "100.00" })).items,
-        "accessibility-seats-estimate",
-      ).title,
+      byKey(run(state(), 220, assume({ accessibleSeatsPer100: "100.00" })).items, "accessibility-seats-estimate")
+        .title,
     ).toBe("About 220 more accessible seats may be needed");
   });
 });
 
 describe("related tasks (B7-F07)", () => {
-  const task = (
-    reference: string,
-    title: string,
-    description: string | null = null,
-    done = false,
-  ) => ({
+  const task = (reference: string, title: string, description: string | null = null, done = false) => ({
     reference,
     title,
     description,
@@ -469,12 +450,8 @@ describe("related tasks (B7-F07)", () => {
   });
 
   it("passes when no task mentions an affected area", () => {
-    expect(
-      byKey(
-        run(state({ tasks: [task("TSK-0001", "Print programs")] }), 220).items,
-        "related-tasks",
-      ),
-    ).toMatchObject({ severity: "PASSED", references: [] });
+    expect(byKey(run(state({ tasks: [task("TSK-0001", "Print programs")] }), 220).items, "related-tasks"))
+      .toMatchObject({ severity: "PASSED", references: [] });
   });
 });
 

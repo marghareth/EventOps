@@ -199,25 +199,37 @@ the same: not found.
   caller, and checks that denials change nothing and leak nothing; it runs in CI (D-054).
 - **Activity** never stores contact details, dietary needs or notes (`activity.db.test.ts`).
 
-## CSV import (B2-14 to B2-18, D-052)
+## Import (B2-14 to B2-18, D-052; Batch 9, D-108 to D-112)
 
 - **Who:** `import.run` (Owner, Coordinator), checked by the page and again by the server action at
-  every step. Refused roles and non-members change nothing.
-- **File checks:** a `.csv` name and a CSV media type, at most 500 KB, decoded as UTF-8 with errors
-  refused, no NUL bytes; at most 2,000 rows, 50 columns and 5,000 characters per value. The file
-  name is shown only, never used as a path, and the file is never stored.
-- **Nothing trusted from the browser:** the file text travels between steps, and the server
-  re-checks its size and re-parses, re-maps and re-validates it at every step. At confirm, the
-  number the user saw must match the server's own count, or nothing is imported and the new
-  numbers are shown.
-- **Validation:** every row goes through the add form's schema (D-042); RSVP words come from a
-  fixed list; a mapping may only name known attendee fields, each once. Rows that fail are never
-  written.
-- **Writes:** one transaction: numbers, attendees and one Activity entry, or nothing.
+  every step, for attendees and suppliers alike. The import re-checks the role inside its
+  transaction. Refused roles and non-members change nothing; another event's ID in the address
+  imports only into that event if the user may import there.
+- **File checks:** a `.csv` name with a CSV media type (at most 500 KB, decoded as UTF-8 with errors
+  refused, no NUL bytes) or an `.xlsx` name with an Excel media type (at most 750 KB). Excel files
+  are read by our own reader: ZIP64, encrypted and unknown-compression parts refused, at most 20 MB
+  unpacked in total (zip bombs) and 2,000 archive entries, sheet paths can't leave the package,
+  values only (formulas, macros, links and images are never read or run). Either way at most 2,000
+  rows, 50 columns and 5,000 characters per value. The file name is shown only, never used as a
+  path, and the file is never stored.
+- **Nothing trusted from the browser:** the file text (an Excel sheet converted to CSV text) travels
+  between steps, and the server re-checks its size and re-parses, re-maps and re-validates it at
+  every step. The import type and file type are read from fixed lists. At confirm, the number the
+  user saw must match the server's own count, or nothing is imported and the new numbers are shown.
+- **Validation:** every row goes through its list's add form schema (attendees D-042, suppliers
+  D-070); a mapping may only name fields of the chosen list, each once. Rows that fail are never
+  written. Money is never imported.
+- **AI (D-111, D-112):** the open-weight model only suggests the matching. Its answer is untrusted:
+  strict schema check, then the same mapping rules as the browser's, then the user's review; it
+  never writes anything. It is sent headers, detected types and at most 3 sample values of 40
+  characters per column, as JSON data with an instruction to treat it as data. The model server
+  address is server configuration only (http or https), the request has a 20-second limit, no
+  redirects, a capped response size, and is never logged. The Compose file binds Ollama to
+  127.0.0.1 because Ollama has no authentication.
+- **Writes:** one transaction: numbers, rows and one Activity entry, or nothing.
 - **Cells are data:** values are stored as plain text and never evaluated. React escapes them when
-  shown. Formula-looking cells are neutralized when written to CSV (rows needing correction now,
-  the export later).
-- **No AI** in this import. The AI import (Tier 1) will reuse the same review-before-saving steps.
+  shown. Formula-looking cells are neutralized when written to a CSV download (rows needing
+  correction, the export).
 
 ## CSV export (B2-19, D-053)
 

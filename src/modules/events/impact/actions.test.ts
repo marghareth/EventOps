@@ -54,11 +54,7 @@ describe("saveAssumptionsAction", () => {
   it("asks for impact.assumptions, and stops at a refusal", async () => {
     authorizeEvent.mockResolvedValue({ ok: false, reason: "forbidden" });
     const state = await saveAssumptionsAction(EVENT, idle, assumptions);
-    expect(authorizeEvent).toHaveBeenCalledWith(
-      EVENT,
-      "impact.assumptions",
-      `/events/${EVENT}/impact`,
-    );
+    expect(authorizeEvent).toHaveBeenCalledWith(EVENT, "impact.assumptions", `/events/${EVENT}/impact`);
     expect(state).toMatchObject({
       status: "error",
       message: "Only Owners and Coordinators can change the assumptions.",
@@ -70,21 +66,13 @@ describe("saveAssumptionsAction", () => {
     authorizeEvent.mockResolvedValue({ ok: true, event: { id: EVENT }, user: USER });
     repository.saveAssumptions.mockResolvedValue({ ok: true, changed: true });
     await expect(
-      saveAssumptionsAction(
-        EVENT,
-        idle,
-        form({ ...Object.fromEntries(assumptions), eventId: "x" }),
-      ),
+      saveAssumptionsAction(EVENT, idle, form({ ...Object.fromEntries(assumptions), eventId: "x" })),
     ).rejects.toMatchObject({ url: `/events/${EVENT}/impact?notice=assumptions-saved` });
     expect(repository.saveAssumptions).toHaveBeenCalledWith({
       eventId: EVENT,
       actorId: USER.id,
       version: null,
-      input: {
-        cateringCostPerHead: "300.00",
-        accessibleSeatsPer100: null,
-        cateringCategoryId: null,
-      },
+      input: { cateringCostPerHead: "300.00", accessibleSeatsPer100: null, cateringCategoryId: null },
     });
   });
 

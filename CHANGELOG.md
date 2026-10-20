@@ -9,6 +9,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B9 Import and AI (B9-F01 to B9-F21; D-108 to D-112).**
+  - One import for attendees **and suppliers**, from **CSV or Excel (.xlsx)** files. Choose what
+    you're importing at the start (the Suppliers page has a new "Import suppliers" link); if the
+    columns look like the other list, the matching step offers to switch.
+  - Excel files are read by our own reader (no new dependency): values only, the first sheet or the
+    one you choose, with size and zip-bomb limits. Files are never stored.
+  - Column matching suggested automatically: each column's type is detected (emails, phone numbers,
+    dates, numbers, yes/no, text) and shown, and headers are matched with fixed word lists combined
+    with the type, so "Contact" holding emails becomes Email. Supplier categories are read from
+    words like "caterer" or "florist"; anything else is Other with the original text.
+  - Optional AI suggestion with an open-weight model (Qwen2.5 7B Instruct, Apache-2.0, via Ollama;
+    Docker Compose file included). Its answer is schema-checked and checked with the same mapping
+    rules as yours, labelled "Suggested by AI", and always reviewed before anything is saved. When
+    the model is off, unreachable, slow (20 s) or wrong, the rules' suggestion is used and the page
+    says so. The deployed app uses the rules.
+  - Supplier imports: name, category, contact person, email, phone and notes; never money. Same
+    preview, duplicates and one-transaction import as attendees, with a `suppliers.imported`
+    Activity entry. Activity now says which file type an import read and whether AI suggested the
+    matching. No new permission, no migration.
+
 - **B8 Event Health (B8-F01 to B8-F20; D-105 to D-107).**
   - Thirteen health checks across attendees, suppliers, budget, accessibility and tasks, each with
     an outcome (Critical, Needs attention, Passed or Not checked, always with an icon and a word), a
@@ -743,6 +763,10 @@ build` fails if it is set.
   sign-in are marked dynamic, so the build never tries to prerender them.
 
 ### Changed
+
+- **Import (Batch 2 → Batch 9).** The attendee import moved to the new import context and became
+  the general import; the guest list's "Import CSV" link is now "Import spreadsheet". The empty-file
+  message no longer says "guests".
 
 - Demo sign-in without a database no longer shows "No database connected"; the `no-database`
   result was removed from the access check, authorization and the event list (D-041). The demo

@@ -24,10 +24,7 @@ import { formatImpactReference } from "./infrastructure/prisma-impact-repository
 import { assumptionsFormSchema, proposedAttendeesSchema } from "./schema";
 
 const versionSchema = z.union([z.literal("").transform(() => null), z.iso.datetime()]);
-const fromSchema = z
-  .string()
-  .regex(/^\d{1,7}$/)
-  .transform(Number);
+const fromSchema = z.string().regex(/^\d{1,7}$/).transform(Number);
 
 const impactPath = (eventId: string) => `/events/${encodeURIComponent(eventId)}/impact`;
 
@@ -52,8 +49,7 @@ export async function saveAssumptionsAction(
   const values = {} as Record<AssumptionFormField, string>;
   for (const field of ASSUMPTION_FORM_FIELDS) values[field] = text(formData, field);
   if (!auth.ok) {
-    const message =
-      auth.reason === "forbidden" ? MESSAGES.assumptionsForbidden : MESSAGES.eventNotFound;
+    const message = auth.reason === "forbidden" ? MESSAGES.assumptionsForbidden : MESSAGES.eventNotFound;
     return { status: "error", message, values };
   }
 

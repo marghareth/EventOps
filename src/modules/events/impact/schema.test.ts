@@ -38,9 +38,7 @@ describe("the assumptions", () => {
   });
 
   it("stores pesos exactly, with the budget's peso rule", () => {
-    expect(assumptions({ cateringCostPerHead: "₱1,350.5" }).data?.cateringCostPerHead).toBe(
-      "1350.50",
-    );
+    expect(assumptions({ cateringCostPerHead: "₱1,350.5" }).data?.cateringCostPerHead).toBe("1350.50");
     expect(assumptions({ cateringCostPerHead: "0" }).data?.cateringCostPerHead).toBe("0.00");
     expect(assumptions({ cateringCostPerHead: "-1" }).success).toBe(false);
     expect(assumptions({ cateringCostPerHead: "1.005" }).success).toBe(false);

@@ -17,6 +17,8 @@ const {
   sampleCreateEvent,
   sampleGetAttendee,
   sampleImportAttendees,
+  sampleImportSuppliers,
+  sampleListSuppliers,
   sampleUpdateAttendee,
   sampleDeleteEvent,
   sampleGetEventForMember,
@@ -516,6 +518,40 @@ describe("sample import (B2-18, D-052)", () => {
       action: "attendees.imported",
       details: { count: 2, first: "ATT-0009", last: "ATT-0010", skipped: 3 },
     });
+  });
+
+  it("imports suppliers after the last number with one entry, and refuses a Viewer (B9, D-109)", () => {
+    const supplier = (name: string) => ({
+      name,
+      category: "CATERING" as const,
+      categoryDetail: null,
+      contactName: null,
+      email: null,
+      phone: null,
+      notes: null,
+    });
+    const args = {
+      importerId: ME,
+      suppliers: [supplier("Garden Kitchen"), supplier("Bloom Co.")],
+      skipped: 1,
+      fileType: "xlsx" as const,
+      aiSuggested: true,
+      now: at,
+    };
+    expect(sampleImportSuppliers({ ...args, eventId: IDS.wedding })).toEqual({
+      ok: true,
+      count: 2,
+      first: "SUP-0005",
+      last: "SUP-0006",
+    });
+    expect(sampleListSuppliers(IDS.wedding).filter((x) => x.number > 4)).toHaveLength(2);
+    expect(sampleListAuditEntries(IDS.wedding)[0]).toMatchObject({
+      action: "suppliers.imported",
+      details: { count: 2, skipped: 1, fileType: "xlsx", aiSuggested: true },
+    });
+    const before = sampleListSuppliers(IDS.yearEnd).length;
+    expect(sampleImportSuppliers({ ...args, eventId: IDS.yearEnd })).toEqual({ ok: false });
+    expect(sampleListSuppliers(IDS.yearEnd)).toHaveLength(before);
   });
 
   it("refuses a Viewer, a stranger and an empty import, changing nothing", () => {
