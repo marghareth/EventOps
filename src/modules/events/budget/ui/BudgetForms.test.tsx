@@ -38,8 +38,8 @@ describe("CategoryForm", () => {
     expect(summary).toHaveFocus();
     expect(summary).toHaveTextContent("Enter a category name.");
     expect(summary).toHaveTextContent("Enter an amount in pesos.");
-    expect(screen.getByLabelText("Category name")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByLabelText("Allocation (₱)")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText(/^Category name/)).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText(/^Allocation \(₱\)/)).toHaveAttribute("aria-invalid", "true");
   });
 
   it("jumps from a summary line to its field", async () => {
@@ -51,8 +51,8 @@ describe("CategoryForm", () => {
     render(<CategoryForm eventId="e1" cancelHref="/events/e1/budget" />);
     await userEvent.click(screen.getByRole("button", { name: "Add category" }));
     await userEvent.click(await screen.findByRole("link", { name: "Enter an amount in pesos." }));
-    expect(screen.getByLabelText("Allocation (₱)")).toHaveFocus();
-    expect(screen.getByLabelText("Category name")).toHaveValue("Venue");
+    expect(screen.getByLabelText(/^Allocation \(₱\)/)).toHaveFocus();
+    expect(screen.getByLabelText(/^Category name/)).toHaveValue("Venue");
   });
 
   it("says nothing was saved when the request fails, with no field errors", async () => {
@@ -65,7 +65,7 @@ describe("CategoryForm", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add category" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Nothing was saved");
     expect(screen.queryByRole("group", { name: "Fix these to continue" })).toBeNull();
-    expect(screen.getByLabelText("Category name")).toHaveValue("Venue");
+    expect(screen.getByLabelText(/^Category name/)).toHaveValue("Venue");
   });
 });
 

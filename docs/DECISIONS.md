@@ -3167,3 +3167,80 @@ answers with an HTTP error, takes more than 20 seconds, or answers something tha
 check: "Matched by rules: AI wasn't available". When the answer fails the business check: "Matched
 by rules: the AI suggestion didn't pass our checks". No retry, no logging of the request, and the
 import itself never depends on the model.
+
+---
+
+## D-113 Batch 10 scope: polish, not features
+
+**Status:** Approved by the technical lead on 2026-10-20 (B10 plan, point 4).
+
+**Decision.** Batch 10 changes how existing screens look, read and behave for keyboard and screen
+reader users. No new features, data, permissions or migrations; no change to the design tokens or
+brand; no new dashboard data. Anything found that needs a product decision is listed, not built.
+Existing defects that users see on these screens or that block verifying them are fixed (3a); the
+budget pages' missing membership check is left for the vulnerability review (3b not chosen).
+
+---
+
+## D-114 Budget on the shared design system
+
+**Status:** Approved by the technical lead on 2026-10-20 (B10 plan, decision 2).
+
+**Decision.**
+
+1. Budget uses the shared FormField (label, required mark, hint, error with icon and "Error"),
+   Banner, SuccessMessage and the design tokens, like every other module. Its own field component
+   was removed.
+2. Deleting a budget category or item uses the shared confirm dialog (like tasks and suppliers): it
+   names the record, says it can't be undone, starts on "Keep", and returns focus on Escape. This
+   replaces the inline "Delete → Yes, delete".
+3. The shared `Input` uses the token colours (it had the old red hard-coded).
+4. The budget item columns start at 1280 px wide; below that each item is a card. They scrolled
+   sideways on a tablet.
+
+---
+
+## D-115 States and defects fixed in Batch 10
+
+**Status:** Approved by the technical lead on 2026-10-20 (B10 plan, option 3a).
+
+**Decision.**
+
+1. **Task list Overdue filter:** the page passes the Philippine "today" to the filter, the same one
+   the overdue badges use. `?overdue=only` crashed the page before.
+2. **Event-level error screen** (`events/[eventId]/error.tsx`) for the Overview and pages without
+   their own, so the sidebar and event header stay when one fails.
+3. **Tests:** the two supplier test files that held component code got real tests; the task query
+   tests were updated for the overdue filter; the supplier browser test is scoped to the card.
+
+---
+
+## D-116 How accessibility is checked
+
+**Status:** Approved by the technical lead on 2026-10-20 (B10 plan, decision 1a).
+
+**Decision.**
+
+1. `@axe-core/playwright` (MPL-2.0, Deque) is a dev-only dependency, pinned at 4.13.0 (the newest
+   release more than two weeks old). It runs only in the browser tests; nothing ships to users.
+2. `e2e/lifecycle/accessibility-review.spec.ts` checks every Tier 1 screen and four interactive
+   states with axe's WCAG 2.2 A and AA rules, sideways scrolling at 375 and 768 px, Tab order and
+   visible focus, and 44 px targets at 375 px. Any finding fails the run.
+3. A screen reader pass and real-device checks stay manual (docs/accessibility-review.md).
+
+---
+
+## D-117 Dashboard, Critical view and import polish
+
+**Status:** Approved by the technical lead on 2026-10-20 (B10 plan, steps 5 and 6).
+
+**Decision.**
+
+1. Health issue cards have a coloured left edge by outcome (Critical, Needs attention) for
+   scanning; the badge's word still carries the meaning.
+2. Each issue's fix link also names the issue for screen readers ("Open Suppliers: 1 payment is
+   overdue").
+3. On the Overview, "View N critical issues" sits next to the "Needs your attention" heading.
+4. The import shows its three steps (Choose a file, Match columns, Check and import) with the
+   current one marked `aria-current="step"` and in words, done ones with a check and "(done)".
+5. No new data, checks or rules.

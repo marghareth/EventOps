@@ -114,6 +114,27 @@ describe("overdue on the task list page (B6-F10)", () => {
     );
     expect(screen.getByText("Overdue")).toBeVisible();
   });
+
+  it("filters to overdue tasks from the address without crashing (B10, D-115)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-20T00:00:00Z") });
+    getEventTasks.mockResolvedValue({
+      ok: true,
+      canManage: true,
+      tasks: [
+        record(1, { dueDate: "2026-11-14" }),
+        record(2, { dueDate: "2026-12-01" }),
+        record(3, { dueDate: "2026-11-14", status: "DONE" }),
+      ],
+    });
+    render(
+      await TasksPage({
+        params: Promise.resolve({ eventId: EVENT }),
+        searchParams: Promise.resolve({ overdue: "only" }),
+      }),
+    );
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent("1 of 3 tasks match.");
+  });
 });
 
 describe("the task list page", () => {

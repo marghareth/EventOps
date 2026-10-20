@@ -14,7 +14,7 @@ batches PROJECT_RULES names are filled in.
 **Status values.** Not started · In progress · In review (built and tested, awaiting the technical
 lead) · Done (accepted) · Blocked.
 
-_Last updated: 2026-10-20 (Batch 7, 8 and 9 rows added; earlier rows not re-checked)._
+_Last updated: 2026-10-20 (Batch 7 to 10 rows added; earlier rows not re-checked)._
 
 ## Tier 1: required baseline
 
@@ -239,6 +239,31 @@ _Last updated: 2026-10-20 (Batch 7, 8 and 9 rows added; earlier rows not re-chec
 | **B9-F19 Event-Scoped Import Authorization**: `import.run` every step, role re-checked in the transaction, only the event in the address (D-109) | B9 | In review: database and browser tests pass |
 | **B9-F20 Import Tests**: docs/testing.md, Import tests | B9 | In review: all pass; one manual check with a real model left |
 | **B9-F21 Responsive Import Interface**: one column, tables scroll inside their region, 44 px controls (D-109) | B9 | In review: browser test at 375 px; Excel step checked at 1280 px |
+
+### UX and accessibility polish (Batch 10)
+
+| Item | Batch | Status |
+| ---- | ----- | ------ |
+| **B10-F01 Consistent Brand Theme**: budget and the shared input moved to the tokens; tokens unchanged (D-114) | B10 | In review: axe contrast pass on every screen |
+| **B10-F02 Consistent Navigation**: sidebar current page on nested pages, one page-header style (checked) | B10 | In review: shell tests and browser review pass |
+| **B10-F03 Responsive Layouts**: no sideways scroll at 375 and 768 px; budget items as cards below 1280 px (D-114) | B10 | In review: browser review at 375, 768 and 1280 px |
+| **B10-F04 Loading States**: every section; event-level screen checked | B10 | In review: state tests pass |
+| **B10-F05 Empty States**: every list (checked, no change needed) | B10 | In review: page tests pass |
+| **B10-F06 Error States**: event-level error screen; overdue filter crash fixed (D-115) | B10 | In review: state and page tests pass |
+| **B10-F07 Form Validation Feedback**: budget on the shared field and error summary; input kept (D-114) | B10 | In review: form tests and browser review pass |
+| **B10-F08 Success Feedback**: budget on the shared success message (D-114) | B10 | In review: page tests pass |
+| **B10-F09 Confirmation for Destructive Actions**: budget delete on the shared dialog; every delete now asks the same way (D-114) | B10 | In review: dialog tests and browser review pass |
+| **B10-F10 Keyboard Navigation**: Tab through every screen, skip link first (D-116) | B10 | In review: browser review passes |
+| **B10-F11 Screen Reader Support**: axe names and roles; fix links name their issue (D-117) | B10 | In review: automated pass; screen reader pass not done (manual) |
+| **B10-F12 Focus Management**: visible ring on every stop; errors, steps and dialogs move or return focus (D-116) | B10 | In review: browser review passes |
+| **B10-F13 Accessible Tables and Lists**: headings, labels, counts and filter results announced (checked) | B10 | In review: axe and page tests pass |
+| **B10-F14 Accessible Status and Alert Messages**: every badge has a word, most an icon; issue edges add to the word (D-117) | B10 | In review: badge tests pass |
+| **B10-F15 Readability and Visual Hierarchy**: token contrast ≥ 4.75:1; budget hints now readable (D-114) | B10 | In review: axe contrast pass |
+| **B10-F16 Consistent UI Components**: budget's own field, notice and delete replaced by shared ones (D-114) | B10 | In review: tests pass |
+| **B10-F17 Dashboard and Critical Alert Polish**: Critical link by the heading, severity edges, named fix links (D-117) | B10 | In review: page tests and browser review pass |
+| **B10-F18 Import Workflow Usability**: step list with current step, focus on load fixed (D-117) | B10 | In review: component and browser tests pass |
+| **B10-F19 Accessibility Review**: docs/accessibility-review.md; automated in the browser tests (D-116) | B10 | In review: automated part passes; manual screen reader pass left |
+| **B10-F20 Cross-Screen UX Verification**: 27 screens and 4 states, every browser flow re-run | B10 | In review: see the completion report |
 
 ### Engineering
 

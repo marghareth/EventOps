@@ -9,12 +9,13 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { Banner } from "@/components/shared/Banner";
 import { FormErrorSummary, type FormErrorItem } from "@/components/shared/FormErrorSummary";
+import { FormField, fieldControlClass } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createItemAction, updateItemAction } from "../actions";
 import type { ItemFormState } from "../form-state";
-import { FormField } from "./FormField";
 
 type Props = {
   eventId: string;
@@ -37,11 +38,6 @@ type Props = {
 };
 
 const IDLE: ItemFormState = { status: "idle" };
-
-const CONTROL =
-  "min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base shadow-xs " +
-  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 " +
-  "aria-invalid:border-[#C62828]";
 
 export function ItemForm({ eventId, cancelHref, categories, defaultCategoryId, item }: Props) {
   const action = item
@@ -82,29 +78,25 @@ export function ItemForm({ eventId, cancelHref, categories, defaultCategoryId, i
       {item ? <input type="hidden" name="version" value={item.version} /> : null}
 
       {state.status === "error" && state.message ? (
-        <p role="alert" className="rounded-lg border border-[#F2B8B8] bg-[#FBE9E9] p-3 text-sm">
+        <Banner severity="critical" title="Couldn't save the budget item">
           {state.message}
-        </p>
+        </Banner>
       ) : null}
-      {state.status === "success" ? (
-        <p role="status" className="rounded-lg border border-[#B7CFF0] bg-[#E5ECFD] p-3 text-sm">
-          {state.message}
-        </p>
-      ) : null}
+      {state.status === "success" ? <Banner severity="info" title={state.message} /> : null}
 
       {item ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-ink-2">
           Budget item <span className="font-mono">{item.reference}</span>
         </p>
       ) : null}
 
-      <FormField id="item-category" label="Category" error={fieldErrors.categoryId}>
+      <FormField required id="item-category" label="Category" error={fieldErrors.categoryId}>
         {(control) => (
           <select
             {...control}
             name="categoryId"
             defaultValue={values.categoryId}
-            className={CONTROL}
+            className={fieldControlClass}
           >
             <option value="" disabled>
               Choose a category
@@ -118,7 +110,7 @@ export function ItemForm({ eventId, cancelHref, categories, defaultCategoryId, i
         )}
       </FormField>
 
-      <FormField id="item-name" label="Item name" error={fieldErrors.name}>
+      <FormField required id="item-name" label="Item name" error={fieldErrors.name}>
         {(control) => (
           <Input
             {...control}
@@ -132,6 +124,7 @@ export function ItemForm({ eventId, cancelHref, categories, defaultCategoryId, i
       </FormField>
 
       <FormField
+        required
         id="item-estimated"
         label="Estimated (₱)"
         hint="What you expect this to cost."
@@ -191,7 +184,7 @@ export function ItemForm({ eventId, cancelHref, categories, defaultCategoryId, i
             defaultValue={values.notes}
             rows={4}
             maxLength={2000}
-            className={CONTROL}
+            className={`${fieldControlClass} py-3`}
           />
         )}
       </FormField>

@@ -509,6 +509,22 @@ import a messy guest list with unusual headers, and check that the matching step
 by AI" with the model's name, that every column can be changed, and that the preview and Activity
 are as for any import. Not yet done in this environment (no model available here).
 
+## UX and accessibility tests (B10-F19, F20; D-113 to D-117)
+
+| What | Where | Layer |
+| ---- | ----- | ----- |
+| axe WCAG 2.2 A/AA on 27 screens and 4 states with real data; no sideways scroll at 375 and 768 px; Tab order from the skip link, visible focus ring on every stop; 44 px targets at 375 px; focus after errors, import steps and dialogs | `e2e/lifecycle/accessibility-review.spec.ts` | Browser |
+| Budget delete dialog: names the record, focus on Keep, cancel removes nothing, refusal announced | `budget/ui/DeleteButton.test.tsx` | Component |
+| Budget forms on the shared field (required labels, errors, kept input) | `budget/ui/BudgetForms.test.tsx` | Component |
+| Overdue filter from the address, no crash | `app/(app)/events/[eventId]/tasks/page.test.tsx` | Component |
+| Event-level loading and error screens | `app/(app)/events/[eventId]/states.test.tsx` | Component |
+| Fix links name their issue; Critical link before the list | `app/(app)/events/[eventId]/page.test.tsx` | Component |
+| Import steps list, first-load focus | `import/ui/ImportWizard.test.tsx` | Component |
+| Quote status words and icons; Remove supplier dialog | `suppliers/ui/QuoteStatusBadge.test.tsx`, `suppliers/ui/RemoveSupplierSection.test.tsx` | Component |
+
+Findings and the manual checks still to do (screen reader, real phone, 200% zoom) are in
+docs/accessibility-review.md.
+
 ## Event lifecycle tests (B1-14, D-039)
 
 The whole event foundation is tested as one story, twice:

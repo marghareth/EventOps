@@ -62,7 +62,10 @@ test("2. edit the supplier", async ({ page }) => {
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page).toHaveURL(/\/suppliers\?saved=SUP-0001$/);
   await expect(page.getByText("Sparkle Lights PH (SUP-0001) is up to date.")).toBeVisible();
-  await expect(page.getByText("Sound and lights")).toBeVisible();
+  // Scoped to the supplier's card: the category filter lists the same words (B4-18).
+  await expect(page.getByRole("listitem").filter({ hasText: "Sparkle Lights PH" })).toContainText(
+    "Sound and lights",
+  );
 });
 
 test("3. removing asks first; Cancel keeps the supplier, confirming removes it", async ({
@@ -114,9 +117,12 @@ test("5. a Viewer reads suppliers and their contacts but can't change them", asy
 
   await page.goto(suppliersPath);
   await expect(page.getByRole("heading", { level: 3, name: "Garden Kitchen" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "liza@gardenkitchen.ph" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Add supplier" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /^Edit / })).toHaveCount(0);
+  // The list shows only the contact person (D-073); the email is on the supplier's page, which a
+  // Viewer can read. (This step expected it on the list; found in B10 once step 2 ran again.)
+  await page.goto(editPath.replace(/\/edit$/, ""));
+  await expect(page.getByRole("link", { name: "liza@gardenkitchen.ph" })).toBeVisible();
 
   await page.goto(editPath);
   await expect(page.getByRole("heading", { name: "You don't have access to this" })).toBeVisible();
