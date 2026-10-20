@@ -290,6 +290,31 @@ export const taskChangesSchema = z
 
 export type TaskChanges = z.infer<typeof taskChangesSchema>;
 
+/** A two-place ratio from 0.00 to 100.00 (accessible seats per 100 guests, D-102). */
+const seatRatio = z.string().regex(/^(?:100\.00|[1-9]?\d\.\d{2})$/);
+
+/**
+ * Impact assumptions as recorded in "impact_assumptions.updated" (B7-F12, D-102). Only changed
+ * values; null is "not set". The catering category is recorded by name, as Activity shows it.
+ */
+export const impactAssumptionChangesSchema = z
+  .object({
+    cateringCostPerHead: fromTo(pesoAmount.nullable()),
+    accessibleSeatsPer100: fromTo(seatRatio.nullable()),
+    cateringCategory: fromTo(z.string().nullable()),
+  })
+  .partial()
+  .strict()
+  .refine((changes) => Object.keys(changes).length > 0, "An update must change something.");
+
+export type ImpactAssumptionChanges = z.infer<typeof impactAssumptionChangesSchema>;
+
+/** Impact severities as stored (D-101). The audit registry's own copy; tests keep them equal. */
+export const IMPACT_SEVERITIES = ["CRITICAL", "NEEDS_ATTENTION", "INFO", "PASSED"] as const;
+
+/** The saved analysis's readable ID, for example IMP-0001 (D-103). */
+const impactReference = z.string().regex(/^IMP-\d{4,}$/);
+
 /** Who an attendee entry is about: the readable ID and the name at that moment. */
 const attendeeIdentity = z.object({ reference: attendeeReference, name: z.string() }).strict();
 
@@ -528,6 +553,29 @@ export const AUDIT_ACTIONS = {
   "task.deleted": {
     entityType: "task",
     details: z.object({ reference: taskReference, title: z.string() }).strict(),
+  },
+  /**
+   * The event's impact assumptions were changed (B7-F12, D-102). The entity is the event, because
+   * the assumptions belong to it one-to-one. Only the changed values.
+   */
+  "impact_assumptions.updated": {
+    entityType: "event",
+    details: z.object({ changes: impactAssumptionChangesSchema }).strict(),
+  },
+  /**
+   * An impact analysis was saved to the history (B7-F11, D-103): its readable ID, the change it
+   * simulated and its overall severity. The items themselves stay in the saved analysis.
+   */
+  "impact_analysis.created": {
+    entityType: "impact_analysis",
+    details: z
+      .object({
+        reference: impactReference,
+        from: z.number().int().min(0),
+        to: z.number().int().min(0),
+        overall: z.enum(IMPACT_SEVERITIES),
+      })
+      .strict(),
   },
 } as const;
 

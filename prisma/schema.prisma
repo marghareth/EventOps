@@ -3,7 +3,8 @@
 // EventOps data model. B0-08 Database Foundation: users, events and event members; B1-11 adds the
 // audit log; B2-01 adds attendees; B3-01 adds accessibility requirements and resources; B4 adds
 // suppliers, quotes and payments; B5-F01 and B5-F02 add budget categories and budget items; B6 adds
-// tasks, with priority and assignee (B6-F04, B6-F05), status and due date (B6-F06, B6-F07).
+// tasks, with priority and assignee (B6-F04, B6-F05), status and due date (B6-F06, B6-F07); B7 adds
+// impact assumptions and saved impact analyses (D-101 to D-104).
 // Other tables are added by their own batch tasks,
 // following docs/DECISIONS.md (D-002, D-003) and docs/DATA_MODEL.md.
 //
@@ -143,9 +144,10 @@ model User {
   email       String   @unique
   createdAt   DateTime @default(now())
 
-  memberships   EventMember[]
-  createdEvents Event[]
-  auditLogs     AuditLog[]
+  memberships    EventMember[]
+  createdEvents  Event[]
+  auditLogs      AuditLog[]
+  impactAnalyses ImpactAnalysis[]
 
   @@map("users")
 }
@@ -168,44 +170,48 @@ model User {
 // - events_last_quote_number_nonneg: lastQuoteNumber is 0 or more.
 // - events_last_payment_number_nonneg: lastPaymentNumber is 0 or more.
 // - events_last_task_number_nonneg: lastTaskNumber is 0 or more.
+// - events_last_impact_number_nonneg: lastImpactNumber is 0 or more.
 model Event {
-  id                 String      @id @default(uuid()) @db.Uuid
+  id                   String      @id @default(uuid()) @db.Uuid
   // Human-readable ID, for example EVT-2026-0001. Issued from EventReferenceCounter inside the
   // creating transaction (D-005). The unique index is the last line of defence against a duplicate.
-  reference          String      @unique
-  name               String      @db.VarChar(120)
-  description        String?     @db.VarChar(5000)
-  venue              String?     @db.VarChar(200)
-  startsAt           DateTime
-  endsAt             DateTime?
+  reference            String      @unique
+  name                 String      @db.VarChar(120)
+  description          String?     @db.VarChar(5000)
+  venue                String?     @db.VarChar(200)
+  startsAt             DateTime
+  endsAt               DateTime?
   // Venue capacity. Compared with expectedAttendees by the seating rule.
-  capacity           Int?
+  capacity             Int?
   // Planning number. Not the count of attendee records. Changing it produces estimates.
-  expectedAttendees  Int         @default(0)
-  status             EventStatus @default(DRAFT)
+  expectedAttendees    Int         @default(0)
+  status               EventStatus @default(DRAFT)
   // Last attendee number issued in this event (ATT-0001, ...). Incremented atomically by the
   // create-attendee use case, in the same transaction as the insert, with raw SQL so updatedAt
   // (the edit version, D-032) does not move. Numbers are never reused (D-042).
-  lastAttendeeNumber Int         @default(0)
+  lastAttendeeNumber   Int         @default(0)
   // Last supplier number issued in this event (SUP-0001, ...). Same rules as lastAttendeeNumber
   // (D-068).
-  lastSupplierNumber Int         @default(0)
+  lastSupplierNumber   Int         @default(0)
   // Last quote number issued in this event (QUO-0001, ...). Same rules as lastAttendeeNumber
   // (D-075).
-  lastQuoteNumber    Int         @default(0)
+  lastQuoteNumber      Int         @default(0)
   // Last supplier payment number issued in this event (PAY-0001, ...). Same rules as
   // lastAttendeeNumber (D-077).
-  lastPaymentNumber  Int         @default(0)
+  lastPaymentNumber    Int         @default(0)
   // Last budget item number issued in this event (BUD-0001, ...). Same rules as
   // lastAttendeeNumber (D-085).
-  lastBudgetItemNumber Int       @default(0)
+  lastBudgetItemNumber Int         @default(0)
   // Last task number issued in this event (TSK-0001, ...). Same rules as lastAttendeeNumber (D-094).
-  lastTaskNumber     Int         @default(0)
+  lastTaskNumber       Int         @default(0)
+  // Last saved impact analysis number issued in this event (IMP-0001, ...). Same rules as
+  // lastAttendeeNumber (D-103).
+  lastImpactNumber     Int         @default(0)
   // Restrict: a user who created events cannot be deleted while those events exist (D-011).
-  createdById        String      @db.Uuid
-  createdAt          DateTime    @default(now())
+  createdById          String      @db.Uuid
+  createdAt            DateTime    @default(now())
   // Set by Prisma on every update through the client. Raw SQL updates must set it themselves.
-  updatedAt          DateTime    @updatedAt
+  updatedAt            DateTime    @updatedAt
 
   createdBy                 User                       @relation(fields: [createdById], references: [id], onDelete: Restrict)
   members                   EventMember[]
@@ -219,6 +225,8 @@ model Event {
   budgetCategories          BudgetCategory[]
   budgetItems               BudgetItem[]
   tasks                     Task[]
+  impactAssumptions         EventImpactAssumptions?
+  impactAnalyses            ImpactAnalysis[]
 
   @@index([createdById])
   @@index([status, startsAt])
@@ -605,8 +613,11 @@ model BudgetCategory {
   // Edit version: a save carrying an older value is refused as stale (D-032).
   updatedAt        DateTime @updatedAt
 
-  event Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  items BudgetItem[]
+  event             Event                    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  items             BudgetItem[]
+  // Impact assumptions that charge catering to this category (D-102). Cleared by a trigger when
+  // the category is deleted, so deleting a category is never blocked.
+  impactAssumptions EventImpactAssumptions[]
 
   // Target of the composite foreign key from budget_items (D-002).
   @@unique([eventId, id])
@@ -699,4 +710,71 @@ model Task {
   // A member's tasks, and the unassign trigger.
   @@index([eventId, assigneeId])
   @@map("tasks")
+}
+
+// ───────────────────────── Impact (B7, D-101 to D-104) ─────────────────────────
+
+enum ImpactSeverity {
+  CRITICAL
+  NEEDS_ATTENTION
+  INFO
+  PASSED
+
+  @@map("impact_severity")
+}
+
+// The editable impact assumptions of one event (B7-F12, D-102). At most one row per event; no row
+// means nothing is set. Every value is optional and has no default: a rule that needs a missing
+// value says so instead of guessing. Edited by impact.assumptions (Owner, Coordinator).
+//
+// CHECK constraints (migration SQL):
+// - event_impact_assumptions_cost_nonneg:  cateringCostPerHead is NULL or 0 or more.
+// - event_impact_assumptions_ratio_range:  accessibleSeatsPer100 is NULL or from 0 to 100.
+// Trigger: deleting a budget category clears cateringCategoryId first (BEFORE DELETE), so the
+// composite foreign key never blocks the deletion.
+model EventImpactAssumptions {
+  eventId               String   @id @db.Uuid
+  // Pesos per person, exact.
+  cateringCostPerHead   Decimal? @db.Decimal(12, 2)
+  // Accessible seats needed per 100 guests.
+  accessibleSeatsPer100 Decimal? @db.Decimal(5, 2)
+  // A budget category of the same event (D-002), or NULL.
+  cateringCategoryId    String?  @db.Uuid
+  // Edit version: a save carrying an older value is refused as stale (D-032).
+  updatedAt             DateTime @updatedAt
+
+  event            Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  cateringCategory BudgetCategory? @relation(fields: [eventId, cateringCategoryId], references: [eventId, id], onDelete: NoAction)
+
+  @@map("event_impact_assumptions")
+}
+
+// A saved impact analysis (B7-F11, D-103): a snapshot of one simulation, kept as it was. Saving it
+// never changes the event. Append-only (trigger): never edited, removed only with its event.
+// Readable ID: IMP-<number>, numbered per event from Event.lastImpactNumber, never reused.
+//
+// CHECK constraints (migration SQL):
+// - impact_analyses_number_positive:   number is 1 or more.
+// - impact_analyses_attendees_range:   fromAttendees and toAttendees are from 0 to 1,000,000.
+// - impact_analyses_result_object:     result is a JSON object.
+model ImpactAnalysis {
+  id              String         @id @default(uuid()) @db.Uuid
+  eventId         String         @db.Uuid
+  number          Int
+  fromAttendees   Int
+  toAttendees     Int
+  overallSeverity ImpactSeverity
+  // The assumptions used and every impact item, as shown when saved. Validated on write and read.
+  result          Json
+  // Who saved it. NULL only if that user has since been deleted.
+  createdById     String?        @db.Uuid
+  createdAt       DateTime       @default(now())
+
+  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, number])
+  @@index([eventId, createdAt])
+  @@index([createdById])
+  @@map("impact_analyses")
 }

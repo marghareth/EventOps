@@ -5,26 +5,26 @@
 //
 // The client is created on first use, not on import, so `next build` works without a database.
 // In development one client is kept on globalThis so hot reloads do not open new connections.
+// The server environment is validated (src/lib/env.server.ts) before the first client is built.
 //
-// ASSUMPTIONS: the `@prisma/adapter-pg` package is installed (Prisma 7 needs an adapter), and the
-// generated client is at src/generated/prisma (the generator's output in schema.prisma).
+// createPrismaClient(url) builds a client for an explicit URL. Database tests use it with
+// TEST_DATABASE_URL; the app uses getDb() / db.
 import "server-only";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { parseServerEnv } from "./env.server";
 
-const globalForDb = globalThis as unknown as { prisma?: PrismaClient };
+const globalForDb = globalThis as unknown as { eventOpsPrisma?: PrismaClient };
 
-function createClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error("DATABASE_URL is not set. Copy .env.example to .env and fill it in.");
-  }
+/** A new client for `connectionString`. Does not connect until the first query. */
+export function createPrismaClient(connectionString: string): PrismaClient {
   return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 }
 
+/** The shared client. Throws a validation error when DATABASE_URL or DIRECT_URL is missing. */
 export function getDb(): PrismaClient {
-  globalForDb.prisma ??= createClient();
-  return globalForDb.prisma;
+  globalForDb.eventOpsPrisma ??= createPrismaClient(parseServerEnv(process.env).DATABASE_URL);
+  return globalForDb.eventOpsPrisma;
 }
 
 /** The shared client. Resolves the real one on first property access. */

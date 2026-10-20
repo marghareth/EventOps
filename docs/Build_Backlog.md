@@ -14,7 +14,7 @@ batches PROJECT_RULES names are filled in.
 **Status values.** Not started · In progress · In review (built and tested, awaiting the technical
 lead) · Done (accepted) · Blocked.
 
-_Last updated: 2026-10-14._
+_Last updated: 2026-10-20 (Batch 7 rows added; earlier rows not re-checked)._
 
 ## Tier 1: required baseline
 
@@ -159,12 +159,35 @@ _Last updated: 2026-10-14._
 
 | Item                                                        | Batch   | Status                    |
 | ----------------------------------------------------------- | ------- | ------------------------- |
-| Impact Detection engine (deterministic)                     |         | Not started               |
+| Impact Detection engine (deterministic)                     | B7      | In review: B7-F01 to B7-F18 |
 | Accessibility readiness (required vs available)             | B3      | In review: B3-07 to B3-11 |
 | Event Health dashboard                                      |         | Not started               |
 | **Critical Alert View** (approved Tier 2 → Tier 1 addition) | Batch 8 | Not started               |
 | AI spreadsheet import with review step                      |         | Not started               |
-| Configurable assumptions panel                              |         | Not started               |
+| Configurable assumptions panel                              | B7      | In review: B7-F12           |
+
+### Impact Detection (Batch 7)
+
+| Item                                                                                                                                                          | Batch | Status                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------- |
+| **B7-F01 Change Impact Analysis**: analyze a proposed change with the deterministic engine; one kind (expected attendees) (D-101)                             | B7    | In review: unit, page and database tests pass; browser flow passes               |
+| **B7-F02 Expected Attendance Change Simulator**: proposed number in the address, current number from the stored event; never changes the event (D-101, D-104) | B7    | In review: page, database and browser tests pass                                 |
+| **B7-F03 Catering Cost Impact**: change × cost per head in centavos; Info without a cost per head; increase Needs attention (D-101, D-102)                    | B7    | In review: rule tests pass; catering severity needs confirmation (D-101 point 4) |
+| **B7-F04 Seating Capacity Impact**: proposed vs venue capacity; over is Critical, at capacity passes; not a seating chart (D-101)                             | B7    | In review: rule tests pass                                                       |
+| **B7-F05 Accessibility Gap Impact**: Batch 3 alerts as still unresolved at their severity, plus the per-100 seat estimate rounded up (D-101, D-102)           | B7    | In review: rule tests pass                                                       |
+| **B7-F06 Budget Overrun Impact**: budget's own D-088 rule on committed + estimated increase, for the event and the catering category (D-101)                  | B7    | In review: rule tests pass with the real budget rule                             |
+| **B7-F07 Related Task Impact**: open tasks mentioning a fixed word list, listed by ID (D-101)                                                                 | B7    | In review: rule tests pass                                                       |
+| **B7-F08 Impact Severity Classification**: Critical, Needs attention, Info, Passed; overall is the worst; ordered (D-101)                                     | B7    | In review: unit tests pass                                                       |
+| **B7-F09 Impact Explanation**: every item has a reason, its assumptions, Estimate or From your records, and where to act (D-101)                              | B7    | In review: unit and page tests pass                                              |
+| **B7-F10 Impact Results Summary**: overall severity, change, counts by severity, simulation statement (D-104)                                                 | B7    | In review: page tests pass; checked in a browser                                 |
+| **B7-F11 Impact History**: Save to history with IMP numbers, snapshot re-validated on read, append-only, newest 20 (D-103)                                    | B7    | In review: database and browser tests pass                                       |
+| **B7-F12 Editable Impact Assumptions**: three optional values per event, stale saves refused, Activity (D-102)                                                | B7    | In review: form, action, database and browser tests pass                         |
+| **B7-F13 Event-Scoped Impact Data**: composite key to the event's budget category; reads through each context's authorized read (D-102)                       | B7    | In review: database tests pass (substituted IDs)                                 |
+| **B7-F14 Impact Authorization**: event.view to preview, impact.assumptions to edit, new impact.record to save; checked in action and storage (D-103)          | B7    | In review: matrix tests pass; 5 of 5 removed checks caught                       |
+| **B7-F15 Impact Validation**: proposal, assumptions and snapshot validated on the server; CHECKs in the database (D-102, D-103)                               | B7    | In review: schema and database tests pass                                        |
+| **B7-F16 Impact Calculation Tests**: rules, boundaries, severities, assumptions, determinism (docs/testing.md)                                                | B7    | In review: all pass                                                              |
+| **B7-F17 Impact Error and Empty States**: invalid number, nothing to analyze, empty history, unavailable, loading, error, refusals (D-104)                    | B7    | In review: page and state tests pass                                             |
+| **B7-F18 Responsive Impact Interface**: one column of cards, 44 px controls, no sideways scroll (D-104)                                                       | B7    | In review: measured in Chromium at 375 and 1280 px on the running app            |
 
 ### Engineering
 

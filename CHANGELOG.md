@@ -9,6 +9,28 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **B7 Impact Detection (B7-F01 to B7-F18; D-101 to D-104).**
+  - A new Impact page: enter a different expected attendance (for example 180 → 220) and see what it
+    would affect: seating against the venue capacity, the catering cost, the budget (whole event and
+    the catering category), accessibility, and open tasks that mention an affected area. Every item
+    has a severity (Critical, Needs attention, Info or Passed, always with an icon and a word), the
+    reason with the numbers compared, the assumptions it used, and whether it is an estimate or from
+    your records. Fixed rules only, never AI; nothing about the event changes.
+  - Assumptions per event: catering cost per head, accessible seats per 100 guests and the catering
+    budget category. None has a default; a rule that needs a missing one says so. Owners and
+    Coordinators edit them; Viewers see them.
+  - Save to history (Owners and Coordinators): a saved analysis gets an ID (IMP-0001), keeps exactly
+    what was shown, can't be edited, and is listed for every member as a simulation. The save runs
+    the analysis again on the server and is refused if the event or the assumptions changed since it
+    was shown.
+  - New permission `impact.record` (Owner, Coordinator). New Activity entries: "Changed the impact
+    assumptions" and "Saved the impact analysis IMP-0001".
+  - Migration `20261020090000_impact` (enum, `events.lastImpactNumber`, two tables, CHECKs, a trigger
+    that clears a deleted catering category, an append-only trigger), written by hand: run
+    `prisma migrate dev` once to confirm there is no drift. Applied to PostgreSQL 16 in testing.
+  - The budget's own over-budget rule and peso helpers are now exported from `budget/public.ts` for
+    reuse; no budget behaviour changed.
+
 - **B6-F03 Task deletion (D-095, proposed).**
   - Owners and Coordinators can delete a task from the list. A confirmation names the task and says
     it can't be undone; Viewers see no Delete button. The list then shows "Task TSK-0004 removed.".
@@ -678,6 +700,9 @@ build` fails if it is set.
 
 ### Fixed
 
+- **Database client.** `src/lib/db.ts` had lost `createPrismaClient`, which 31 database test files
+  import, so the database tests could not run. It is restored, and the shared client again validates
+  `DATABASE_URL` and `DIRECT_URL` with `src/lib/env.server.ts` before connecting.
 - **Batch 2 repository repair.** The checks were red on the Batch 2 snapshot:
   - Restored the Edit attendee page (`/events/<id>/attendees/<attendeeId>/edit`, B2-03, D-044).
     The details page linked to it, but the file was missing; the page test imported the wrong path.

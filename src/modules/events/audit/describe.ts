@@ -6,6 +6,7 @@ import type {
   AuditDetails,
   BudgetItemChanges,
   EventChanges,
+  ImpactAssumptionChanges,
   RequirementChanges,
   ResourceChanges,
   SupplierChanges,
@@ -540,6 +541,19 @@ export function describeAuditEntry(entry: Pick<AuditEntryView, "action" | "detai
     const { reference, title } = entry.details as AuditDetails<"task.deleted">;
     return { summary: `Removed the task ${title} (${reference})`, lines: [] };
   }
+  if (entry.action === "impact_assumptions.updated") {
+    const { changes } = entry.details as AuditDetails<"impact_assumptions.updated">;
+    return { summary: "Changed the impact assumptions", lines: impactAssumptionLines(changes) };
+  }
+  if (entry.action === "impact_analysis.created") {
+    const { reference, from, to, overall } =
+      entry.details as AuditDetails<"impact_analysis.created">;
+    const count = (n: number) => n.toLocaleString("en-US");
+    return {
+      summary: `Saved the impact analysis ${reference}: expected attendees ${count(from)} → ${count(to)}`,
+      lines: [`Overall: ${IMPACT_SEVERITY_AUDIT_LABEL[overall]}`],
+    };
+  }
   if (entry.action === "attendees.exported") {
     const { count } = entry.details as AuditDetails<"attendees.exported">;
     return {
@@ -555,4 +569,34 @@ export function describeAuditEntry(entry: Pick<AuditEntryView, "action" | "detai
     return { summary: `Imported ${people} from a CSV file (${range})`, lines };
   }
   return { summary: "Made a change (details unavailable)", lines: [] };
+}
+/** Impact severities as shown in Activity (D-101). A test keeps it equal to the domain's. */
+export const IMPACT_SEVERITY_AUDIT_LABEL: Record<
+  "CRITICAL" | "NEEDS_ATTENTION" | "INFO" | "PASSED",
+  string
+> = {
+  CRITICAL: "Critical",
+  NEEDS_ATTENTION: "Needs attention",
+  INFO: "Info",
+  PASSED: "Passed",
+};
+
+function impactAssumptionLines(changes: ImpactAssumptionChanges): string[] {
+  const lines: string[] = [];
+  const peso = (v: string | null) => (v === null ? "not set" : formatAuditPeso(v));
+  const ratio = (v: string | null) => (v === null ? "not set" : v.replace(/\.?0+$/, "") || "0");
+  const name = (v: string | null) => (v === null ? "not set" : `“${v}”`);
+  if (changes.cateringCostPerHead) {
+    const c = changes.cateringCostPerHead;
+    lines.push(`Catering cost per head: ${peso(c.from)} → ${peso(c.to)}`);
+  }
+  if (changes.accessibleSeatsPer100) {
+    const c = changes.accessibleSeatsPer100;
+    lines.push(`Accessible seats per 100 guests: ${ratio(c.from)} → ${ratio(c.to)}`);
+  }
+  if (changes.cateringCategory) {
+    const c = changes.cateringCategory;
+    lines.push(`Catering budget category: ${name(c.from)} → ${name(c.to)}`);
+  }
+  return lines;
 }

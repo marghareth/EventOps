@@ -209,3 +209,81 @@ export function storedSupplierMoney(eventId: string, supplierName: string) {
     return { quotes: quotes.rows, payments: payments.rows };
   });
 }
+/**
+ * The Impact flow's starting point (B7, D-101): the brand book's wedding at 180 expected guests in a
+ * 200-seat venue, a catering budget that is nearly used up, 8 accessible seats, and two open tasks,
+ * one of which mentions catering. Written straight to the test database the way the app stores it;
+ * the test's own changes still go through the screens.
+ */
+export function seedImpactScenario(eventId: string): Promise<void> {
+  return withClient(async (client) => {
+    await client.query(
+      `UPDATE events SET capacity = 200, "expectedAttendees" = 180, "updatedAt" = now() WHERE id = $1`,
+      [eventId],
+    );
+    const categories: [string, string, string][] = [
+      ["Catering", "100000.00", "95000.00"],
+      ["Venue", "250000.00", "205000.00"],
+    ];
+    let number = 0;
+    for (const [name, allocation, committed] of categories) {
+      const categoryId = randomUUID();
+      number += 1;
+      await client.query(
+        `INSERT INTO budget_categories (id, "eventId", name, "allocationAmount", "updatedAt")
+         VALUES ($1, $2, $3, $4, now())`,
+        [categoryId, eventId, name, allocation],
+      );
+      await client.query(
+        `INSERT INTO budget_items (id, "eventId", "categoryId", number, name, "estimatedAmount",
+           "committedAmount", "paidAmount", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $6, '0.00', now())`,
+        [randomUUID(), eventId, categoryId, number, `${name} contract`, committed],
+      );
+    }
+    await client.query(`UPDATE events SET "lastBudgetItemNumber" = $2 WHERE id = $1`, [
+      eventId,
+      number,
+    ]);
+    await client.query(
+      `INSERT INTO accessibility_resources (id, "eventId", type, status, quantity, "updatedAt")
+       VALUES ($1, $2, 'ACCESSIBLE_SEATS', 'AVAILABLE', 8, now())`,
+      [randomUUID(), eventId],
+    );
+    const tasks = ["Confirm catering headcount", "Print the programs"];
+    for (const [index, title] of tasks.entries()) {
+      await client.query(
+        `INSERT INTO tasks (id, "eventId", number, title, priority, status, "updatedAt")
+         VALUES ($1, $2, $3, $4, 'MEDIUM', 'NOT_STARTED', now())`,
+        [randomUUID(), eventId, index + 1, title],
+      );
+    }
+    await client.query(`UPDATE events SET "lastTaskNumber" = $2 WHERE id = $1`, [
+      eventId,
+      tasks.length,
+    ]);
+  });
+}
+
+/** The event's stored expected attendees and how many impact analyses it has. */
+export function storedImpactState(eventId: string) {
+  return withClient(async (client) => {
+    const event = await client.query(`SELECT "expectedAttendees" FROM events WHERE id = $1`, [
+      eventId,
+    ]);
+    const analyses = await client.query(
+      `SELECT number, "fromAttendees", "toAttendees", "overallSeverity" FROM impact_analyses
+       WHERE "eventId" = $1 ORDER BY number`,
+      [eventId],
+    );
+    return {
+      expectedAttendees: event.rows[0]?.expectedAttendees as number,
+      analyses: analyses.rows as {
+        number: number;
+        fromAttendees: number;
+        toAttendees: number;
+        overallSeverity: string;
+      }[],
+    };
+  });
+}

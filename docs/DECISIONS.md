@@ -2635,6 +2635,7 @@ PROJECT_RULES says to stop and ask rather than choose.
    `volunteer-coverage` impact rules (empty), and the earlier draft schema had `vehicleCapacity`
    and `attendeesPerVolunteer` assumptions. PROJECT_RULES section 10 says not to build these before
    approval. The brand book's 180 → 220 example includes them.
+   Batch 7 (D-101) built the other five rules and left these two files empty and unregistered.
 3. **Tier 2 scaffolding before Tier 1 acceptance.** Empty volunteers, timeline and event-day pages
    and modules already exist in the repository.
 4. **Plus-ones in the live attendance count.** The earlier draft modelled check-in as a single
@@ -2872,3 +2873,112 @@ row). **Not tested:** the running app inside its sidebar and header (not rendere
 devices, or a screen reader.
 
 **Not yet run:** Playwright on the running app and `prisma migrate dev` for drift.
+
+---
+
+## D-101 Impact Detection: the engine, the change and the rules
+
+**Status:** Approved by the technical lead on 2026-10-20 (B7 plan: "go on" to the recommended options
+1a, 3a, 4a, 5a, 6a, 7 and 9). The per-rule severities are in `docs/impact-rules.md`. **Technical lead:
+please confirm the catering severity** (point 4 below), which the plan did not state.
+
+**Context.** Batch 7 (B7-F01 to B7-F18): "change one thing, see everything it affects". PROJECT_RULES
+section 10 requires deterministic rules that never mutate data, never decide authorization, reuse
+existing calculations and keep simulations apart from facts.
+
+**Decision.**
+
+1. **One kind of change (1a):** expected attendees, from the stored value to a proposed whole number
+   from 0 to 1,000,000. The engine's shape allows other kinds later; each needs approval.
+2. **A pure engine** (`impact/domain/run-impact.ts`) runs a fixed list of rules (`domain/registry.ts`):
+   seating, catering, budget, accessibility, related tasks. Same input, same output, same order. It
+   reads and writes nothing.
+3. **Severity scale:** Critical, Needs attention, Info, Passed; overall = most serious; most serious
+   first, then by area.
+4. **Rules** as in `docs/impact-rules.md`: seating 3a; budget 5a (whole event and the chosen catering
+   category, increase only); accessibility 4a (Batch 3 alerts unchanged plus a ratio estimate);
+   related tasks 6a (fixed word list). **Catering, chosen while building:** an increase is Needs
+   attention, a decrease or ₱0.00 is Info, no cost per head is Info. Critical is left to the budget
+   rule, which knows the limits.
+5. **Reuse through public interfaces (D-001).** The budget rule receives the budget's own
+   `summarizeEventBudget`, `toCentavos`, `fromCentavos` and `formatPesos`; `budget/public.ts` now
+   exports them (and `parsePesos`, so assumptions use the one peso rule). The event state is read
+   through each context's own authorized read: `getEventBudget`, `getAccessibilityOverview`,
+   `getAccessibilityAlerts`, `getEventTasks`. Nothing is recalculated in the impact context.
+6. **Every item explains itself:** a reason with the numbers compared, the assumptions used, Estimate
+   or From your records, the records involved (task IDs) and where to act.
+
+**Not in this decision:** transport and volunteer rules (open item 2 stays open), applying a change
+from the Impact page, Event Health, alerts.
+
+---
+
+## D-102 Impact assumptions
+
+**Status:** Approved by the technical lead on 2026-10-20 (B7 plan, options 2a, 4a and 5a).
+
+**Decision.**
+
+1. **Three optional assumptions per event, none with a default (2a):** catering cost per head
+   (`DECIMAL(12,2)`, 0 or more), accessible seats per 100 guests (`DECIMAL(5,2)`, 0 to 100), catering
+   budget category (a budget category of the same event). A rule that needs a missing value reports
+   Info and guesses nothing.
+2. **Storage:** table `event_impact_assumptions`, one row per event (primary key `eventId`), deleted
+   with the event. No row means nothing is set. CHECKs on both ranges.
+3. **Cross-event safety (D-002):** the category is a composite foreign key
+   `(eventId, cateringCategoryId)` → `budget_categories(eventId, id)`, NO ACTION. The trigger
+   `budget_categories_clear_impact_catering` clears it (and moves `updatedAt`) before a category is
+   deleted, so deleting a category is never blocked and the budget code is not changed. The server
+   also looks the category up inside the event and says "Choose a budget category of this event, or
+   none."
+4. **Editing:** Owners and Coordinators (`impact.assumptions`, already in the matrix). Stale saves
+   are refused (D-032); an unchanged save writes nothing. Viewers see them read-only.
+5. **Seat estimate rounding:** people × ratio ÷ 100, rounded **up** to a whole seat, in integers.
+6. **Audit:** `impact_assumptions.updated`, entity `event`, only the changed values; the category by
+   name.
+
+---
+
+## D-103 Saved impact analyses and the `impact.record` permission
+
+**Status:** Approved by the technical lead on 2026-10-20 (B7 plan, option 8a, including the new
+permission).
+
+**Decision.**
+
+1. **Previewing saves nothing.** "Save to history" stores one analysis as a snapshot: the change,
+   the assumptions as they read then (category by name), the overall severity, the counts and every
+   item as shown. Validated by `impactSnapshotSchema` on write and again on read; a stored snapshot
+   that doesn't fit is left out, never shown half-understood.
+2. **Table `impact_analyses`:** readable ID `IMP-0001` per event from `events.lastImpactNumber`
+   (issued with a role check in the same statement, never reused), `fromAttendees`, `toAttendees`,
+   `overallSeverity` (enum `impact_severity`), `result` JSONB (a CHECK keeps it an object), who saved
+   it (SET NULL if the user is deleted). Append-only by trigger, like the audit log (D-037); removed
+   only with the event.
+3. **The save never trusts the browser.** The action runs the analysis again from stored data. It is
+   refused when the stored expected attendees or the assumptions' version differ from what the user
+   saw ("changed since this analysis ran"), and when there is no change.
+4. **Permission `impact.record`:** Owner and Coordinator. A permission-matrix change, approved with
+   option 8a. Running a preview and reading the history need only `event.view`.
+5. **Display:** newest first, the latest 20, each labelled "Simulation: not a change to the event".
+6. **Audit:** `impact_analysis.created`, with the readable ID, from, to and overall severity.
+
+---
+
+## D-104 The Impact page
+
+**Status:** Approved by the technical lead on 2026-10-20 (B7 plan, slice 3).
+
+**Decision.**
+
+1. **The proposal is in the address** (`/events/<id>/impact?to=220`), submitted by a plain GET form.
+   The analysis is server-rendered, works without JavaScript, survives a reload and can be shared
+   with another member, who sees it under their own permissions.
+2. **Sections:** Try a change; Results (summary, then one card per item, then Save to history for
+   Owners and Coordinators); Assumptions (form, or read-only for Viewers); Saved analyses.
+3. **States:** loading and error screens (no internal details); invalid number as a field error
+   with the typed value kept; "Nothing to analyze"; empty history; "Couldn't analyze this event" when
+   a read fails; notices for saved assumptions, unchanged assumptions and a saved analysis (only known
+   kinds and well-formed `IMP-` references from the address).
+4. **Layout:** one column of cards at every width, 44 px controls, no sideways scroll (checked in
+   Chromium at 375 and 1280 px).

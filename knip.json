@@ -1,3 +1,4 @@
+
 {
   "entry": ["vitest.server-only-stub.ts", "src/**/*.db.test.ts", "e2e/lifecycle/*.ts"],
   "ignoreExportsUsedInFile": true,
@@ -15,7 +16,11 @@
     "src/modules/events/budget/**",
     "src/modules/events/checkin/**",
     "src/modules/events/health/**",
-    "src/modules/events/impact/**",
+    "src/modules/events/impact/domain/rules/transport-capacity.ts",
+    "src/modules/events/impact/domain/rules/volunteer-coverage.ts",
+    "src/modules/events/impact/application/apply-change.ts",
+    "src/modules/events/impact/application/list-recent-impacts.ts",
+    "src/modules/events/impact/application/update-assumptions.ts",
     "src/modules/events/import/**",
     "src/modules/events/members/actions.ts",
     "src/modules/events/members/queries.ts",

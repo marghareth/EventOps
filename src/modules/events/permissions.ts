@@ -46,6 +46,11 @@ const MATRIX = {
   "tasks.manage": ["OWNER", "COORDINATOR"],
   /** Edit impact assumptions such as cost per head. */
   "impact.assumptions": ["OWNER", "COORDINATOR"],
+  /**
+   * Save an impact analysis to the event's history (B7-F11, D-103, approved 2026-10-20). Running a
+   * preview needs only event.view; saving writes a record, so Viewers can't.
+   */
+  "impact.record": ["OWNER", "COORDINATOR"],
   /** See the activity log, including before and after values. */
   "audit.view": ["OWNER", "COORDINATOR"],
 } as const satisfies Record<string, readonly MemberRole[]>;

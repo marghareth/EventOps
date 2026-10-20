@@ -1,9 +1,10 @@
-<!-- docs/PERMISSIONS.md -->
+<!-- docs/permissions.md -->
 
 # Event permissions
 
 The approved permission matrix for roles inside an event (D-035, approved by the technical lead on
-2026-10-12; `accessibility.private` added by D-058 on 2026-10-13). The code in `src/modules/events/permissions.ts` must match this table exactly;
+2026-10-12; `accessibility.private` added by D-058 on 2026-10-13; `impact.record` added by D-103 on
+2026-10-20). The code in `src/modules/events/permissions.ts` must match this table exactly;
 `src/modules/events/permissions.test.ts` fails if they differ. Change both together, and only with
 the technical lead's approval.
 
@@ -38,6 +39,7 @@ least one Owner (D-022).
 | `budget.manage`         | Budget categories, items and allocations                    | Yes   | Yes         | No     |
 | `tasks.manage`          | Create, assign and complete tasks                       | Yes   | Yes         | No     |
 | `impact.assumptions`    | Edit impact assumptions such as cost per head           | Yes   | Yes         | No     |
+| `impact.record`         | Save an impact analysis to the event's history          | Yes   | Yes         | No     |
 | `audit.view`            | See the activity log, including before and after values | Yes   | Yes         | No     |
 
 ## How it is enforced
@@ -72,6 +74,8 @@ Each row's action and database tests are written when its feature is built.
 | `accessibility.manage`  | B3-03, B3-05   | `accessibility/authorization.db.test.ts` (real actions)       | `accessibility/requirements.db.test.ts`, `accessibility/resources.db.test.ts`                    |
 | `accessibility.private` | B3-03          | `accessibility/authorization.db.test.ts` (reads)              | `accessibility/requirements.db.test.ts`                                                          |
 | `suppliers.manage`      | B4-03 to B4-22 | `suppliers/authorization.db.test.ts` (real actions and reads) | `suppliers/suppliers.db.test.ts`, `suppliers/quotes.db.test.ts`, `suppliers/payments.db.test.ts` |
+| `impact.assumptions`    | B7-F12         | `impact/actions.test.ts`, `impact/impact.db.test.ts` (real actions) | `impact/impact.db.test.ts` |
+| `impact.record`         | B7-F11         | `impact/actions.test.ts`, `impact/impact.db.test.ts` (real actions) | `impact/impact.db.test.ts` (role re-checked in the numbering statement) |
 
 End to end, through the real server actions, API route and database: `authorization.db.test.ts`
 (B1-09) covers the required security matrix, cross-event access and role escalation attempts.
